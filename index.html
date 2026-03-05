@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pontnova | 顶尖中欧知识产权战略架构</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans:['Inter', 'PingFang SC', 'Microsoft YaHei', 'sans-serif'],
+                        display:['Space Grotesk', 'PingFang SC', 'Microsoft YaHei', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            dark: '#050505',
+                            accent: '#C4A47C', // 哑光金 - 象征权威
+                            light: '#F5F5F5'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Iconify -->
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+
+    <!-- GSAP & Lenis -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/studio-freight/lenis@1.0.29/bundled/lenis.min.js"></script>
+
+    <style>
+        /* Base Reset & Custom Cursor */
+        body, html {
+            margin: 0;
+            padding: 0;
+            background-color: #050505;
+            color: #F5F5F5;
+            overflow-x: hidden;
+            cursor: none;
+        }
+
+        ::selection { background-color: #C4A47C; color: #050505; }
+
+        /* Cinematic Noise Overlay */
+        .noise-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none; z-index: 9998; opacity: 0.04;
+            background: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)"/%3E%3C/svg%3E');
+        }
+
+        /* Custom Cursor */
+        .cursor-dot {
+            position: fixed; top: 0; left: 0; width: 12px; height: 12px;
+            background-color: white; border-radius: 50%;
+            pointer-events: none; z-index: 9999; mix-blend-mode: difference;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s cubic-bezier(0.19, 1, 0.22, 1), height 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+        .cursor-dot.hover { width: 60px; height: 60px; }
+
+        /* WebGL Background Canvas */
+        #webgl-canvas {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 0; pointer-events: none; opacity: 0.6;
+        }
+
+        /* Glassmorphism */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Physics Velocity Skew Class */
+        .velocity-skew { will-change: transform; transform-origin: center center; }
+        ::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="antialiased font-sans">
+
+    <!-- Global Cinematic Elements -->
+    <div class="noise-overlay"></div>
+    <div class="cursor-dot" id="cursor"></div>
+    <canvas id="webgl-canvas"></canvas>
+
+    <!-- Main Wrapper for Smooth Scroll -->
+    <div id="smooth-wrapper" class="relative z-10">
+        <div id="smooth-content">
+
+            <!-- Navigation -->
+            <nav class="fixed top-0 w-full z-50 px-6 py-6 mix-blend-difference flex justify-between items-center text-white">
+                <div class="font-display font-bold text-2xl tracking-tight hover-trigger cursor-pointer">
+                    PONTNOVA<span class="text-brand-accent">.</span>
+                </div>
+                <div class="hidden md:flex gap-8 text-sm tracking-widest font-medium">
+                    <a href="#expertise" class="hover-trigger relative group">保护架构
+                        <span class="absolute -bottom-1 left-0 w-0 h-[1px] bg-white transition-all duration-300 group-hover:w-full"></span>
+                    </a>
+                    <a href="#advantages" class="hover-trigger relative group">核心优势
+                        <span class="absolute -bottom-1 left-0 w-0 h-[1px] bg-white transition-all duration-300 group-hover:w-full"></span>
+                    </a>
+                    <a href="#services" class="hover-trigger relative group">解决方案
+                        <span class="absolute -bottom-1 left-0 w-0 h-[1px] bg-white transition-all duration-300 group-hover:w-full"></span>
+                    </a>
+                </div>
+                <button class="hover-trigger glass-panel px-6 py-3 rounded-full text-sm font-medium tracking-wide border border-white/20 hover:bg-white hover:text-black transition-colors duration-300">
+                    免费咨询
+                </button>
+            </nav>
+
+            <!-- 1. Hero Section -->
+            <section class="relative h-screen flex flex-col justify-center items-center text-center px-4 pt-20 overflow-hidden">
+                <div class="absolute inset-0 z-[-1] pointer-events-none">
+                    <img src="https://images.unsplash.com/photo-1431274172761-fca41d930114?q=80&w=2500&auto=format&fit=crop" 
+                         class="w-full h-[120%] object-cover opacity-30 mix-blend-luminosity gsap-hero-bg" 
+                         style="filter: grayscale(50%) contrast(1.2);"
+                         alt="Paris Eiffel Tower Architecture">
+                    <div class="absolute inset-0 bg-gradient-to-b from-[#050505]/40 via-[#050505]/60 to-[#050505]"></div>
+                </div>
+
+                <div class="relative z-10 velocity-skew max-w-5xl mx-auto">
+                    <p class="gsap-reveal text-brand-accent tracking-[0.2em] text-sm md:text-base mb-6 uppercase font-medium">立足巴黎 · 辐射全欧</p>
+                    <h1 class="gsap-reveal font-display text-4xl md:text-7xl font-bold tracking-tight leading-tight md:leading-snug mb-8">
+                        守护您的<br>
+                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500 italic font-light">欧洲商业愿景</span>
+                    </h1>
+                    <p class="gsap-reveal text-gray-300 text-base md:text-xl max-w-3xl mx-auto font-light leading-relaxed">
+                        总部位于法国巴黎，Pontnova 为进军欧洲的中国企业打造无懈可击的护城河，提供从精准申请、强力保护到商业运用的全链条知识产权战略架构。
+                    </p>
+                </div>
+                
+                <div class="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-50 z-10">
+                    <span class="text-[10px] tracking-widest uppercase text-white">向下滚动探索</span>
+                    <div class="w-[1px] h-12 bg-gradient-to-b from-white to-transparent"></div>
+                </div>
+            </section>
+
+            <!-- 2. Visual Showcase: Parallax Grid -->
+            <section id="expertise" class="relative bg-brand-dark overflow-hidden z-20">
+                
+                <!-- ！！！极致优化：独占一屏的章节大标题 ！！！ -->
+                <!-- 加入 h-screen 确保当标题居中时，下方元素绝对在视口之外 -->
+                <div class="w-full h-screen flex flex-col justify-center items-center text-center px-6 relative velocity-skew">
+                    <h2 class="font-display text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight text-white leading-tight mb-8">
+                        全球知识产权<br class="md:hidden">保护架构
+                    </h2>
+                    <p class="text-gray-400 font-light text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
+                        以严密的逻辑与专业的执行，我们将复杂的跨国知识产权链路，梳理为清晰可见的三重护城河。
+                    </p>
+                    <!-- 向下的渐变引导线，增加电影感 -->
+                    <div class="absolute bottom-20 left-1/2 -translate-x-1/2 w-[1px] h-24 bg-gradient-to-b from-brand-accent/80 to-transparent"></div>
+                </div>
+
+                <!-- 4列独立滚动网格：放置在完整一屏高度之后 -->
+                <div class="max-w-[1600px] mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-8 relative z-10 pb-40">
+                    
+                    <!-- Col 1 -->
+                    <div class="flex flex-col gap-6 md:gap-8 stagger-col" data-speed="1.2">
+                        <div class="glass-panel p-6 md:p-8 rounded-[2rem] velocity-skew border-t-4 border-t-brand-accent shadow-2xl">
+                            <h3 class="font-display text-xl md:text-2xl mb-4 text-white font-bold whitespace-nowrap">01. 申请布局</h3>
+                            <p class="text-sm text-gray-400 leading-relaxed">精确的欧洲专利与商标布局，确保首战即胜，为您构建稳固的无形资产壁垒。</p>
+                        </div>
+                        <img src="https://images.unsplash.com/photo-1503694978374-8a2fa686963a?q=80&w=800&auto=format&fit=crop" class="w-full h-[300px] md:h-[400px] object-cover rounded-[2rem] velocity-skew filter grayscale-[80%] hover:grayscale-0 transition-all duration-700" alt="Innovation Blueprint">
+                        <img src="https://images.unsplash.com/photo-1589829085413-56de8ae18c73?q=80&w=800&auto=format&fit=crop" class="w-full h-[250px] md:h-[300px] object-cover rounded-[2rem] velocity-skew filter grayscale-[80%] hover:grayscale-0 transition-all duration-700" alt="Legal Documents">
+                    </div>
+                    
+                    <!-- Col 2: 延迟错位 -->
+                    <div class="flex flex-col gap-6 md:gap-8 stagger-col mt-0 md:mt-32" data-speed="0.8">
+                        <img src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=800&auto=format&fit=crop" class="w-full h-[250px] md:h-[350px] object-cover rounded-[2rem] velocity-skew filter grayscale-[80%] hover:grayscale-0 transition-all duration-700" alt="Cyber Security">
+                        <div class="glass-panel p-6 md:p-8 rounded-[2rem] velocity-skew border-t-4 border-t-brand-accent shadow-2xl">
+                            <h3 class="font-display text-xl md:text-2xl mb-4 text-white font-bold whitespace-nowrap">02. 维权保护</h3>
+                            <p class="text-sm text-gray-400 leading-relaxed">强硬捍卫您的智慧资产，从行政维权到法院诉讼，全天候打造火力防护网。</p>
+                        </div>
+                        <img src="https://images.unsplash.com/photo-1556761175-5973dc0f32b7?q=80&w=800&auto=format&fit=crop" class="w-full h-[300px] md:h-[450px] object-cover rounded-[2rem] velocity-skew filter grayscale-[80%] hover:grayscale-0 transition-all duration-700" alt="Business Agreement">
+                    </div>
+
+                    <!-- Col 3: 快速错位 (高级商业战略会议照片) -->
+                    <div class="flex flex-col gap-6 md:gap-8 stagger-col mt-0 md:mt-16" data-speed="1.5">
+                        <img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=800&auto=format&fit=crop" class="w-full h-[300px] md:h-[400px] object-cover rounded-[2rem] velocity-skew filter grayscale-[80%] hover:grayscale-0 transition-all duration-700" alt="Global Network">
+                        <div class="glass-panel p-6 md:p-8 rounded-[2rem] velocity-skew border-t-4 border-t-brand-accent shadow-2xl">
+                            <h3 class="font-display text-xl md:text-2xl mb-4 text-white font-bold whitespace-nowrap">03. 商业运用</h3>
+                            <p class="text-sm text-gray-400 leading-relaxed">不仅仅是保护，更是转化。将无形资产变为实质利润，赋能全球化并购与技术授权。</p>
+                        </div>
+                        <img src="https://images.unsplash.com/photo-1542744173-8e7e53415bb0?q=80&w=800&auto=format&fit=crop" class="w-full h-[250px] md:h-[300px] object-cover rounded-[2rem] velocity-skew filter grayscale-[80%] hover:grayscale-0 transition-all duration-700" alt="Commercial Strategy Meeting">
+                    </div>
+
+                    <!-- Col 4: 缓慢错位 -->
+                    <div class="flex flex-col gap-6 md:gap-8 stagger-col mt-0 md:mt-48" data-speed="0.6">
+                        <div class="glass-panel p-6 md:p-8 rounded-[2rem] velocity-skew flex items-center justify-center h-[150px] md:h-[200px] border border-white/5">
+                            <iconify-icon icon="solar:shield-check-bold-duotone" width="80" class="text-brand-accent"></iconify-icon>
+                        </div>
+                        <img src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=800&auto=format&fit=crop" class="w-full h-[300px] md:h-[450px] object-cover rounded-[2rem] velocity-skew filter grayscale-[80%] hover:grayscale-0 transition-all duration-700" alt="European Headquarters">
+                        <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=800&auto=format&fit=crop" class="w-full h-[200px] md:h-[250px] object-cover rounded-[2rem] velocity-skew filter grayscale-[80%] hover:grayscale-0 transition-all duration-700" alt="Business Data">
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- 3. Content Details (Bento Grid) -->
+            <section id="advantages" class="relative py-24 md:py-32 px-6 md:px-20 z-20 bg-[#020202]">
+                <div class="max-w-7xl mx-auto">
+                    
+                    <div class="mb-20 velocity-skew">
+                        <p class="text-brand-accent tracking-[0.2em] text-sm md:text-base mb-4 uppercase font-bold">Strategic Advantages</p>
+                        <h2 class="font-display text-4xl md:text-6xl font-bold tracking-tight leading-tight md:leading-snug">
+                            跨越文化与法律壁垒，<br>
+                            构建<span class="text-transparent bg-clip-text bg-gradient-to-r from-gray-400 to-white italic">不可逾越的护城河</span>。
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-6 velocity-skew">
+                        <!-- Box 1: Paris HQ -->
+                        <div class="col-span-1 md:col-span-8 glass-panel rounded-[2rem] p-10 relative overflow-hidden group min-h-[400px] flex flex-col justify-end border border-white/10">
+                            <img src="https://images.unsplash.com/photo-1499856871958-5b9627545d1a?q=80&w=1600&auto=format&fit=crop" 
+                                 class="absolute inset-0 w-full h-full object-cover opacity-30 group-hover:scale-105 group-hover:opacity-50 transition-all duration-700" 
+                                 alt="Paris Business District">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                            <div class="relative z-10">
+                                <div class="w-12 h-12 bg-brand-accent rounded-full flex items-center justify-center mb-6">
+                                    <iconify-icon icon="solar:city-bold-duotone" width="24" class="text-black"></iconify-icon>
+                                </div>
+                                <h3 class="font-display text-3xl font-bold mb-4">巴黎总部，欧洲主场</h3>
+                                <p class="text-gray-300 text-sm md:text-base leading-relaxed max-w-2xl">
+                                    依托法国巴黎这一全球商业与法律核心枢纽，Pontnova 拥有得天独厚的本土资源网络。我们直接对接欧洲相关知识产权局，为您的出海战略提供最高级别的安全背书。
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Box 2 -->
+                        <div class="col-span-1 md:col-span-4 glass-panel rounded-[2rem] p-10 hover-trigger group hover:bg-white/5 transition-colors border border-white/10">
+                            <iconify-icon icon="solar:hand-shake-bold-duotone" width="56" class="text-brand-accent mb-6 group-hover:scale-110 transition-transform"></iconify-icon>
+                            <h3 class="font-display text-2xl font-bold mb-4">零损耗中欧桥梁</h3>
+                            <p class="text-gray-400 text-sm leading-relaxed">
+                                由资深中法双语律师及技术专家组成。我们深刻理解中国企业文化，消除语言、时差与文化壁垒，确保核心技术被100%精准传达。
+                            </p>
+                        </div>
+
+                        <!-- Box 3 -->
+                        <div class="col-span-1 md:col-span-4 glass-panel rounded-[2rem] p-10 hover-trigger group hover:bg-white/5 transition-colors border border-white/10">
+                            <iconify-icon icon="solar:target-bold-duotone" width="56" class="text-brand-accent mb-6 group-hover:scale-110 transition-transform"></iconify-icon>
+                            <h3 class="font-display text-2xl font-bold mb-4">商业导向型维权</h3>
+                            <p class="text-gray-400 text-sm leading-relaxed">
+                                保护不仅是防守。我们善于利用统一专利法院 (UPC) 等欧洲机制，将诉讼转为您的市场谈判筹码，实现商业利益最大化。
+                            </p>
+                        </div>
+
+                        <!-- Box 4 -->
+                        <div class="col-span-1 md:col-span-8 glass-panel rounded-[2rem] overflow-hidden relative min-h-[300px] group border border-white/10">
+                            <img src="https://images.unsplash.com/photo-1573164713988-8665fc963095?q=80&w=1600&auto=format&fit=crop" 
+                                 class="absolute inset-0 w-full h-full object-cover opacity-50 filter grayscale group-hover:grayscale-0 transition-all duration-700" 
+                                 alt="Expert Consultation">
+                            <div class="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-colors duration-700"></div>
+                            <div class="absolute bottom-10 left-10 z-10">
+                                <h3 class="font-display text-2xl font-bold text-white shadow-sm">全球化视野 · 本土化执行</h3>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. Services Section -->
+            <section id="services" class="relative py-32 px-6 md:px-20 border-t border-white/10">
+                <div class="max-w-7xl mx-auto">
+                    <div class="flex flex-col md:flex-row justify-between items-end mb-20 gap-8 md:gap-0">
+                        <h2 class="font-display text-4xl md:text-5xl font-bold tracking-tight w-full md:w-1/2 leading-tight md:leading-snug">全生命周期<br>知识产权生态系统</h2>
+                        <p class="text-gray-400 w-full md:w-1/3 font-light leading-relaxed">我们将策略贯穿于企业出海的每一环节，为您量身定制全链条的实战型解决方案。</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="glass-panel p-10 rounded-[2rem] hover-trigger group hover:bg-white/10 transition-colors duration-500 velocity-skew">
+                            <iconify-icon icon="solar:pen-new-round-bold-duotone" width="48" class="text-brand-accent mb-6 group-hover:scale-110 transition-transform"></iconify-icon>
+                            <h3 class="font-display text-2xl font-bold mb-4">申请布局</h3>
+                            <p class="text-gray-400 text-sm leading-relaxed">主理欧洲专利 (EPC)、欧盟商标 (EUTM) 及外观设计。深研欧洲审查机制，避开雷区，为您扫除进入壁垒。</p>
+                        </div>
+                        <div class="glass-panel p-10 rounded-[2rem] hover-trigger group hover:bg-white/10 transition-colors duration-500 velocity-skew">
+                            <iconify-icon icon="solar:lock-keyhole-bold-duotone" width="48" class="text-brand-accent mb-6 group-hover:scale-110 transition-transform"></iconify-icon>
+                            <h3 class="font-display text-2xl font-bold mb-4">维权保护</h3>
+                            <p class="text-gray-400 text-sm leading-relaxed">代理统一专利法院 (UPC) 诉讼、海关备案与侵权打击。打造全天候的火力防护网，确保您的核心技术不受侵犯。</p>
+                        </div>
+                        <div class="glass-panel p-10 rounded-[2rem] hover-trigger group hover:bg-white/10 transition-colors duration-500 velocity-skew">
+                            <iconify-icon icon="solar:chart-square-bold-duotone" width="48" class="text-brand-accent mb-6 group-hover:scale-110 transition-transform"></iconify-icon>
+                            <h3 class="font-display text-2xl font-bold mb-4">商业运用</h3>
+                            <p class="text-gray-400 text-sm leading-relaxed">指导技术许可、IP 尽职调查与技术转移。将知识产权转化为可量化的商业价值，赋能企业并购。</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Partners Marquee -->
+            <section class="py-20 overflow-hidden border-y border-white/5 bg-brand-dark">
+                <p class="text-center text-xs text-gray-500 tracking-[0.2em] uppercase mb-10">赋能顶尖出海品牌</p>
+                <div class="flex whitespace-nowrap opacity-50">
+                    <div class="marquee-content flex gap-20 items-center px-10">
+                        <iconify-icon icon="simple-icons:huawei" width="60"></iconify-icon>
+                        <iconify-icon icon="simple-icons:xiaomi" width="60"></iconify-icon>
+                        <iconify-icon icon="simple-icons:byd" width="60"></iconify-icon>
+                        <iconify-icon icon="simple-icons:alibaba" width="60"></iconify-icon>
+                        <iconify-icon icon="simple-icons:tencent" width="60"></iconify-icon>
+                        <iconify-icon icon="simple-icons:nio" width="60"></iconify-icon>
+                    </div>
+                    <div class="marquee-content flex gap-20 items-center px-10">
+                        <iconify-icon icon="simple-icons:huawei" width="60"></iconify-icon>
+                        <iconify-icon icon="simple-icons:xiaomi" width="60"></iconify-icon>
+                        <iconify-icon icon="simple-icons:byd" width="60"></iconify-icon>
+                        <iconify-icon icon="simple-icons:alibaba" width="60"></iconify-icon>
+                        <iconify-icon icon="simple-icons:tencent" width="60"></iconify-icon>
+                        <iconify-icon icon="simple-icons:nio" width="60"></iconify-icon>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Footer & Big CTA -->
+            <footer class="relative min-h-[80vh] flex flex-col justify-end px-6 md:px-20 pb-10 overflow-hidden">
+                <div class="absolute inset-0 z-0 opacity-20">
+                    <img src="https://images.unsplash.com/photo-1523292562811-8fa7962a78c8?q=80&w=2000&auto=format&fit=crop" class="w-full h-full object-cover" alt="European Business Vibe">
+                </div>
+                
+                <div class="relative z-10 w-full flex flex-col items-center text-center mb-20 velocity-skew">
+                    <h2 class="font-display text-5xl md:text-8xl font-bold tracking-tight mb-8 hover-trigger leading-tight md:leading-snug">
+                        主导<br><span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent to-white">欧洲市场</span>
+                    </h2>
+                    <button class="hover-trigger bg-white text-black px-10 py-5 rounded-full font-display font-bold tracking-widest text-sm md:text-base hover:scale-105 transition-transform duration-300">
+                        立即对接巴黎团队
+                    </button>
+                </div>
+
+                <div class="relative z-10 w-full flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 border-t border-white/20 pt-8 tracking-widest">
+                    <p>&copy; 2026 Pontnova. 保留所有权利。</p>
+                    <div class="flex gap-6 mt-4 md:mt-0">
+                        <a href="#" class="hover:text-white transition-colors hover-trigger">隐私政策</a>
+                        <a href="#" class="hover:text-white transition-colors hover-trigger">服务条款</a>
+                        <a href="#" class="hover:text-white transition-colors hover-trigger">领英</a>
+                    </div>
+                </div>
+            </footer>
+
+        </div>
+    </div>
+
+    <!-- WebGL Background Shader Script -->
+    <script id="vertexShader" type="x-shader/x-vertex">
+        attribute vec2 position;
+        void main() { gl_Position = vec4(position, 0.0, 1.0); }
+    </script>
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        precision mediump float;
+        uniform vec2 u_resolution;
+        uniform float u_time;
+
+        vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
+        float snoise(vec2 v) {
+            const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+            vec2 i  = floor(v + dot(v, C.yy) );
+            vec2 x0 = v -   i + dot(i, C.xx);
+            vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+            vec4 x12 = x0.xyxy + C.xxzz; x12.xy -= i1; i = mod289(i);
+            vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 )) + i.x + vec3(0.0, i1.x, 1.0 ));
+            vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+            m = m*m; m = m*m;
+            vec3 x = 2.0 * fract(p * C.www) - 1.0; vec3 h = abs(x) - 0.5; vec3 ox = floor(x + 0.5);
+            vec3 a0 = x - ox; m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+            vec3 g; g.x  = a0.x  * x0.x  + h.x  * x0.y; g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+            return 130.0 * dot(m, g);
+        }
+
+        void main() {
+            vec2 st = gl_FragCoord.xy / u_resolution.xy;
+            st.x *= u_resolution.x / u_resolution.y;
+
+            float noise1 = snoise(st * 2.0 + u_time * 0.1);
+            float noise2 = snoise(st * 1.5 - u_time * 0.15 + noise1);
+            float finalNoise = snoise(st * 3.0 + noise2 * 0.5);
+
+            vec3 color1 = vec3(0.02, 0.02, 0.02);
+            vec3 color2 = vec3(0.08, 0.08, 0.09);
+            vec3 accent = vec3(0.15, 0.12, 0.08);
+
+            vec3 bg = mix(color1, color2, finalNoise * 0.5 + 0.5);
+            bg = mix(bg, accent, smoothstep(0.4, 0.8, noise1) * 0.1);
+
+            gl_FragColor = vec4(bg, 1.0);
+        }
+    </script>
+
+    <!-- Main Logic -->
+    <script>
+        // 1. WebGL Logic
+        const canvas = document.getElementById('webgl-canvas');
+        const gl = canvas.getContext('webgl');
+        if (gl) {
+            const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; gl.viewport(0, 0, canvas.width, canvas.height); };
+            window.addEventListener('resize', resize); resize();
+
+            const createShader = (type, source) => { const s = gl.createShader(type); gl.shaderSource(s, source); gl.compileShader(s); return s; };
+            const vs = createShader(gl.VERTEX_SHADER, document.getElementById('vertexShader').innerText);
+            const fs = createShader(gl.FRAGMENT_SHADER, document.getElementById('fragmentShader').innerText);
+            const program = gl.createProgram(); gl.attachShader(program, vs); gl.attachShader(program, fs); gl.linkProgram(program); gl.useProgram(program);
+
+            const buffer = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+            const posLoc = gl.getAttribLocation(program, 'position'); gl.enableVertexAttribArray(posLoc); gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+            const resLoc = gl.getUniformLocation(program, 'u_resolution'); const timeLoc = gl.getUniformLocation(program, 'u_time');
+
+            const render = (time) => { gl.uniform2f(resLoc, canvas.width, canvas.height); gl.uniform1f(timeLoc, time * 0.001); gl.drawArrays(gl.TRIANGLES, 0, 6); requestAnimationFrame(render); };
+            requestAnimationFrame(render);
+        }
+
+        // 2. Lenis Smooth Scroll Setup
+        const lenis = new Lenis({ duration: 1.2, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), smooth: true });
+
+        // 3. Motion Blur / Velocity Skew Physics
+        const skewElements = document.querySelectorAll('.velocity-skew');
+        lenis.on('scroll', (e) => {
+            const skewAmount = Math.max(-4, Math.min(4, e.velocity * 0.1)); 
+            skewElements.forEach(el => el.style.transform = `skewY(${skewAmount}deg)`);
+        });
+        function raf(time) { lenis.raf(time); requestAnimationFrame(raf); } requestAnimationFrame(raf);
+
+        // 4. GSAP ScrollTrigger Setups
+        gsap.registerPlugin(ScrollTrigger);
+
+        // Hero Image Parallax
+        gsap.to(".gsap-hero-bg", { yPercent: 30, ease: "none", scrollTrigger: { trigger: "body", start: "top top", end: "100vh top", scrub: true }});
+        gsap.from(".gsap-reveal", { y: 50, opacity: 0, duration: 1.5, stagger: 0.2, ease: "power4.out", delay: 0.2 });
+
+        // True Parallax Staggered Grid (NO EMPTY SPACE)
+        const isDesktop = window.innerWidth >= 768;
+        if(isDesktop) {
+            gsap.utils.toArray('.stagger-col').forEach(col => {
+                const speed = col.getAttribute('data-speed');
+                gsap.to(col, {
+                    y: () => -150 * speed,
+                    ease: "none",
+                    scrollTrigger: {
+                        trigger: "#expertise",
+                        start: "top bottom",
+                        end: "bottom top",
+                        scrub: true
+                    }
+                });
+            });
+        }
+
+        // Marquee
+        gsap.to(".marquee-content", { xPercent: -100, repeat: -1, duration: 20, ease: "linear" });
+
+        // 5. Custom Cursor
+        const cursor = document.getElementById('cursor');
+        window.addEventListener('mousemove', (e) => { cursor.style.left = e.clientX + 'px'; cursor.style.top = e.clientY + 'px'; });
+        document.querySelectorAll('.hover-trigger').forEach(trigger => {
+            trigger.addEventListener('mouseenter', () => cursor.classList.add('hover'));
+            trigger.addEventListener('mouseleave', () => cursor.classList.remove('hover'));
+        });
+    </script>
+</body>
+</html>
