@@ -262,12 +262,16 @@
                 duration_hours: quarterHours
             };
 
-            const { error } = await supabaseClient.from('pontnova_workload_records').insert([record]);
-            if (!error) { 
-                history.unshift(record); 
+            const { data, error } = await supabaseClient.from('pontnova_workload_records').insert([record]).select();
+            if (!error && data && data.length > 0) { 
+                history.unshift(data[0]); 
                 document.getElementById('case-number').value = "";
                 document.getElementById('work-content').value = "";
-                updateUI(); 
+                updateUI();
+                alert('✅ 保存成功！');
+            } else {
+                alert('❌ 保存失败：' + (error ? error.message : '未知错误'));
+                console.error('Save error:', error);
             }
             
             elapsedTime = 0; 
