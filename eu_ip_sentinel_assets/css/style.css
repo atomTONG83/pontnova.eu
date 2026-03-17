@@ -8035,3 +8035,160 @@ html[data-theme="dark"] .briefing-report-meta,
 html[data-theme="dark"] .briefing-report-detail-shell {
   border-top-color: rgba(196, 164, 124, 0.12) !important;
 }
+
+
+/* ─── Pontnova Global Sep/Topic Sweep ──────────────────── */
+html[data-theme="dark"] .topic-brief-card,
+html[data-theme="dark"] .topic-brief-block,
+html[data-theme="dark"] .topic-brief-tier,
+html[data-theme="dark"] .focus-mode-shell,
+html[data-theme="dark"] .focus-mode-stat,
+html[data-theme="dark"] .focus-mode-ai-bridge,
+html[data-theme="dark"] .sep-ai-analysis-block,
+html[data-theme="dark"] .sep-ai-analysis-highlight,
+html[data-theme="dark"] .sep-ai-insight-shell,
+html[data-theme="dark"] .sep-ai-insight-card,
+html[data-theme="dark"] .sep-ai-snapshot-card,
+html[data-theme="dark"] .sep-ai-mix-card,
+html[data-theme="dark"] .sep-ai-rank-item,
+html[data-theme="dark"] .sep-ai-month,
+html[data-theme="dark"] .sep-ai-judgment-block,
+html[data-theme="dark"] .sep-company-card,
+html[data-theme="dark"] .sep-company-latest-card,
+html[data-theme="dark"] .sep-company-snapshot,
+html[data-theme="dark"] .sep-company-snapshot-card,
+html[data-theme="dark"] .sep-company-node-group,
+html[data-theme="dark"] .sep-company-node,
+html[data-theme="dark"] .sep-company-node-details,
+html[data-theme="dark"] .sep-company-node-extra,
+html[data-theme="dark"] .sep-company-action,
+html[data-theme="dark"] .sep-company-breakdown,
+html[data-theme="dark"] .sep-company-conclusion-row,
+html[data-theme="dark"] .sep-company-latest-row,
+html[data-theme="dark"] .sep-company-mini-timeline-item,
+html[data-theme="dark"] .about-output-card,
+html[data-theme="dark"] .source-card,
+html[data-theme="dark"] .stats-card,
+html[data-theme="dark"] .today-published-block,
+html[data-theme="dark"] .news-card-point-block,
+html[data-theme="dark"] .intel-block {
+  background: linear-gradient(180deg, rgba(16, 16, 16, 0.98), rgba(11, 11, 11, 0.96)) !important;
+  border-color: rgba(196, 164, 124, 0.14) !important;
+  box-shadow: 0 18px 42px rgba(0,0,0,0.30) !important;
+}
+
+html[data-theme="dark"] .sep-ai-summary,
+html[data-theme="dark"] .sep-company-map-desc,
+html[data-theme="dark"] .sep-ai-insight-copy p,
+html[data-theme="dark"] .sep-ai-insight-copy span,
+html[data-theme="dark"] .sep-ai-snapshot-card span,
+html[data-theme="dark"] .sep-ai-snapshot-card em,
+html[data-theme="dark"] .sep-ai-mix-head span,
+html[data-theme="dark"] .sep-ai-rank-meta span,
+html[data-theme="dark"] .sep-ai-trend-meta,
+html[data-theme="dark"] .sep-ai-rank-item em,
+html[data-theme="dark"] .sep-company-count,
+html[data-theme="dark"] .sep-company-risk-label,
+html[data-theme="dark"] .sep-company-trend-meta,
+html[data-theme="dark"] .sep-company-meta-chip,
+html[data-theme="dark"] .sep-company-meta-chip em,
+html[data-theme="dark"] .sep-company-latest-meta,
+html[data-theme="dark"] .sep-company-mini-timeline-meta,
+html[data-theme="dark"] .sep-company-conclusion,
+html[data-theme="dark"] .topic-brief-micro,
+html[data-theme="dark"] .topic-brief-summary,
+html[data-theme="dark"] .topic-brief-subtitle,
+html[data-theme="dark"] .focus-mode-desc,
+html[data-theme="dark"] .focus-mode-ai-bridge-desc,
+html[data-theme="dark"] .focus-mode-stat span,
+html[data-theme="dark"] .stats-card-label,
+html[data-theme="dark"] .source-card-desc {
+  color: #cdbca0 !important;
+}
+
+html[data-theme="dark"] .sep-ai-insight-top strong,
+html[data-theme="dark"] .sep-ai-snapshot-card strong,
+html[data-theme="dark"] .sep-ai-mix-head strong,
+html[data-theme="dark"] .sep-ai-rank-meta strong,
+html[data-theme="dark"] .sep-company-name,
+html[data-theme="dark"] .sep-company-snapshot-card strong,
+html[data-theme="dark"] .sep-company-node-title,
+html[data-theme="dark"] .topic-brief-title,
+html[data-theme="dark"] .focus-mode-title,
+html[data-theme="dark"] .focus-mode-ai-bridge-title,
+html[data-theme="dark"] .source-card-title,
+html[data-theme="dark"] .stats-card-value {
+  color: #f4ede1 !important;
+}
+
+html[data-theme="dark"] .sep-ai-trend-pill,
+html[data-theme="dark"] .sep-ai-trend-pill.up,
+html[data-theme="dark"] .sep-ai-trend-pill.down,
+html[data-theme="dark"] .sep-ai-trend-pill.flat,
+html[data-theme="dark"] .sep-company-trend-pill,
+html[data-theme="dark"] .sep-company-trend-pill.trend-heating,
+html[data-theme="dark"] .sep-company-trend-pill.trend-cooling,
+html[data-theme="dark"] .sep-company-trend-pill.trend-steady,
+html[data-theme="dark"] .sep-company-risk-pill,
+html[data-theme="dark"] .sep-company-risk-pill.risk-litigation,
+html[data-theme="dark"] .sep-company-risk-pill.risk-licensing,
+html[data-theme="dark"] .sep-company-risk-pill.risk-policy,
+html[data-theme="dark"] .sep-company-meta-chip,
+html[data-theme="dark"] .sep-company-meta-chip.tier-core_led,
+html[data-theme="dark"] .sep-company-meta-chip.tier-stable_mix,
+html[data-theme="dark"] .sep-company-meta-chip.tier-watch_mix,
+html[data-theme="dark"] .sep-company-meta-chip.freshness-fresh,
+html[data-theme="dark"] .sep-company-meta-chip.freshness-active,
+html[data-theme="dark"] .sep-company-meta-chip.freshness-historical,
+html[data-theme="dark"] .sep-company-meta-chip.freshness-unknown,
+html[data-theme="dark"] .sep-company-breakdown-pill,
+html[data-theme="dark"] .topic-page-quick-pill,
+html[data-theme="dark"] .focus-mode-ai-pill,
+html[data-theme="dark"] .source-health-pill {
+  background: rgba(196, 164, 124, 0.12) !important;
+  border-color: rgba(196, 164, 124, 0.18) !important;
+  color: #ead8b7 !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .sep-ai-month-rail,
+html[data-theme="dark"] .sep-ai-rank-bar,
+html[data-theme="dark"] .sep-ai-compare-bars,
+html[data-theme="dark"] .sep-company-snapshot-trend-bars {
+  background: rgba(32, 32, 32, 0.92) !important;
+  border-color: rgba(196, 164, 124, 0.10) !important;
+}
+
+html[data-theme="dark"] .sep-ai-month-rail span,
+html[data-theme="dark"] .sep-ai-rank-bar span,
+html[data-theme="dark"] .sep-ai-compare-bars span,
+html[data-theme="dark"] .sep-company-snapshot-trend-bars span,
+html[data-theme="dark"] .sep-ai-rank-bar.depth-full_text span,
+html[data-theme="dark"] .sep-ai-rank-bar.depth-public_preview span,
+html[data-theme="dark"] .sep-ai-rank-bar.depth-summary_only span,
+html[data-theme="dark"] .sep-ai-compare-bars .recent,
+html[data-theme="dark"] .sep-ai-compare-bars .previous,
+html[data-theme="dark"] .sep-company-snapshot-trend-bars .recent,
+html[data-theme="dark"] .sep-company-snapshot-trend-bars .previous {
+  background: linear-gradient(90deg, #f1ddb5, #c4a47c) !important;
+}
+
+html[data-theme="dark"] .topic-brief-btn,
+html[data-theme="dark"] button[data-focus-open-sep-ai],
+html[data-theme="dark"] .sep-company-action .btn,
+html[data-theme="dark"] .source-card .btn,
+html[data-theme="dark"] .stats-card .btn {
+  background: rgba(24, 24, 24, 0.92) !important;
+  border-color: rgba(196, 164, 124, 0.14) !important;
+  color: #e6dac5 !important;
+}
+
+html[data-theme="dark"] .topic-brief-btn:hover,
+html[data-theme="dark"] button[data-focus-open-sep-ai]:hover,
+html[data-theme="dark"] .sep-company-action .btn:hover,
+html[data-theme="dark"] .source-card .btn:hover,
+html[data-theme="dark"] .stats-card .btn:hover {
+  background: rgba(34, 34, 34, 0.98) !important;
+  border-color: rgba(196, 164, 124, 0.22) !important;
+  color: #f4ede1 !important;
+}
