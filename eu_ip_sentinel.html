@@ -240,8 +240,8 @@
       box-shadow: 0 12px 26px rgba(0, 0, 0, 0.24);
     }
     .pontnova-hero {
-      width: min(var(--pontnova-shell-width), calc(100% - (var(--pontnova-shell-gutter) * 2)));
-      margin: 0 auto;
+      width: 100%;
+      margin: 0;
       padding: 34px 0 22px;
     }
     .pontnova-hero__panel {
@@ -375,45 +375,24 @@
     </div>
   </header>
 
-  <section class="pontnova-hero">
-    <div class="pontnova-hero__panel">
-      <div class="pontnova-hero__grid">
-        <div>
-          <div class="pontnova-kicker">Pontnova intelligence view</div>
-          <h1 class="pontnova-heading">欧洲知识产权前沿动态，<br><em>转化为可直接用于决策的高价值洞察</em></h1>
-          <p class="pontnova-subtitle">把欧洲知识产权最值得关注的变化，提炼成更适合管理层、法务与业务团队快速使用的高价值情报。</p>
+  <main class="pontnova-app">
+    <section class="pontnova-hero">
+      <div class="pontnova-hero__panel">
+        <div class="pontnova-hero__grid">
+          <div>
+            <div class="pontnova-kicker">Pontnova intelligence view</div>
+            <h1 class="pontnova-heading">欧洲知识产权前沿动态，<br><em>转化为可直接用于决策的高价值洞察</em></h1>
+            <p class="pontnova-subtitle">把欧洲知识产权最值得关注的变化，提炼成更适合管理层、法务与业务团队快速使用的高价值情报。</p>
+          </div>
         </div>
       </div>
-    </div>
-  </section>
-
-  <main class="pontnova-app">
+    </section>
     <div id="app"></div>
   </main>
 
   <script src="eu_ip_sentinel_assets/js/app.js?v=20260317-showcase-1"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      let heroSyncRaf = null;
-      const syncHeroWidth = () => {
-        const hero = document.querySelector('.pontnova-hero');
-        const app = document.getElementById('app');
-        if (!hero || !app) return;
-        const appRect = app.getBoundingClientRect();
-        const shellRect = document.querySelector('.pontnova-shell')?.getBoundingClientRect();
-        if (!appRect.width || !shellRect) return;
-        hero.style.width = `${appRect.width}px`;
-        hero.style.marginLeft = `${Math.max(0, appRect.left - shellRect.left)}px`;
-        hero.style.marginRight = 'auto';
-      };
-      const queueHeroSync = () => {
-        if (heroSyncRaf) cancelAnimationFrame(heroSyncRaf);
-        heroSyncRaf = requestAnimationFrame(() => {
-          syncHeroWidth();
-          heroSyncRaf = null;
-        });
-      };
-
       const hideLoader = () => {
         const loader = document.getElementById('initial-loader');
         if (loader) {
@@ -421,20 +400,6 @@
           setTimeout(() => loader.remove(), 400);
         }
       };
-      const app = document.getElementById('app');
-      if (app && 'ResizeObserver' in window) {
-        const resizeObserver = new ResizeObserver(() => queueHeroSync());
-        resizeObserver.observe(app);
-      }
-      if (app && 'MutationObserver' in window) {
-        const mutationObserver = new MutationObserver(() => queueHeroSync());
-        mutationObserver.observe(app, { childList: true, subtree: true, attributes: true });
-      }
-      queueHeroSync();
-      window.addEventListener('resize', queueHeroSync);
-      setTimeout(queueHeroSync, 120);
-      setTimeout(queueHeroSync, 500);
-      setTimeout(queueHeroSync, 1200);
       requestAnimationFrame(() => setTimeout(hideLoader, 180));
     });
   </script>
