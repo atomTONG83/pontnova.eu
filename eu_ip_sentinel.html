@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Pontnova Europe IP Intelligence：面向外部用户展示欧洲专利、商标、版权、SEP 与专题观察全景。">
+  <meta property="og:title" content="Pontnova | Europe IP Intelligence">
+  <meta property="og:description" content="Pontnova 对外展示欧洲知识产权最新动态、战报、专题、来源与前哨方法。">
+  <meta name="theme-color" content="#2563eb">
+  <title>Pontnova | Europe IP Intelligence</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="eu_ip_sentinel_assets/css/style.css?v=20260317-showcase-1">
+  <style>
+    #initial-loader {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(31, 143, 132, 0.12), transparent 28%),
+        radial-gradient(circle at 80% 18%, rgba(185, 133, 40, 0.12), transparent 24%),
+        linear-gradient(145deg, #fbf6ec 0%, #f4ecdf 55%, #efe5d8 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      gap: 16px;
+    }
+    #initial-loader .loader-logo {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, #c7a862, #7dd3c7);
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fffdf8;
+      font-size: 22px;
+      font-weight: 800;
+      font-family: 'IBM Plex Sans', sans-serif;
+      letter-spacing: .08em;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, .28);
+    }
+    #initial-loader .loader-text {
+      font-family: 'Noto Serif SC', serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: rgba(31, 42, 55, .82);
+      letter-spacing: .08em;
+    }
+    #initial-loader .loader-subtitle {
+      margin-top: -8px;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(31, 42, 55, .46);
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+    #initial-loader .loader-dots {
+      display: flex;
+      gap: 5px;
+    }
+    #initial-loader .loader-dots span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #1f8f84;
+      animation: bounce 1.2s infinite ease-in-out;
+    }
+    #initial-loader .loader-dots span:nth-child(2) { animation-delay: .15s; }
+    #initial-loader .loader-dots span:nth-child(3) { animation-delay: .3s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(.6); opacity: .4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+    #initial-loader.fade-out {
+      animation: fadeOut .4s ease forwards;
+    }
+    @keyframes fadeOut { to { opacity: 0; pointer-events: none; } }
+
+    .pontnova-shell {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top right, rgba(196, 164, 124, 0.18), transparent 24%),
+        radial-gradient(circle at left 20%, rgba(31, 143, 132, 0.10), transparent 20%),
+        linear-gradient(180deg, #050505 0%, #0a0a0a 100%);
+      color: #f5f5f5;
+    }
+    .pontnova-topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      backdrop-filter: blur(18px);
+      background: rgba(5, 5, 5, 0.72);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .pontnova-topbar__inner {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .pontnova-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .pontnova-brand__mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #c4a47c, #8e714f);
+      color: #050505;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      box-shadow: 0 12px 32px rgba(196, 164, 124, 0.24);
+    }
+    .pontnova-brand__text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .pontnova-brand__title {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #f5f5f5;
+    }
+    .pontnova-brand__subtitle {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(245,245,245,0.48);
+    }
+    .pontnova-topbar__actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .pontnova-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 44px;
+      padding: 0 18px;
+      border-radius: 9999px;
+      text-decoration: none;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      transition: transform .22s ease, background .22s ease, color .22s ease, border-color .22s ease;
+    }
+    .pontnova-link:hover { transform: translateY(-1px); }
+    .pontnova-link--ghost {
+      color: rgba(245,245,245,0.84);
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.04);
+    }
+    .pontnova-link--primary {
+      color: #050505;
+      background: linear-gradient(135deg, #f3e4c4, #c4a47c);
+      box-shadow: 0 16px 36px rgba(196, 164, 124, 0.22);
+    }
+    .pontnova-hero {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 34px 20px 22px;
+    }
+    .pontnova-hero__panel {
+      position: relative;
+      overflow: hidden;
+      border-radius: 28px;
+      padding: 32px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+      box-shadow: 0 28px 60px rgba(0,0,0,0.28);
+    }
+    .pontnova-hero__panel::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top right, rgba(196,164,124,0.16), transparent 26%);
+      pointer-events: none;
+    }
+    .pontnova-hero__grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1.8fr) minmax(280px, 0.9fr);
+      gap: 24px;
+      align-items: end;
+    }
+    .pontnova-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 9999px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.04);
+      color: #c4a47c;
+      font: 700 11px 'IBM Plex Sans', sans-serif;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+    .pontnova-heading {
+      margin: 0 0 14px;
+      font-family: 'Noto Serif SC', serif;
+      font-size: clamp(32px, 5vw, 58px);
+      line-height: 1.08;
+      font-weight: 700;
+      color: #f8f4ec;
+    }
+    .pontnova-heading em {
+      font-style: normal;
+      color: #c4a47c;
+    }
+    .pontnova-subtitle {
+      margin: 0;
+      max-width: 760px;
+      color: rgba(245,245,245,0.72);
+      font: 500 15px/1.9 'IBM Plex Sans', sans-serif;
+    }
+    .pontnova-stats {
+      display: grid;
+      gap: 12px;
+    }
+    .pontnova-stat {
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.04);
+      padding: 18px 18px 16px;
+    }
+    .pontnova-stat__label {
+      color: rgba(245,245,245,0.44);
+      font: 700 11px 'IBM Plex Sans', sans-serif;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .pontnova-stat__value {
+      color: #f8f4ec;
+      font: 700 22px/1.2 'IBM Plex Sans', sans-serif;
+    }
+    .pontnova-app {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 0 20px 48px;
+    }
+    #app {
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: 0 30px 70px rgba(0,0,0,0.24);
+    }
+    @media (max-width: 900px) {
+      .pontnova-hero__grid { grid-template-columns: 1fr; }
+      .pontnova-hero__panel { padding: 24px; }
+      .pontnova-topbar__inner { align-items: flex-start; flex-direction: column; }
+      .pontnova-topbar__actions { width: 100%; justify-content: flex-start; }
+      .pontnova-link { width: 100%; }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="pontnova-shell">
+  <div id="initial-loader">
+    <div class="loader-logo">IP</div>
+    <div class="loader-text">欧洲知识产权前哨</div>
+    <div class="loader-subtitle">EU IP SENTINEL</div>
+    <div class="loader-dots">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+
+  <header class="pontnova-topbar">
+    <div class="pontnova-topbar__inner">
+      <div class="pontnova-brand">
+        <div class="pontnova-brand__mark">PN</div>
+        <div class="pontnova-brand__text">
+          <div class="pontnova-brand__title">Pontnova</div>
+          <div class="pontnova-brand__subtitle">Europe IP Intelligence</div>
+        </div>
+      </div>
+      <div class="pontnova-topbar__actions">
+        <a href="index.html#intelligence" class="pontnova-link pontnova-link--ghost">返回主页入口</a>
+        <a href="index.html" class="pontnova-link pontnova-link--ghost">Pontnova 首页</a>
+        <a href="#app" class="pontnova-link pontnova-link--primary">进入情报流</a>
+      </div>
+    </div>
+  </header>
+
+  <section class="pontnova-hero">
+    <div class="pontnova-hero__panel">
+      <div class="pontnova-hero__grid">
+        <div>
+          <div class="pontnova-kicker">Pontnova curated view</div>
+          <h1 class="pontnova-heading">欧洲知识产权前哨，<br><em>以更商业化的方式</em>对外呈现</h1>
+          <p class="pontnova-subtitle">这一页保留前哨的完整公开内容，用于展示欧洲专利、SEP、UPC、商标与专题观察等高价值动态；同时用更符合 Pontnova 品牌风格的外层包装，让它更适合作为商业站点的专题入口。</p>
+        </div>
+        <div class="pontnova-stats">
+          <div class="pontnova-stat">
+            <div class="pontnova-stat__label">Content scope</div>
+            <div class="pontnova-stat__value">资讯流 / 战报 / 专题 / 来源说明</div>
+          </div>
+          <div class="pontnova-stat">
+            <div class="pontnova-stat__label">Delivery logic</div>
+            <div class="pontnova-stat__value">本地分析后静态同步，适合长期稳定公开展示</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <main class="pontnova-app">
+    <div id="app"></div>
+  </main>
+
+  <script src="eu_ip_sentinel_assets/js/app.js?v=20260317-showcase-1"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const hideLoader = () => {
+        const loader = document.getElementById('initial-loader');
+        if (loader) {
+          loader.classList.add('fade-out');
+          setTimeout(() => loader.remove(), 400);
+        }
+      };
+      requestAnimationFrame(() => setTimeout(hideLoader, 180));
+    });
+  </script>
+</div>
+</body>
+</html>

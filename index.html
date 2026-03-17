@@ -88,6 +88,28 @@
         /* Physics Velocity Skew Class */
         .velocity-skew { will-change: transform; transform-origin: center center; }
         ::-webkit-scrollbar { display: none; }
+
+        .intel-orb {
+            position: absolute;
+            border-radius: 9999px;
+            filter: blur(36px);
+            opacity: 0.22;
+            pointer-events: none;
+        }
+
+        .intel-card {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .intel-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(196, 164, 124, 0.14), rgba(255,255,255,0.02) 50%, transparent 100%);
+            pointer-events: none;
+        }
+
     </style>
 </head>
 <body class="antialiased font-sans">
@@ -114,6 +136,9 @@
                         <span class="absolute -bottom-1 left-0 w-0 h-[1px] bg-white transition-all duration-300 group-hover:w-full"></span>
                     </a>
                     <a href="#services" class="hover-trigger relative group">解决方案
+                        <span class="absolute -bottom-1 left-0 w-0 h-[1px] bg-white transition-all duration-300 group-hover:w-full"></span>
+                    </a>
+                    <a href="#intelligence" class="hover-trigger relative group">前哨情报
                         <span class="absolute -bottom-1 left-0 w-0 h-[1px] bg-white transition-all duration-300 group-hover:w-full"></span>
                     </a>
                 </div>
@@ -296,6 +321,65 @@
                             <iconify-icon icon="solar:chart-square-bold-duotone" width="48" class="text-brand-accent mb-6 group-hover:scale-110 transition-transform"></iconify-icon>
                             <h3 class="font-display text-2xl font-bold mb-4">商业运用</h3>
                             <p class="text-gray-400 text-sm leading-relaxed">指导技术许可、IP 尽职调查与技术转移。将知识产权转化为可量化的商业价值，赋能企业并购。</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Europe IP Intelligence Entry -->
+            <section id="intelligence" class="relative py-24 md:py-32 px-6 md:px-20 border-t border-white/10 bg-[#060606] overflow-hidden">
+                <div class="intel-orb w-64 h-64 bg-brand-accent/30 -top-16 -right-10"></div>
+                <div class="intel-orb w-72 h-72 bg-white/10 -bottom-24 left-1/4"></div>
+                <div class="max-w-7xl mx-auto relative z-10">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+                        <div class="lg:col-span-7 glass-panel rounded-[2rem] p-10 md:p-12 border border-white/10 intel-card">
+                            <p class="text-brand-accent tracking-[0.2em] text-xs md:text-sm mb-5 uppercase font-bold">Europe IP Intelligence</p>
+                            <h2 class="font-display text-4xl md:text-5xl font-bold tracking-tight leading-tight md:leading-snug mb-6">
+                                用一个更适合公开展示的方式，<br>
+                                进入<span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent to-white italic">欧洲知识产权前哨</span>
+                            </h2>
+                            <p class="text-gray-300 text-sm md:text-base leading-relaxed max-w-3xl mb-8">
+                                这里汇总欧洲专利、SEP、UPC、商标与专题观察等高价值动态。作为 Pontnova 的公开情报入口，它延续了前哨的深度内容，同时保持更适合品牌站点的浏览体验。
+                            </p>
+                            <div class="flex flex-wrap gap-3 mb-10 text-xs md:text-sm text-gray-300">
+                                <span class="px-4 py-2 rounded-full border border-white/10 bg-white/5">资讯流</span>
+                                <span class="px-4 py-2 rounded-full border border-white/10 bg-white/5">日报 / 周报</span>
+                                <span class="px-4 py-2 rounded-full border border-white/10 bg-white/5">专题观察</span>
+                                <span class="px-4 py-2 rounded-full border border-white/10 bg-white/5">来源与方法</span>
+                            </div>
+                            <div class="flex flex-col sm:flex-row gap-4">
+                                <a href="eu_ip_sentinel.html" class="hover-trigger bg-white text-black px-8 py-4 rounded-full font-display font-bold tracking-widest text-sm hover:scale-105 transition-transform duration-300 inline-flex items-center justify-center gap-3">
+                                    <span>进入前哨专题</span>
+                                    <iconify-icon icon="solar:arrow-right-up-linear" width="18"></iconify-icon>
+                                </a>
+                                <a href="eu_ip_sentinel.html#reports" class="hover-trigger glass-panel px-8 py-4 rounded-full text-sm font-medium tracking-wide border border-white/20 hover:bg-white hover:text-black transition-colors duration-300 inline-flex items-center justify-center gap-3">
+                                    <span>查看战报内容</span>
+                                    <iconify-icon icon="solar:document-text-linear" width="18"></iconify-icon>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="lg:col-span-5 flex flex-col gap-6">
+                            <div class="glass-panel rounded-[2rem] p-8 border border-white/10">
+                                <p class="text-brand-accent tracking-[0.18em] text-xs uppercase font-bold mb-4">What You Get</p>
+                                <div class="space-y-5 text-sm text-gray-300 leading-relaxed">
+                                    <div>
+                                        <div class="text-white font-display text-xl mb-2">不是简单资讯聚合</div>
+                                        <p>对高价值来源做持续跟踪，再沉淀为更适合管理层和业务团队理解的结构化情报。</p>
+                                    </div>
+                                    <div>
+                                        <div class="text-white font-display text-xl mb-2">适合公开访问</div>
+                                        <p>保留前哨的完整展示内容，但隐藏后台设置、抓取维护和运行控制等内部模块。</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="glass-panel rounded-[2rem] p-8 border border-white/10 min-h-[180px] flex flex-col justify-between">
+                                <div>
+                                    <p class="text-brand-accent tracking-[0.18em] text-xs uppercase font-bold mb-4">Update Logic</p>
+                                    <p class="text-sm text-gray-300 leading-relaxed">内容先在本地前哨完成抓取与 AI 分析，再以静态快照同步到公开站点，既稳定也方便持续更新。</p>
+                                </div>
+                                <div class="mt-6 text-xs text-gray-500 tracking-[0.18em] uppercase">Pontnova x Europe IP Intelligence</div>
+                            </div>
                         </div>
                     </div>
                 </div>
