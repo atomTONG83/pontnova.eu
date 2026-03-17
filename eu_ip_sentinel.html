@@ -180,6 +180,47 @@
       background: linear-gradient(135deg, #f3e4c4, #c4a47c);
       box-shadow: 0 16px 36px rgba(196, 164, 124, 0.22);
     }
+    .pontnova-ai-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 44px;
+      padding: 0 18px;
+      border-radius: 9999px;
+      background: rgba(196, 164, 124, 0.12);
+      border: 1px solid rgba(196, 164, 124, 0.18);
+      color: #ead8b7;
+      font-family: 'IBM Plex Sans', sans-serif;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    }
+    .pontnova-ai-badge__dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 9999px;
+      background: #d8bc8a;
+      box-shadow: 0 0 0 6px rgba(196, 164, 124, 0.08);
+      flex-shrink: 0;
+    }
+    .pontnova-ai-badge__copy {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      line-height: 1.1;
+    }
+    .pontnova-ai-badge__title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #f3e7d2;
+    }
+    .pontnova-ai-badge__sub {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(234, 216, 183, 0.68);
+    }
     .pontnova-hero {
       max-width: 1360px;
       margin: 0 auto;
@@ -304,7 +345,13 @@
       </div>
       <div class="pontnova-topbar__actions">
         <a href="index.html" class="pontnova-link pontnova-link--ghost">Pontnova 首页</a>
-        <a href="#app" class="pontnova-link pontnova-link--primary">进入研究界面</a>
+        <div class="pontnova-ai-badge" aria-label="AI driven powered by AI">
+          <span class="pontnova-ai-badge__dot"></span>
+          <span class="pontnova-ai-badge__copy">
+            <span class="pontnova-ai-badge__title">AI驱动</span>
+            <span class="pontnova-ai-badge__sub">Powered by AI</span>
+          </span>
+        </div>
       </div>
     </div>
   </header>
