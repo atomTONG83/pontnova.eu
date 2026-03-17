@@ -132,7 +132,8 @@ img { max-width: 100%; display: block; }
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .logo-text-sub {
   font-family: 'IBM Plex Mono', var(--font-mono);
