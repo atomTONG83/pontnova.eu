@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-同步“欧洲知识产权前哨”展示版静态快照。
+同步“Pontnova Europe IP Intelligence”展示版静态快照。
 
-默认从本机运行中的前哨服务抓取用户展示所需数据，并写入
-ATOM-IP-Insights/eu_ip_sentinel_assets/data/snapshot.json
+默认从本机运行中的研究服务抓取公开展示所需数据，并写入
+pontnova.eu/eu_ip_sentinel_assets/data/snapshot.json
 """
 
 from __future__ import annotations

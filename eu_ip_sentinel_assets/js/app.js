@@ -1,5 +1,5 @@
 /**
- * app.js — 欧洲知识产权前哨前端逻辑
+ * app.js — Pontnova Europe IP Intelligence前端逻辑
  * 中文主界面（保留英文字段作后续扩展）
  */
 
@@ -17,7 +17,7 @@ const THEME_VALUES = ['light', 'dark'];
 const SCOPE_VALUES = ['eu', 'intl', 'uk', 'de', 'fr', 'benelux', 'scandinavia', 'all'];
 const getInitialTheme = () => 'dark';
 const getInitialScope = () => {
-  const stored = localStorage.getItem('atom_scope');
+  const stored = localStorage.getItem('pontnova_scope');
   return SCOPE_VALUES.includes(stored) ? stored : 'eu';
 };
 
@@ -51,7 +51,7 @@ const state = {
   lastStatsToken: '',
 };
 
-localStorage.setItem('atom_lang', DEFAULT_LANG);
+localStorage.setItem('pontnova_lang', DEFAULT_LANG);
 
 let staticSnapshotPromise = null;
 
@@ -687,7 +687,7 @@ const i18n = {
     about_workflow_step4: '4. 四段式解读',
     about_workflow_step4_desc: '对保留下来的资讯输出标题、核心要点、洞察和原始链接，保持统一阅读结构。',
     about_workflow_step5: '5. 分类呈现',
-    about_workflow_step5_desc: '再把这些结构化结果用于首页、主题浏览、专题页、日报和周报，形成可连续使用的情报前哨。',
+    about_workflow_step5_desc: '再把这些结构化结果用于首页、主题浏览、专题页、日报和周报，形成可连续使用的研究情报界面。',
     about_sources_kicker: '信息源',
     about_sources_title: '覆盖哪些研究来源',
     about_sources_desc: '来源分为官方、媒体、律所三类；以下优先展示当前窗口内实际产生资讯的研究来源。',
@@ -730,9 +730,9 @@ const i18n = {
     about_cta_back: '返回情报页',
   },
   en: {
-    brand: 'European IP Sentinel',
+    brand: 'Pontnova Europe IP Intelligence',
     brand_mark: '',
-    brand_title: 'European IP Sentinel',
+    brand_title: 'Pontnova Europe IP Intelligence',
     brand_sub: 'EU IP SENTINEL',
     tagline: 'Real-time European IP Intelligence',
     nav_news: 'Latest News',
@@ -1117,7 +1117,7 @@ const i18n = {
     topbar_sub_settings: 'Adjust scrape timing, AI model settings, and runtime controls.',
     topic_btn: 'Related News',
     topic_open: 'Open Topic',
-    topic_back: 'Back to Sentinel',
+    topic_back: 'Back to Intelligence',
     topic_related: 'Related Intel',
     topic_timeline: 'Topic Timeline',
     topic_timeline_desc: 'Recent topic signals ranked by strength',
@@ -1222,11 +1222,11 @@ const i18n = {
     label_latest_update: 'Latest update',
     label_next_window: 'Next window',
     label_article_count: 'Total signals',
-    about_title: 'About Sentinel',
+    about_title: 'About This Intelligence View',
     about_subtitle: 'How the sentinel works: purpose, sources, processing flow, and output discipline.',
     about_purpose_kicker: 'Purpose',
     about_purpose_title: 'What this sentinel is built to solve',
-    about_purpose_desc: 'The Sentinel is not just a news aggregator. It is a continuous observation system for the European IP landscape, built to track high-signal updates from institutions, courts, specialist media, and law firms, then turn them into cleaner and more actionable intelligence.',
+    about_purpose_desc: 'This is not just a news aggregator. It is a continuous intelligence view for the European IP landscape, built to track high-signal updates from institutions, courts, specialist media, and law firms, then turn them into cleaner and more actionable intelligence.',
     about_status_kicker: 'Current Status',
     about_status_title: 'All items in the current window have been rerun through the new workflow',
     about_status_desc: 'Items in the active collection window have completed the upgraded path: collection, cleaning, AI editorial labeling, and four-block interpretation. Daily automation will keep using the same flow.',
@@ -1258,7 +1258,7 @@ const i18n = {
     about_source_latest: 'Latest',
     about_method_kicker: 'AI Precision',
     about_method_title: 'How the AI layer stays as precise and stable as possible',
-    about_method_intro: 'The Sentinel does not simply hand articles to AI for free-form summarization. It uses a chain of rule-based screening, AI editorial labeling, backend normalization, and quality guard checks to reduce drift and false positives.',
+    about_method_intro: 'This intelligence view does not simply hand articles to AI for free-form summarization. It uses a chain of rule-based screening, AI editorial labeling, backend normalization, and quality guard checks to reduce drift and false positives.',
     about_method_note: 'AI is not the only judge. Source rules, date repair, topic write-back, quality guard runs, and source regression checks all participate in correction.',
     about_method_metric_ai_success: '24h AI success',
     about_method_metric_ai_success_desc: 'Completion success rate across AI batches in the last 24 hours',
@@ -1294,7 +1294,7 @@ const t = (key) => (i18n[state.lang][key] || key);
 function applyTheme(theme = state.theme) {
   const resolved = 'dark';
   state.theme = resolved;
-  localStorage.setItem('atom_theme', resolved);
+  localStorage.setItem('pontnova_theme', resolved);
   document.documentElement.setAttribute('data-theme', resolved);
   const themeMeta = document.querySelector('meta[name="theme-color"]');
   if (themeMeta) themeMeta.setAttribute('content', '#0b0b0b');
@@ -1771,7 +1771,7 @@ function downloadBase64File(filename, base64Content, mimeType = 'application/oct
 
 function setLang(lang) {
   state.lang = DEFAULT_LANG;
-  localStorage.setItem('atom_lang', DEFAULT_LANG);
+  localStorage.setItem('pontnova_lang', DEFAULT_LANG);
   $$('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === DEFAULT_LANG));
   renderApp();
 }
@@ -3640,7 +3640,7 @@ function clearNewsFocusFilters() {
   state.filters.q = '';
   state.filters.has_ai = false;
   state.filters.scope = 'eu';
-  localStorage.setItem('atom_scope', 'eu');
+  localStorage.setItem('pontnova_scope', 'eu');
   renderApp();
 }
 
@@ -5875,7 +5875,7 @@ function attachEvents() {
         chip.classList.toggle('active', state.filters.has_ai);
       } else if (filter === 'scope') {
         state.filters[filter] = value;
-        localStorage.setItem('atom_scope', value);
+        localStorage.setItem('pontnova_scope', value);
         $$(`[data-filter="scope"]`).forEach(c => c.classList.remove('active'));
         chip.classList.add('active');
       } else {
