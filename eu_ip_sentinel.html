@@ -82,6 +82,8 @@
     @keyframes fadeOut { to { opacity: 0; pointer-events: none; } }
 
     .pontnova-shell {
+      --pontnova-shell-width: 1360px;
+      --pontnova-shell-gutter: 20px;
       min-height: 100vh;
       background:
         radial-gradient(circle at top right, rgba(196, 164, 124, 0.18), transparent 24%),
@@ -98,9 +100,9 @@
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
     .pontnova-topbar__inner {
-      max-width: 1360px;
+      width: min(var(--pontnova-shell-width), calc(100% - (var(--pontnova-shell-gutter) * 2)));
       margin: 0 auto;
-      padding: 16px 20px;
+      padding: 16px 0;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -222,9 +224,9 @@
       color: rgba(234, 216, 183, 0.68);
     }
     .pontnova-hero {
-      max-width: 1360px;
+      width: min(var(--pontnova-shell-width), calc(100% - (var(--pontnova-shell-gutter) * 2)));
       margin: 0 auto;
-      padding: 34px 20px 22px;
+      padding: 34px 0 22px;
     }
     .pontnova-hero__panel {
       position: relative;
@@ -304,9 +306,9 @@
       font: 700 22px/1.2 'IBM Plex Sans', sans-serif;
     }
     .pontnova-app {
-      max-width: 1360px;
+      width: min(var(--pontnova-shell-width), calc(100% - (var(--pontnova-shell-gutter) * 2)));
       margin: 0 auto;
-      padding: 0 20px 48px;
+      padding: 0 0 48px;
     }
     #app {
       border-radius: 28px;
