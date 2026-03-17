@@ -15,10 +15,7 @@ const STATIC_SNAPSHOT_URL = 'eu_ip_sentinel_assets/data/snapshot.json';
 const DEFAULT_LANG = 'zh';
 const THEME_VALUES = ['light', 'dark'];
 const SCOPE_VALUES = ['eu', 'intl', 'uk', 'de', 'fr', 'benelux', 'scandinavia', 'all'];
-const getInitialTheme = () => {
-  const stored = localStorage.getItem('atom_theme');
-  return THEME_VALUES.includes(stored) ? stored : 'light';
-};
+const getInitialTheme = () => 'dark';
 const getInitialScope = () => {
   const stored = localStorage.getItem('atom_scope');
   return SCOPE_VALUES.includes(stored) ? stored : 'eu';
@@ -1295,12 +1292,12 @@ const i18n = {
 const t = (key) => (i18n[state.lang][key] || key);
 
 function applyTheme(theme = state.theme) {
-  const resolved = THEME_VALUES.includes(theme) ? theme : 'light';
+  const resolved = 'dark';
   state.theme = resolved;
   localStorage.setItem('atom_theme', resolved);
   document.documentElement.setAttribute('data-theme', resolved);
   const themeMeta = document.querySelector('meta[name="theme-color"]');
-  if (themeMeta) themeMeta.setAttribute('content', resolved === 'dark' ? '#101722' : '#2563eb');
+  if (themeMeta) themeMeta.setAttribute('content', '#0b0b0b');
 }
 
 // ──────────────────────────────────────────────

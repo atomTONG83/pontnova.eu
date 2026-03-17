@@ -7269,3 +7269,207 @@ html[data-theme="dark"] .report-detail-index {
   border-color: rgba(73, 201, 187, 0.26) !important;
   color: #9cecdf !important;
 }
+
+
+/* ─── Pontnova Brand Overrides ─────────────────────────── */
+html[data-theme="dark"] {
+  --color-bg: #0b0b0b;
+  --color-surface: rgba(15, 15, 15, 0.96);
+  --color-surface-2: rgba(24, 24, 24, 0.98);
+  --color-border: rgba(196, 164, 124, 0.16);
+  --color-text: #f5efe2;
+  --color-text-2: #d3c4ab;
+  --color-text-3: #9e8e77;
+  --color-accent: #c4a47c;
+  --color-accent-dark: #af8d63;
+  --color-accent-soft: rgba(196, 164, 124, 0.12);
+  --color-success: #c4a47c;
+  --color-warning: #d7b98c;
+  --color-danger: #d08b7b;
+  --color-patent: #c4a47c;
+  --color-trademark: #b89468;
+  --color-design: #d1ae7a;
+  --color-copyright: #a98861;
+  --color-data: #d08b7b;
+  --color-general: #8f7f67;
+  --color-official: #d1b181;
+  --color-media: #c4a47c;
+  --color-lawfirm: #e1c79d;
+}
+
+html[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(196, 164, 124, 0.10), transparent 24%),
+    radial-gradient(circle at 80% 18%, rgba(255, 255, 255, 0.04), transparent 20%),
+    linear-gradient(145deg, #0a0a0a 0%, #111111 55%, #0b0b0b 100%) !important;
+}
+
+html[data-theme="dark"] .sidebar,
+html[data-theme="dark"] .topbar,
+html[data-theme="dark"] .filter-bar,
+html[data-theme="dark"] .settings-card,
+html[data-theme="dark"] .stats-card,
+html[data-theme="dark"] .priority-brief-card,
+html[data-theme="dark"] .topic-card,
+html[data-theme="dark"] .news-card,
+html[data-theme="dark"] .briefing-report-card,
+html[data-theme="dark"] .reports-center-hero,
+html[data-theme="dark"] .about-card,
+html[data-theme="dark"] .source-card,
+html[data-theme="dark"] .stats-panel,
+html[data-theme="dark"] .modal-content,
+html[data-theme="dark"] .latest-dynamics-item,
+html[data-theme="dark"] .today-published-item,
+html[data-theme="dark"] .hero-shell,
+html[data-theme="dark"] .hero-main,
+html[data-theme="dark"] .hero-note,
+html[data-theme="dark"] .hero-refresh,
+html[data-theme="dark"] .command-stat-card,
+html[data-theme="dark"] .reports-current-shell,
+html[data-theme="dark"] .reports-nav,
+html[data-theme="dark"] .mini-empty,
+html[data-theme="dark"] .topic-theater-panel,
+html[data-theme="dark"] .topic-brief-card,
+html[data-theme="dark"] .reports-timeline-shell,
+html[data-theme="dark"] .reports-archive-shell,
+html[data-theme="dark"] .reports-timeline-item,
+html[data-theme="dark"] .report-archive-item,
+html[data-theme="dark"] .briefing-report-detail-shell,
+html[data-theme="dark"] .report-detail-item,
+html[data-theme="dark"] .focus-mode-shell,
+html[data-theme="dark"] .focus-mode-stat,
+html[data-theme="dark"] .focus-mode-ai-bridge {
+  background: linear-gradient(180deg, rgba(15, 15, 15, 0.98), rgba(10, 10, 10, 0.96)) !important;
+  border-color: rgba(196, 164, 124, 0.14) !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.34) !important;
+}
+
+html[data-theme="dark"] .logo-mark,
+html[data-theme="dark"] .intel-block,
+html[data-theme="dark"] .news-card-point-block,
+html[data-theme="dark"] .today-published-block,
+html[data-theme="dark"] .topic-page-hero,
+html[data-theme="dark"] .sep-ai-card,
+html[data-theme="dark"] .sep-company-card,
+html[data-theme="dark"] .reports-archive-card,
+html[data-theme="dark"] .about-output-card {
+  background: rgba(24, 24, 24, 0.96) !important;
+  border-color: rgba(196, 164, 124, 0.14) !important;
+}
+
+html[data-theme="dark"] .btn-primary,
+html[data-theme="dark"] .briefing-open-btn,
+html[data-theme="dark"] .topbar-refresh-btn,
+html[data-theme="dark"] .topic-page-quick-link .btn-primary,
+html[data-theme="dark"] button[data-focus-open-sep-ai] {
+  background: linear-gradient(135deg, #f0d7aa, #c4a47c) !important;
+  border-color: rgba(240, 215, 170, 0.34) !important;
+  color: #111111 !important;
+  box-shadow: 0 14px 30px rgba(196, 164, 124, 0.18) !important;
+}
+
+html[data-theme="dark"] .btn-primary:hover,
+html[data-theme="dark"] .briefing-open-btn:hover,
+html[data-theme="dark"] .topbar-refresh-btn:hover,
+html[data-theme="dark"] .topic-page-quick-link .btn-primary:hover,
+html[data-theme="dark"] button[data-focus-open-sep-ai]:hover {
+  background: linear-gradient(135deg, #f4e1bc, #d0b086) !important;
+  border-color: rgba(244, 225, 188, 0.42) !important;
+}
+
+html[data-theme="dark"] .btn-secondary,
+html[data-theme="dark"] .topic-brief-btn,
+html[data-theme="dark"] .topic-page-quick-link .btn,
+html[data-theme="dark"] .section-jump-btn,
+html[data-theme="dark"] .reports-center-action-btn,
+html[data-theme="dark"] .briefing-export-btn,
+html[data-theme="dark"] .report-detail-link,
+html[data-theme="dark"] .report-archive-action-btn,
+html[data-theme="dark"] .reports-nav-btn,
+html[data-theme="dark"] .topbar-search-shell,
+html[data-theme="dark"] .filter-chip,
+html[data-theme="dark"] .latest-dynamics-filter,
+html[data-theme="dark"] .read-more-link.compact-pill,
+html[data-theme="dark"] .report-detail-summary,
+html[data-theme="dark"] .report-archive-format-link,
+html[data-theme="dark"] .focus-mode-ai-pill,
+html[data-theme="dark"] .topic-page-quick-pill,
+html[data-theme="dark"] .reports-center-action-count,
+html[data-theme="dark"] .reports-nav-count,
+html[data-theme="dark"] .reports-archive-action-pill,
+html[data-theme="dark"] .briefing-report-section-chip,
+html[data-theme="dark"] .topbar-status-chip,
+html[data-theme="dark"] .hero-chip,
+html[data-theme="dark"] .summary-pill,
+html[data-theme="dark"] .source-health-pill {
+  background: rgba(24, 24, 24, 0.94) !important;
+  border-color: rgba(196, 164, 124, 0.16) !important;
+  color: #e6dac5 !important;
+}
+
+html[data-theme="dark"] .btn-secondary:hover,
+html[data-theme="dark"] .topic-brief-btn:hover,
+html[data-theme="dark"] .topic-page-quick-link .btn:hover,
+html[data-theme="dark"] .section-jump-btn:hover,
+html[data-theme="dark"] .reports-center-action-btn:hover,
+html[data-theme="dark"] .briefing-export-btn:hover,
+html[data-theme="dark"] .report-detail-link:hover,
+html[data-theme="dark"] .report-archive-action-btn:hover,
+html[data-theme="dark"] .reports-nav-btn:hover,
+html[data-theme="dark"] .report-detail-summary:hover,
+html[data-theme="dark"] .report-archive-format-link:hover,
+html[data-theme="dark"] .focus-mode-ai-pill:hover {
+  background: rgba(36, 36, 36, 0.98) !important;
+  border-color: rgba(240, 215, 170, 0.28) !important;
+  color: #f5efe2 !important;
+}
+
+html[data-theme="dark"] .source-badge.official,
+html[data-theme="dark"] .source-badge.media,
+html[data-theme="dark"] .source-badge.lawfirm,
+html[data-theme="dark"] .analysis-depth-badge,
+html[data-theme="dark"] .analysis-depth-badge.full_text,
+html[data-theme="dark"] .analysis-depth-badge.public_preview,
+html[data-theme="dark"] .analysis-depth-badge.summary_only,
+html[data-theme="dark"] .geo-badge,
+html[data-theme="dark"] .signal-pill,
+html[data-theme="dark"] .signal-pill.impact.low,
+html[data-theme="dark"] .signal-pill.urgency.watch,
+html[data-theme="dark"] .signal-pill.risk.low,
+html[data-theme="dark"] .signal-pill.impact.medium,
+html[data-theme="dark"] .signal-pill.urgency.soon,
+html[data-theme="dark"] .signal-pill.risk.medium,
+html[data-theme="dark"] .signal-pill.impact.high,
+html[data-theme="dark"] .signal-pill.urgency.immediate,
+html[data-theme="dark"] .signal-pill.risk.high,
+html[data-theme="dark"] .briefing-report-section-chip.daily,
+html[data-theme="dark"] .briefing-report-section-chip.weekly,
+html[data-theme="dark"] .sep-case-line-link,
+html[data-theme="dark"] .reports-timeline-dot,
+html[data-theme="dark"] .report-detail-index {
+  background: rgba(196, 164, 124, 0.12) !important;
+  border-color: rgba(196, 164, 124, 0.18) !important;
+  color: #e6cfa9 !important;
+}
+
+html[data-theme="dark"] .source-badge,
+html[data-theme="dark"] .analysis-depth-badge,
+html[data-theme="dark"] .geo-badge,
+html[data-theme="dark"] .signal-pill {
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .hero-main::after {
+  background: radial-gradient(circle at 70% 22%, rgba(196, 164, 124, 0.12), transparent 0, transparent 56%) !important;
+}
+
+html[data-theme="dark"] .topbar-status-dot {
+  background: #c4a47c !important;
+}
+
+html[data-theme="dark"] .logo-text-main {
+  background: linear-gradient(135deg, #f0d7aa 0%, #c4a47c 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
