@@ -191,7 +191,7 @@ const i18n = {
     nav_stats: '运行看板',
     nav_settings: '设置',
     nav_about: '研究方法',
-    topbar_sub_news: '先看总览、今日发布、简报与专题判断，再进入完整情报流。',
+    topbar_sub_news: '',
     topbar_sub_reports: '先看当前日报与周报，再回看可追溯明细、最近几期与历史归档。',
     topbar_sub_sources: '查看当前窗口内真正活跃的研究来源、相关性与原文质量。',
     topbar_sub_stats: '值守抓取、质检、AI分析与异常来源，快速判断链路是否稳定。',
