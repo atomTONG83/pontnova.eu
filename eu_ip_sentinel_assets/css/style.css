@@ -7560,3 +7560,228 @@ html[data-theme="dark"] .hero-chip,
 html[data-theme="dark"] .source-health-pill {
   backdrop-filter: blur(8px);
 }
+
+
+/* ─── Pontnova Final Hard Overrides ─────────────────────── */
+html[data-theme="dark"] .sidebar {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  background: linear-gradient(180deg, rgba(18, 18, 18, 0.98), rgba(12, 12, 12, 0.96)) !important;
+  border: 1px solid rgba(196, 164, 124, 0.14) !important;
+  box-shadow: 0 18px 44px rgba(0,0,0,0.34) !important;
+}
+
+html[data-theme="dark"] .sidebar-logo {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 8 !important;
+  background: linear-gradient(180deg, rgba(18, 18, 18, 0.99), rgba(18, 18, 18, 0.96)) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(196, 164, 124, 0.12) !important;
+}
+
+html[data-theme="dark"] .sidebar-bottom {
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 7 !important;
+  background: linear-gradient(180deg, rgba(16, 16, 16, 0.94), rgba(12, 12, 12, 0.99)) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+html[data-theme="dark"] .logo-mark {
+  background: linear-gradient(180deg, rgba(27, 24, 21, 0.98), rgba(18, 18, 18, 0.96)) !important;
+  border-color: rgba(196, 164, 124, 0.16) !important;
+  box-shadow: 0 14px 32px rgba(0,0,0,0.28) !important;
+}
+
+html[data-theme="dark"] .logo-text-main {
+  background: linear-gradient(135deg, #f2dfbb 0%, #c4a47c 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+html[data-theme="dark"] .logo-text-sub,
+html[data-theme="dark"] .logo-text-tagline,
+html[data-theme="dark"] .sidebar-section-label,
+html[data-theme="dark"] .filter-label,
+html[data-theme="dark"] .topbar-title span,
+html[data-theme="dark"] .hero-subtitle,
+html[data-theme="dark"] .hero-desc,
+html[data-theme="dark"] .hero-meta-line span,
+html[data-theme="dark"] .focus-mode-desc,
+html[data-theme="dark"] .focus-mode-ai-bridge-desc {
+  color: #ae9f88 !important;
+}
+
+html[data-theme="dark"] .topbar,
+html[data-theme="dark"] .filter-bar,
+html[data-theme="dark"] .statusbar {
+  background: rgba(16, 16, 16, 0.88) !important;
+  border-color: rgba(196, 164, 124, 0.12) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+html[data-theme="dark"] .topbar-title,
+html[data-theme="dark"] .hero-title,
+html[data-theme="dark"] .focus-mode-title,
+html[data-theme="dark"] .focus-mode-ai-bridge-title,
+html[data-theme="dark"] .section-title,
+html[data-theme="dark"] .news-card-title,
+html[data-theme="dark"] .news-card-title-en,
+html[data-theme="dark"] .today-published-title,
+html[data-theme="dark"] .priority-title,
+html[data-theme="dark"] .modal-title-main {
+  color: #f4ede1 !important;
+}
+
+html[data-theme="dark"] .topbar-search-shell,
+html[data-theme="dark"] .search-input,
+html[data-theme="dark"] .settings-input,
+html[data-theme="dark"] .filter-chip,
+html[data-theme="dark"] .topbar-status-group,
+html[data-theme="dark"] .topbar-status-chip,
+html[data-theme="dark"] .topbar-ai-badge {
+  background: rgba(24, 24, 24, 0.92) !important;
+  border-color: rgba(196, 164, 124, 0.14) !important;
+  color: #e6dac5 !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .topbar-status-dot {
+  background: #d7ba8d !important;
+}
+
+html[data-theme="dark"] .filter-chip:hover,
+html[data-theme="dark"] .filter-chip.active,
+html[data-theme="dark"] .filter-chip.patent.active,
+html[data-theme="dark"] .filter-chip.trademark.active,
+html[data-theme="dark"] .filter-chip.design.active,
+html[data-theme="dark"] .filter-chip.copyright.active,
+html[data-theme="dark"] .filter-chip.data.active,
+html[data-theme="dark"] .filter-chip.general.active,
+html[data-theme="dark"] .filter-chip.sep.active,
+html[data-theme="dark"] .filter-chip.gi.active {
+  background: rgba(196, 164, 124, 0.14) !important;
+  border-color: rgba(196, 164, 124, 0.24) !important;
+  color: #f0dfc1 !important;
+}
+
+html[data-theme="dark"] .focus-mode-shell,
+html[data-theme="dark"] .focus-mode-stat,
+html[data-theme="dark"] .focus-mode-ai-bridge,
+html[data-theme="dark"] .hero-main,
+html[data-theme="dark"] .priority-brief-card,
+html[data-theme="dark"] .intel-panel,
+html[data-theme="dark"] .stat-card,
+html[data-theme="dark"] .news-card,
+html[data-theme="dark"] .sources-table,
+html[data-theme="dark"] .chart-card,
+html[data-theme="dark"] .settings-card,
+html[data-theme="dark"] .today-published-item,
+html[data-theme="dark"] .latest-dynamics-item,
+html[data-theme="dark"] .topic-card,
+html[data-theme="dark"] .briefing-report-card,
+html[data-theme="dark"] .reports-center-hero,
+html[data-theme="dark"] .about-card,
+html[data-theme="dark"] .modal-content {
+  background: linear-gradient(180deg, rgba(17, 17, 17, 0.98), rgba(12, 12, 12, 0.96)) !important;
+  border-color: rgba(196, 164, 124, 0.12) !important;
+  box-shadow: 0 18px 42px rgba(0,0,0,0.30) !important;
+}
+
+html[data-theme="dark"] .hero-main::after,
+html[data-theme="dark"] .news-card::before {
+  opacity: 0.9 !important;
+}
+
+html[data-theme="dark"] .hero-main::after {
+  background: radial-gradient(circle at 72% 18%, rgba(196, 164, 124, 0.10), transparent 0, transparent 58%) !important;
+}
+
+html[data-theme="dark"] .sidebar-nav-item:hover,
+html[data-theme="dark"] .sidebar-nav-item.active {
+  background: rgba(196, 164, 124, 0.10) !important;
+  border-color: rgba(196, 164, 124, 0.20) !important;
+  color: #f0dfc1 !important;
+}
+
+html[data-theme="dark"] .sidebar-nav-item .nav-icon,
+html[data-theme="dark"] .lang-toggle,
+html[data-theme="dark"] .lang-btn.active,
+html[data-theme="dark"] .sidebar-nav-item .nav-badge,
+html[data-theme="dark"] .ai-badge,
+html[data-theme="dark"] .ai-badge-sm,
+html[data-theme="dark"] .ip-badge,
+html[data-theme="dark"] .ip-badge.patent,
+html[data-theme="dark"] .ip-badge.trademark,
+html[data-theme="dark"] .ip-badge.design,
+html[data-theme="dark"] .ip-badge.copyright,
+html[data-theme="dark"] .ip-badge.data,
+html[data-theme="dark"] .ip-badge.general,
+html[data-theme="dark"] .ip-badge.sep,
+html[data-theme="dark"] .ip-badge.gi,
+html[data-theme="dark"] .source-badge,
+html[data-theme="dark"] .source-badge.official,
+html[data-theme="dark"] .source-badge.media,
+html[data-theme="dark"] .source-badge.lawfirm,
+html[data-theme="dark"] .analysis-depth-badge,
+html[data-theme="dark"] .analysis-depth-badge.full_text,
+html[data-theme="dark"] .analysis-depth-badge.public_preview,
+html[data-theme="dark"] .analysis-depth-badge.summary_only,
+html[data-theme="dark"] .geo-badge,
+html[data-theme="dark"] .signal-pill,
+html[data-theme="dark"] .briefing-report-section-chip,
+html[data-theme="dark"] .briefing-report-section-chip.daily,
+html[data-theme="dark"] .briefing-report-section-chip.weekly,
+html[data-theme="dark"] .summary-pill,
+html[data-theme="dark"] .hero-chip,
+html[data-theme="dark"] .source-health-pill,
+html[data-theme="dark"] .reports-timeline-dot,
+html[data-theme="dark"] .report-detail-index,
+html[data-theme="dark"] .sep-case-line-link,
+html[data-theme="dark"] .focus-mode-ai-pill {
+  background: rgba(196, 164, 124, 0.12) !important;
+  border-color: rgba(196, 164, 124, 0.18) !important;
+  color: #ead8b7 !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .btn-primary,
+html[data-theme="dark"] .briefing-open-btn,
+html[data-theme="dark"] .topbar-refresh-btn,
+html[data-theme="dark"] .topic-page-quick-link .btn-primary,
+html[data-theme="dark"] button[data-focus-open-sep-ai] {
+  background: linear-gradient(135deg, #f1ddb5, #c4a47c) !important;
+  border-color: rgba(241, 221, 181, 0.28) !important;
+  color: #111111 !important;
+}
+
+html[data-theme="dark"] .btn-secondary,
+html[data-theme="dark"] .btn-ghost,
+html[data-theme="dark"] .topic-brief-btn,
+html[data-theme="dark"] .topic-page-quick-link .btn,
+html[data-theme="dark"] .section-jump-btn,
+html[data-theme="dark"] .reports-center-action-btn,
+html[data-theme="dark"] .briefing-export-btn,
+html[data-theme="dark"] .report-detail-link,
+html[data-theme="dark"] .report-archive-action-btn,
+html[data-theme="dark"] .reports-nav-btn {
+  background: rgba(24, 24, 24, 0.92) !important;
+  border-color: rgba(196, 164, 124, 0.14) !important;
+  color: #e6dac5 !important;
+}
+
+html[data-theme="dark"] .btn-secondary:hover,
+html[data-theme="dark"] .btn-ghost:hover,
+html[data-theme="dark"] .topic-brief-btn:hover,
+html[data-theme="dark"] .reports-center-action-btn:hover,
+html[data-theme="dark"] .briefing-export-btn:hover,
+html[data-theme="dark"] .reports-nav-btn:hover {
+  background: rgba(34, 34, 34, 0.98) !important;
+  border-color: rgba(196, 164, 124, 0.22) !important;
+  color: #f4ede1 !important;
+}
