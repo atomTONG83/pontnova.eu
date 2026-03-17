@@ -84,6 +84,7 @@
     .pontnova-shell {
       --pontnova-shell-width: 1360px;
       --pontnova-shell-gutter: 20px;
+      --pontnova-app-inner-offset: 24px;
       min-height: 100vh;
       background:
         radial-gradient(circle at top right, rgba(196, 164, 124, 0.18), transparent 24%),
@@ -240,7 +241,10 @@
       box-shadow: 0 12px 26px rgba(0, 0, 0, 0.24);
     }
     .pontnova-hero {
-      width: min(var(--pontnova-shell-width), calc(100% - (var(--pontnova-shell-gutter) * 2)));
+      width: min(
+        calc(var(--pontnova-shell-width) - (var(--pontnova-app-inner-offset) * 2)),
+        calc(100% - ((var(--pontnova-shell-gutter) + var(--pontnova-app-inner-offset)) * 2))
+      );
       margin: 0 auto;
       padding: 34px 0 22px;
     }
@@ -332,6 +336,7 @@
       box-shadow: 0 30px 70px rgba(0,0,0,0.24);
     }
     @media (max-width: 900px) {
+      .pontnova-shell { --pontnova-app-inner-offset: 14px; }
       .pontnova-hero__grid { grid-template-columns: 1fr; }
       .pontnova-hero__panel { padding: 24px; }
       .pontnova-topbar__inner { align-items: flex-start; flex-direction: column; }
