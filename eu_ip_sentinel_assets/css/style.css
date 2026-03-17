@@ -8193,3 +8193,72 @@ html[data-theme="dark"] .stats-card .btn:hover {
   border-color: rgba(196, 164, 124, 0.22) !important;
   color: #f4ede1 !important;
 }
+
+/* ─── Pontnova SEP Final Pass ───────────────────────────── */
+html[data-theme="dark"] .sep-coverage-block,
+html[data-theme="dark"] .sep-ai-analysis-block,
+html[data-theme="dark"] .sep-company-snapshot,
+html[data-theme="dark"] .sep-company-latest-card,
+html[data-theme="dark"] .sep-company-snapshot-card,
+html[data-theme="dark"] .sep-ai-insight-card,
+html[data-theme="dark"] .sep-ai-snapshot-card,
+html[data-theme="dark"] .sep-ai-mix-card,
+html[data-theme="dark"] .sep-ai-rank-item,
+html[data-theme="dark"] .sep-company-card,
+html[data-theme="dark"] .sep-company-node,
+html[data-theme="dark"] .sep-company-node-group,
+html[data-theme="dark"] .sep-case-line-item {
+  background: linear-gradient(180deg, rgba(17, 17, 17, 0.98), rgba(11, 11, 11, 0.96)) !important;
+  border-color: rgba(196, 164, 124, 0.14) !important;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.24) !important;
+}
+
+html[data-theme="dark"] .sep-coverage-card span,
+html[data-theme="dark"] .sep-ai-snapshot-card span,
+html[data-theme="dark"] .sep-ai-snapshot-card em,
+html[data-theme="dark"] .sep-ai-month span,
+html[data-theme="dark"] .sep-ai-insight-copy span,
+html[data-theme="dark"] .sep-company-risk-label,
+html[data-theme="dark"] .sep-company-count,
+html[data-theme="dark"] .sep-company-snapshot-label,
+html[data-theme="dark"] .sep-company-meta-chip em,
+html[data-theme="dark"] .sep-case-line-meta,
+html[data-theme="dark"] .sep-impact-subtitle,
+html[data-theme="dark"] .sep-actor-group-title {
+  color: #a89474 !important;
+}
+
+html[data-theme="dark"] .sep-ai-summary,
+html[data-theme="dark"] .sep-impact-summary,
+html[data-theme="dark"] .sep-ai-insight-copy p,
+html[data-theme="dark"] .sep-company-conclusion,
+html[data-theme="dark"] .sep-company-mini-timeline-title,
+html[data-theme="dark"] .sep-company-latest-title,
+html[data-theme="dark"] .sep-case-line-title,
+html[data-theme="dark"] .sep-ai-trend-meta,
+html[data-theme="dark"] .sep-company-trend-meta,
+html[data-theme="dark"] .sep-company-snapshot-trend-meta,
+html[data-theme="dark"] .sep-company-map-desc {
+  color: #d6c6ad !important;
+}
+
+html[data-theme="dark"] .sep-coverage-card strong,
+html[data-theme="dark"] .sep-ai-snapshot-card strong,
+html[data-theme="dark"] .sep-ai-month strong,
+html[data-theme="dark"] .sep-ai-insight-top strong,
+html[data-theme="dark"] .sep-ai-mix-head span,
+html[data-theme="dark"] .sep-ai-mix-head strong,
+html[data-theme="dark"] .sep-ai-rank-meta span,
+html[data-theme="dark"] .sep-ai-rank-meta strong,
+html[data-theme="dark"] .sep-company-name,
+html[data-theme="dark"] .sep-company-snapshot-card strong,
+html[data-theme="dark"] .sep-company-meta-chip strong,
+html[data-theme="dark"] .sep-company-node-group-title,
+html[data-theme="dark"] .sep-company-node-title {
+  color: #f2e6cf !important;
+}
+
+html[data-theme="dark"] .sep-ai-insight-top span,
+html[data-theme="dark"] .sep-company-snapshot-head {
+  color: #d9ba86 !important;
+}
