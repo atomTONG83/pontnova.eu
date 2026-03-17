@@ -94,3 +94,57 @@ A       @       185.199.111.153         1 小时
 ---
 
 **需要我帮你执行哪个步骤？** 🚀
+
+---
+
+## 🛰️ 欧洲知识产权情报页更新治理（请勿混用）
+
+### 1. 三套系统的正式分工
+
+- `atom-ip-sentinel`
+  - 本地后台 / 控制台
+  - 唯一负责抓取、清洗、去重、AI 分析、日报、周报、专题与 SEP 洞察
+  - 是唯一可信数据源
+
+- `ATOM-IP-Insights`
+  - `atom-ip.com` 公开展示站
+  - 负责展示后台已经分析完成的静态前哨页面
+
+- `pontnova.eu`
+  - `Pontnova` 品牌公开展示站
+  - 负责以 `Pontnova` 品牌方式展示后台已经分析完成的同一份静态内容
+
+### 2. 标准更新流程
+
+必须按下面的顺序执行，不允许反向维护：
+
+1. 本地 `atom-ip-sentinel` 每日定时运行标准流水线
+2. 后台完成抓取、清洗、去重、AI 分析、日报 / 周报 / 专题生成
+3. `ATOM-IP-Insights` 运行：
+   - `python3 scripts/sync_eu_ip_sentinel_snapshot.py`
+4. `atom-ip.com` 发布最新静态快照
+5. `pontnova.eu` 运行：
+   - `python3 scripts/sync_eu_ip_sentinel_snapshot.py`
+6. `pontnova.eu` 发布最新静态快照
+
+### 3. 每日定时更新口径
+
+- 每日定时更新只在本地后台执行
+- `atom-ip.com` 和 `pontnova.eu` 不单独抓取，不单独分析
+- 两个公开站统一消费后台分析后的结果
+- 这样可以保证两个公开站内容口径一致、时间窗一致、AI 洞察一致
+
+### 4. 维护边界
+
+- 改抓取、改 AI、改去重、改分析逻辑：只改 `atom-ip-sentinel`
+- 改 `atom-ip.com` 页面展示：只改 `ATOM-IP-Insights`
+- 改 `pontnova.eu` 页面展示：只改 `pontnova.eu`
+- 任何人都不要在 `atom-ip.com` 或 `pontnova.eu` 里手工修改资讯数据本体
+- 两个公开站都只能从后台同步，不能互相同步，不能反向写回后台
+
+### 5. 每日更新与版本口径
+
+- 每日更新由本地 `atom-ip-sentinel` 后台统一发起
+- 后台跑完抓取、去重、AI 分析与简报生成后，再同步静态快照到 `pontnova.eu`
+- `pontnova.eu` 只负责品牌化公开展示，不负责抓取与分析
+- 当前公开展示页版本号统一为 `V1`
