@@ -7785,3 +7785,38 @@ html[data-theme="dark"] .reports-nav-btn:hover {
   border-color: rgba(196, 164, 124, 0.22) !important;
   color: #f4ede1 !important;
 }
+
+
+/* ─── Pontnova Layer Fix ───────────────────────────────── */
+.pontnova-topbar {
+  z-index: 1200 !important;
+}
+
+.pontnova-hero {
+  position: relative;
+  z-index: 30;
+}
+
+.pontnova-app {
+  position: relative;
+  z-index: 20;
+}
+
+html[data-theme="dark"] .app-layout {
+  position: relative;
+  z-index: 1;
+}
+
+html[data-theme="dark"] .sidebar {
+  position: relative;
+  z-index: 2 !important;
+}
+
+html[data-theme="dark"] .sidebar-logo {
+  top: 0 !important;
+  z-index: 3 !important;
+}
+
+html[data-theme="dark"] .sidebar-bottom {
+  z-index: 2 !important;
+}
