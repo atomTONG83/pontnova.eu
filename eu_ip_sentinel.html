@@ -245,7 +245,7 @@
         calc(var(--pontnova-shell-width) - var(--pontnova-sidebar-width)),
         calc(100% - ((var(--pontnova-shell-gutter) * 2) + var(--pontnova-sidebar-width)))
       );
-      margin: 0 0 0 auto;
+      margin: 0 auto 0 var(--pontnova-sidebar-width);
       padding: 34px 0 22px;
     }
     .pontnova-hero__panel {
@@ -337,6 +337,7 @@
     }
     @media (max-width: 900px) {
       .pontnova-shell { --pontnova-sidebar-width: 0px; }
+      .pontnova-hero { margin-left: auto; }
       .pontnova-hero__grid { grid-template-columns: 1fr; }
       .pontnova-hero__panel { padding: 24px; }
       .pontnova-topbar__inner { align-items: flex-start; flex-direction: column; }
