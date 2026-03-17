@@ -394,6 +394,18 @@
   <script src="eu_ip_sentinel_assets/js/app.js?v=20260317-showcase-1"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
+      const syncHeroWidth = () => {
+        const hero = document.querySelector('.pontnova-hero');
+        const app = document.getElementById('app');
+        if (!hero || !app) return;
+        const appRect = app.getBoundingClientRect();
+        const shellRect = document.querySelector('.pontnova-shell')?.getBoundingClientRect();
+        if (!appRect.width || !shellRect) return;
+        hero.style.width = `${appRect.width}px`;
+        hero.style.marginLeft = `${Math.max(0, appRect.left - shellRect.left)}px`;
+        hero.style.marginRight = 'auto';
+      };
+
       const hideLoader = () => {
         const loader = document.getElementById('initial-loader');
         if (loader) {
@@ -401,6 +413,9 @@
           setTimeout(() => loader.remove(), 400);
         }
       };
+      syncHeroWidth();
+      window.addEventListener('resize', syncHeroWidth);
+      setTimeout(syncHeroWidth, 120);
       requestAnimationFrame(() => setTimeout(hideLoader, 180));
     });
   </script>
