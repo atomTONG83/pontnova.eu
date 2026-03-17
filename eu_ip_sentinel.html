@@ -394,6 +394,7 @@
   <script src="eu_ip_sentinel_assets/js/app.js?v=20260317-showcase-1"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
+      let heroSyncRaf = null;
       const syncHeroWidth = () => {
         const hero = document.querySelector('.pontnova-hero');
         const app = document.getElementById('app');
@@ -405,6 +406,13 @@
         hero.style.marginLeft = `${Math.max(0, appRect.left - shellRect.left)}px`;
         hero.style.marginRight = 'auto';
       };
+      const queueHeroSync = () => {
+        if (heroSyncRaf) cancelAnimationFrame(heroSyncRaf);
+        heroSyncRaf = requestAnimationFrame(() => {
+          syncHeroWidth();
+          heroSyncRaf = null;
+        });
+      };
 
       const hideLoader = () => {
         const loader = document.getElementById('initial-loader');
@@ -413,9 +421,20 @@
           setTimeout(() => loader.remove(), 400);
         }
       };
-      syncHeroWidth();
-      window.addEventListener('resize', syncHeroWidth);
-      setTimeout(syncHeroWidth, 120);
+      const app = document.getElementById('app');
+      if (app && 'ResizeObserver' in window) {
+        const resizeObserver = new ResizeObserver(() => queueHeroSync());
+        resizeObserver.observe(app);
+      }
+      if (app && 'MutationObserver' in window) {
+        const mutationObserver = new MutationObserver(() => queueHeroSync());
+        mutationObserver.observe(app, { childList: true, subtree: true, attributes: true });
+      }
+      queueHeroSync();
+      window.addEventListener('resize', queueHeroSync);
+      setTimeout(queueHeroSync, 120);
+      setTimeout(queueHeroSync, 500);
+      setTimeout(queueHeroSync, 1200);
       requestAnimationFrame(() => setTimeout(hideLoader, 180));
     });
   </script>
