@@ -2111,7 +2111,7 @@ function renderStatusBar() {
       </div>
     ` : ''}
     <div class="statusbar-item" style="margin-left:auto">
-      © Atom TONG
+      © Pontnova
     </div>
   `);
 }
