@@ -391,7 +391,7 @@ const i18n = {
     detail_btn: '查看原文 →',
     detail_btn_short: '原文',
     detail_view_btn: '查看完整信息',
-    hero_kicker: 'Executive Brief',
+    hero_kicker: '总览',
     sidebar_section_label: '主题导航',
     hero_title: '一屏掌握欧洲知识产权全局态势',
     hero_desc: '围绕官方机构、法院、专业媒体与律所信号，优先呈现最新变化、重点法域与可执行解读。',
