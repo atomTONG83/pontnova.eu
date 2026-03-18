@@ -74,10 +74,13 @@
         document.body.appendChild(renderer.domElement);
 
         const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
+        const isTouchDevice = window.matchMedia('(pointer: coarse)').matches || window.innerWidth <= 1024;
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
+        controls.dampingFactor = isTouchDevice ? 0.08 : 0.05;
+        controls.rotateSpeed = isTouchDevice ? 0.38 : 0.8;
+        controls.zoomSpeed = isTouchDevice ? 0.75 : 1.0;
         controls.minDistance = 1.1; 
         controls.maxDistance = 10;
         controls.enablePan = false;
