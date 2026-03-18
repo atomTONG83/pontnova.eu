@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AE循迹 | Pontnova</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        #ui-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.9);
+            pointer-events: none;
+            z-index: 10;
+        }
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(0, 150, 255, 0.8);
+        }
+        p {
+            margin: 5px 0 0 0;
+            font-size: 14px;
+            color: #ddd;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 16px;
+            letter-spacing: 2px;
+            z-index: 20;
+            background: rgba(0,0,0,0.7);
+            padding: 20px 40px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            transition: opacity 0.5s ease;
+        }
+    </style>
+    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+    <div id="ui-container">
+        <h1>AE循迹</h1>
+        <p>左键拖拽旋转 | 滚轮极速缩放 | 全球 46 城定位</p>
+    </div>
+    
+    <div id="loading">正在加载 8K 级超清地貌贴图，请稍等数秒...</div>
+
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(2.0, 1.2, -2.5); 
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 1.1; 
+        controls.maxDistance = 10;
+        controls.enablePan = false;
+
+        // 星空背景
+        const starsGeometry = new THREE.BufferGeometry();
+        const posArray = new Float32Array(5000 * 3);
+        for(let i = 0; i < 5000 * 3; i++) posArray[i] = (Math.random() - 0.5) * 200; 
+        starsGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const starsMaterial = new THREE.PointsMaterial({ size: 0.1, color: 0xffffff, transparent: true, opacity: 0.8 });
+        scene.add(new THREE.Points(starsGeometry, starsMaterial));
+
+        // 光照
+        scene.add(new THREE.AmbientLight(0xffffff, 0.2)); 
+        const sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        sunLight.position.set(5, 3, 5); 
+        scene.add(sunLight);
+
+        // 加载贴图
+        const manager = new THREE.LoadingManager();
+        manager.onLoad = function () {
+            document.getElementById('loading').style.opacity = '0';
+            setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
+        };
+
+        const textureLoader = new THREE.TextureLoader(manager);
+        textureLoader.setCrossOrigin('anonymous');
+
+        const earthMap = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg');
+        const earthBumpMap = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-topology.png');
+        const earthSpecularMap = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-water.png');
+
+        earthMap.anisotropy = maxAnisotropy;
+        earthBumpMap.anisotropy = maxAnisotropy;
+        earthSpecularMap.anisotropy = maxAnisotropy;
+
+        // 地球本体
+        const earthGeometry = new THREE.SphereGeometry(1, 128, 128);
+        const earthMaterial = new THREE.MeshPhongMaterial({
+            map: earthMap,
+            bumpMap: earthBumpMap, 
+            bumpScale: 0.015,      
+            specularMap: earthSpecularMap, 
+            specular: new THREE.Color(0x222222), 
+            shininess: 15 
+        });
+        const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+        scene.add(earth);
+
+        // ==========================================
+        // 【城市数据化管理】包含新增的天津和来宾
+        // ==========================================
+        const cities =[
+            { name: "北京", lat: 39.9042, lon: 116.4074 },
+            { name: "天津", lat: 39.0842, lon: 117.2009 }, // 新增
+            { name: "济南", lat: 36.6512, lon: 117.1201 },
+            { name: "西安", lat: 34.3416, lon: 108.9398 },
+            { name: "南京", lat: 32.0603, lon: 118.7969 },
+            { name: "苏州", lat: 31.2989, lon: 120.5853 },
+            { name: "上海", lat: 31.2304, lon: 121.4737 },
+            { name: "嘉兴", lat: 30.7461, lon: 120.7555 },
+            { name: "杭州", lat: 30.2741, lon: 120.1551 },
+            { name: "合肥", lat: 31.8206, lon: 117.2272 },
+            { name: "广西来宾", lat: 23.7337, lon: 109.2297 }, // 新增
+            { name: "香港", lat: 22.3193, lon: 114.1694 },
+            { name: "澳门", lat: 22.1987, lon: 113.5439 },
+            { name: "深圳", lat: 22.5431, lon: 114.0579 },
+            { name: "珠海", lat: 22.2707, lon: 113.5767 },
+            { name: "佛山", lat: 23.0215, lon: 113.1214 },
+            { name: "东莞", lat: 23.0207, lon: 113.7518 },
+            
+            { name: "东京", lat: 35.6762, lon: 139.6503 },
+            { name: "横滨", lat: 35.4437, lon: 139.6380 },
+            { name: "新加坡", lat: 1.3521, lon: 103.8198 },
+            
+            { name: "巴黎", lat: 48.8566, lon: 2.3522 },
+            { name: "里昂", lat: 45.7640, lon: 4.8357 },
+            { name: "里尔", lat: 50.6292, lon: 3.0573 },
+            { name: "尼斯", lat: 43.7102, lon: 7.2620 },
+            { name: "斯特拉斯堡", lat: 48.5734, lon: 7.7521 },
+            { name: "第戎", lat: 47.3220, lon: 5.0415 },
+            { name: "圣米歇尔山", lat: 48.6360, lon: -1.5115 },
+            { name: "埃特雷塔（Étretat）", lat: 49.7060, lon: 0.2050 },
+            
+            { name: "慕尼黑", lat: 48.1351, lon: 11.5820 },
+            { name: "杜塞尔多夫", lat: 51.2277, lon: 6.7735 },
+            { name: "科隆", lat: 50.9375, lon: 6.9603 },
+            { name: "巴登巴登", lat: 48.7616, lon: 8.2409 },
+            { name: "伊斯坦布尔", lat: 41.0082, lon: 28.9784 },
+            
+            { name: "苏黎世", lat: 47.3769, lon: 8.5417 },
+            { name: "伯尔尼", lat: 46.9480, lon: 7.4474 },
+            { name: "卢塞恩", lat: 47.0502, lon: 8.3093 },
+            
+            { name: "巴塞罗那", lat: 41.3851, lon: 2.1734 },
+            { name: "马德里", lat: 40.4168, lon: -3.7038 },
+            
+            { name: "波士顿", lat: 42.3601, lon: -71.0589 },
+            { name: "洛杉矶", lat: 34.0522, lon: -118.2437 },
+            { name: "康科德（美国）", lat: 43.2081, lon: -71.5376 },
+            { name: "圣地亚哥", lat: 32.7157, lon: -117.1611 },
+            { name: "凤凰城", lat: 33.4484, lon: -112.0740 },
+            { name: "亚特兰大", lat: 33.7490, lon: -84.3880 },
+            { name: "蒂华纳", lat: 32.5149, lon: -117.0382 },
+            { name: "塞内加尔", lat: 14.7167, lon: -17.4677 }
+        ];
+
+        const markerEntries = [];
+        const earthCenter = new THREE.Vector3();
+        const baseLabelScale = new THREE.Vector3(0.145, 0.036, 1);
+
+        // 【核心优化】引线阵列错落排布法
+        function createLocationMarker(cityName, lat, lon, index) {
+            const markerGroup = new THREE.Group();
+
+            const radius = 1.0; 
+            const phi = (90 - lat) * (Math.PI / 180);
+            const theta = (lon + 180) * (Math.PI / 180); 
+            
+            // 地表坐标
+            const x = -(radius * Math.sin(phi) * Math.cos(theta));
+            const y = radius * Math.cos(phi);
+            const z = (radius * Math.sin(phi) * Math.sin(theta));
+            const surfacePos = new THREE.Vector3(x, y, z);
+
+            // 1. 贴地的小圆点
+            const pointGeometry = new THREE.SphereGeometry(0.003, 16, 16);
+            const pointMaterial = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+            const point = new THREE.Mesh(pointGeometry, pointMaterial);
+            point.position.copy(surfacePos);
+            markerGroup.add(point);
+
+            // 2. 根据城市所在的序号，分配不同的“引线高度”（共4个层级），缓解拥挤区域的文字打架
+            const heightLevels =[0.03, 0.06, 0.09, 0.12];
+            const lineLength = heightLevels[index % 4];
+            const endPos = surfacePos.clone().multiplyScalar(1 + lineLength);
+
+            // 3. 绘制带有科技感的连线
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints([surfacePos, endPos]);
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.6 });
+            const line = new THREE.Line(lineGeometry, lineMaterial);
+            markerGroup.add(line);
+
+            // 4. 文字贴图适当缩小，降低密集区域重叠感
+            const canvas = document.createElement('canvas');
+            canvas.width = 384;
+            canvas.height = 96;
+            const ctx = canvas.getContext('2d');
+
+            ctx.font = 'bold 34px "Microsoft YaHei", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = '#000000';
+            ctx.strokeText(cityName, 192, 48);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(cityName, 192, 48);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMaterial = new THREE.SpriteMaterial({
+                map: texture,
+                transparent: true,
+                depthTest: true
+            });
+            const sprite = new THREE.Sprite(spriteMaterial);
+
+            sprite.position.copy(endPos).multiplyScalar(1.01);
+            sprite.scale.copy(baseLabelScale);
+            markerGroup.add(sprite);
+
+            return { markerGroup, sprite };
+        }
+
+        // 遍历数组，传入 index 以计算错落高度
+        cities.forEach((city, index) => {
+            const marker = createLocationMarker(city.name, city.lat, city.lon, index);
+            earth.add(marker.markerGroup);
+            markerEntries.push(marker);
+        });
+        // ==========================================
+
+        function updateMarkerLabelScale() {
+            earth.getWorldPosition(earthCenter);
+            const cameraDistance = camera.position.distanceTo(earthCenter);
+            const zoomT = THREE.MathUtils.clamp((cameraDistance - controls.minDistance) / (3.2 - controls.minDistance), 0, 1);
+            const labelScaleFactor = THREE.MathUtils.lerp(0.62, 1.0, zoomT);
+
+            markerEntries.forEach((entry) => {
+                entry.sprite.scale.set(
+                    baseLabelScale.x * labelScaleFactor,
+                    baseLabelScale.y * labelScaleFactor,
+                    baseLabelScale.z
+                );
+            });
+        }
+
+        // 大气发光层
+        const atmosphereMaterial = new THREE.ShaderMaterial({
+            vertexShader: `
+                varying vec3 vNormal;
+                void main() {
+                    vNormal = normalize(normalMatrix * normal);
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vNormal;
+                void main() {
+                    float intensity = pow(0.55 - dot(vNormal, vec3(0, 0, 1.0)), 4.0);
+                    gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity; 
+                }
+            `,
+            blending: THREE.AdditiveBlending,
+            side: THREE.BackSide,
+            transparent: true
+        });
+        scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.12, 64, 64), atmosphereMaterial));
+
+        // 动画循环
+        function animate() {
+            requestAnimationFrame(animate);
+
+            earth.rotation.y += 0.0005; 
+
+            controls.update();
+            updateMarkerLabelScale();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // 窗口尺寸自适应
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
