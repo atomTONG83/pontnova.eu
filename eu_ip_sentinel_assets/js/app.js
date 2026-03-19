@@ -552,6 +552,13 @@ const i18n = {
     stream_scan_desc: '需要了解但紧迫度次一级',
     stream_background: '背景监测',
     stream_background_desc: '用于持续观察与趋势补充',
+    stream_sort_note: '按时间从新到旧',
+    stream_group_today: '今天',
+    stream_group_yesterday: '昨天',
+    stream_group_this_week: '本周较早',
+    stream_group_this_month: '本月较早',
+    stream_group_undated: '待补日期',
+    stream_group_items: '条',
     card_priority: '优先阅读',
     card_latest: '最新信号',
     card_sources: '热源监测',
@@ -1101,6 +1108,13 @@ const i18n = {
     stream_scan_desc: 'Important but second-order updates',
     stream_background: 'Background Watch',
     stream_background_desc: 'Lower-urgency context and monitoring',
+    stream_sort_note: 'Newest first',
+    stream_group_today: 'Today',
+    stream_group_yesterday: 'Yesterday',
+    stream_group_this_week: 'Earlier This Week',
+    stream_group_this_month: 'Earlier This Month',
+    stream_group_undated: 'Undated',
+    stream_group_items: 'items',
     card_priority: 'Priority Read',
     card_latest: 'Latest Signals',
     card_sources: 'Heat Sources',
@@ -2207,8 +2221,8 @@ async function renderNewsPage(container) {
     mergedItems = mergedItems.filter(isRelevantDisplayItem);
     const displayTotal = data.total;
     const featuredItems = sortBySignalPriority(mergedItems.filter(isPresentationItem), 'brief');
-    const streamItems = sortBySignalPriority(mergedItems.filter(isStreamItem), 'stream');
-    const visibleItems = (streamItems.length ? streamItems : mergedItems).slice(0, state.pagination.limit);
+    const streamItems = mergedItems.filter(isStreamItem);
+    const visibleItems = sortByChronology(streamItems.length ? streamItems : mergedItems).slice(0, state.pagination.limit);
     const boardItems = featuredItems.length ? featuredItems : visibleItems;
     const focusedMode = isFocusedNewsMode();
 
@@ -3769,6 +3783,7 @@ function renderStreamHeader(total) {
     </div>
     <div class="section-meta">
       ${t('label_showing')}: <strong>${total.toLocaleString()}</strong>
+      <span class="section-search-pill">${t('stream_sort_note')}</span>
       ${state.filters.q ? `<span class="section-search-pill">"${escapeHtml(state.filters.q)}"</span>` : ''}
     </div>
   `);
@@ -4377,6 +4392,42 @@ function buildOriginalLinkDateMeta(item) {
   return '—';
 }
 
+function sortByChronology(items) {
+  return [...(items || [])].sort((a, b) => parseItemTimestamp(b) - parseItemTimestamp(a));
+}
+
+function formatArchiveMonthLabel(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return t('stream_group_undated');
+  return state.lang === 'zh'
+    ? `${date.getFullYear()}年${date.getMonth() + 1}月`
+    : date.toLocaleDateString('en-GB', { year: 'numeric', month: 'long' });
+}
+
+function getChronologyGroupMeta(item, referenceDate = new Date()) {
+  const ts = parseItemTimestamp(item);
+  if (!ts) {
+    return { key: 'undated', label: t('stream_group_undated'), accent: 'slate' };
+  }
+  const itemDate = new Date(ts);
+  const todayStart = new Date(referenceDate);
+  todayStart.setHours(0, 0, 0, 0);
+  const yesterdayStart = new Date(todayStart);
+  yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+  const weekStart = new Date(todayStart);
+  const day = weekStart.getDay();
+  const offset = day === 0 ? 6 : day - 1;
+  weekStart.setDate(weekStart.getDate() - offset);
+  const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
+
+  if (ts >= todayStart.getTime()) return { key: 'today', label: t('stream_group_today'), accent: 'gold' };
+  if (ts >= yesterdayStart.getTime()) return { key: 'yesterday', label: t('stream_group_yesterday'), accent: 'teal' };
+  if (ts >= weekStart.getTime()) return { key: 'this-week', label: t('stream_group_this_week'), accent: 'slate' };
+  if (ts >= monthStart.getTime()) return { key: 'this-month', label: t('stream_group_this_month'), accent: 'slate' };
+
+  const monthKey = `month-${itemDate.getFullYear()}-${String(itemDate.getMonth() + 1).padStart(2, '0')}`;
+  return { key: monthKey, label: formatArchiveMonthLabel(itemDate), accent: 'slate' };
+}
+
 function hasEuropeanSignal(item) {
   const sourceId = item?.source_id || '';
   if (['epo', 'euipo', 'upc', 'cjeu', 'ukipo', 'dpma', 'boip', 'inpi'].includes(sourceId)) return true;
@@ -4550,41 +4601,41 @@ function renderIntelStreamSections(items) {
     return wrap;
   }
 
-  const groups = {
-    'must-read': items.filter((item) => getIntelTier(item) === 'must-read'),
-    scan: items.filter((item) => getIntelTier(item) === 'scan'),
-    background: items.filter((item) => getIntelTier(item) === 'background'),
-  };
+  const orderedItems = sortByChronology(items);
+  const grouped = [];
+  const groupMap = new Map();
 
-  if (!groups['must-read'].length && groups.scan.length) {
-    groups['must-read'] = groups.scan.splice(0, 2);
-  }
-  if (!groups.scan.length && groups.background.length) {
-    groups.scan = groups.background.splice(0, 3);
-  }
+  orderedItems.forEach((item) => {
+    const meta = getChronologyGroupMeta(item);
+    if (!groupMap.has(meta.key)) {
+      const payload = { ...meta, items: [] };
+      groupMap.set(meta.key, payload);
+      grouped.push(payload);
+    }
+    groupMap.get(meta.key).items.push(item);
+  });
 
-  const sections = [
-    { key: 'must-read', title: t('stream_must_read'), desc: t('stream_must_read_desc'), accent: 'gold' },
-    { key: 'scan', title: t('stream_scan'), desc: t('stream_scan_desc'), accent: 'teal' },
-    { key: 'background', title: t('stream_background'), desc: t('stream_background_desc'), accent: 'slate' },
-  ];
-
-  const shell = el('div', 'intel-stream-shell');
-  sections.forEach((section) => {
-    const list = groups[section.key];
+  const shell = el('div', 'intel-stream-shell chronology-stream');
+  grouped.forEach((group) => {
+    const list = group.items || [];
     if (!list.length) return;
-    const block = el('section', `intel-stream-section ${section.key}`);
+    const newestLabel = buildPrimaryDateLabel(list[0]);
+    const oldestLabel = buildPrimaryDateLabel(list[list.length - 1]);
+    const rangeLabel = newestLabel && oldestLabel && newestLabel !== oldestLabel
+      ? `${newestLabel} → ${oldestLabel}`
+      : (newestLabel || '—');
+    const block = el('section', `intel-stream-section chronology-group ${group.key}`);
     block.innerHTML = `
-      <div class="intel-stream-head">
+      <div class="intel-stream-head chronology-head">
         <div>
-          <div class="intel-stream-kicker ${section.accent}">${section.title}</div>
-          <div class="intel-stream-desc">${section.desc}</div>
+          <div class="intel-stream-kicker ${group.accent}">${group.label}</div>
+          <div class="intel-stream-desc">${rangeLabel}</div>
         </div>
-        <div class="intel-stream-count">${String(list.length).padStart(2, '0')}</div>
+        <div class="intel-stream-count">${String(list.length).padStart(2, '0')} ${t('stream_group_items')}</div>
       </div>
     `;
-    const grid = el('div', `news-grid intelligence-stream ${section.key}`);
-    list.forEach((item) => grid.appendChild(renderNewsCard(item, section.key)));
+    const grid = el('div', 'news-grid intelligence-stream chronology-grid');
+    list.forEach((item, index) => grid.appendChild(renderNewsCard(item, group.key === 'today' && index < 2 ? 'must-read' : 'scan')));
     block.appendChild(grid);
     shell.appendChild(block);
   });

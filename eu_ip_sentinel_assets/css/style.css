@@ -6115,6 +6115,28 @@ body::before {
   font-weight: 600;
 }
 
+
+.chronology-stream {
+  gap: 20px;
+}
+
+.chronology-group {
+  padding-top: 4px;
+}
+
+.chronology-group + .chronology-group {
+  padding-top: 18px;
+  border-top: 1px solid rgba(120, 98, 60, 0.08);
+}
+
+.chronology-head {
+  align-items: center;
+}
+
+.chronology-grid {
+  gap: 16px;
+}
+
 .news-grid.intelligence-stream {
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 14px;
