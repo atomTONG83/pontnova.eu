@@ -439,10 +439,13 @@ const i18n = {
     section_reports_desc_page: '先看当前窗口最重要的两份简报和 20 条可追溯明细，再往下看最近几期的连续变化。',
     section_today_published: '今日发布',
     section_today_published_desc: '只按原始发布日期收今天发出的内容，先快速扫一遍今天真正新增的盘面。',
+    section_today_published_desc_fallback: '今日原始发布暂时为空，以下先展示今日新抓且已完成判断的高价值资讯。',
     section_today_published_empty: '今天暂时还没有新的发布内容。',
     section_today_published_count: '条今日发布',
     section_today_published_expand: '展开其余今日发布',
     section_today_published_collapse: '收起今日发布',
+    label_today_scraped: '今日新抓',
+    today_published_state_captured: '今日新抓',
     section_latest_dynamics: '最新动态',
     section_latest_dynamics_desc: '在进入完整情报流前，先快速扫一遍近48小时最值得优先关注的高信号变化。',
     section_latest_dynamics_empty: '近48小时暂无新的高信号动态。',
@@ -1006,10 +1009,13 @@ const i18n = {
     section_reports_desc_page: 'Start with the two current briefs in this window and their 20 traceable items, then move into the recent run of reports below.',
     section_today_published: 'Published Today',
     section_today_published_desc: 'Show only items whose original publish date falls today, so the real new arrivals are easy to scan first.',
+    section_today_published_desc_fallback: 'No source items are dated today yet, so this panel falls back to high-value items captured today and already analyzed.',
     section_today_published_empty: 'No newly published items yet today.',
     section_today_published_count: 'published today',
     section_today_published_expand: 'Show more today',
     section_today_published_collapse: 'Collapse today list',
+    label_today_scraped: 'Captured today',
+    today_published_state_captured: 'Captured today',
     section_latest_dynamics: 'Latest Signal Readout',
     section_latest_dynamics_desc: 'Scan the most actionable changes from the last 48 hours before moving into the full stream.',
     section_latest_dynamics_empty: 'No high-signal updates in the last 48 hours.',
@@ -1642,6 +1648,17 @@ function isTodayPublishedItem(item) {
   return datePart === `${yyyy}-${mm}-${dd}`;
 }
 
+function isTodayScrapedItem(item) {
+  const raw = item?.scraped_at || '';
+  if (!raw) return false;
+  const datePart = String(raw).slice(0, 10);
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  return datePart === `${yyyy}-${mm}-${dd}`;
+}
+
 function sortTodayPublishedItems(items) {
   return [...(items || [])].sort((a, b) => {
     const aTime = Date.parse(a?.published_at || a?.scraped_at || '') || 0;
@@ -1651,8 +1668,8 @@ function sortTodayPublishedItems(items) {
   });
 }
 
-function isHighValueTodayPublishedItem(item) {
-  if (!item || !isTodayPublishedItem(item)) return false;
+function isHighValueFreshItem(item) {
+  if (!item) return false;
   if (item.ai_is_relevant !== 1) return false;
   const title = `${item.title_zh || ''} ${item.title || ''}`.toLowerCase();
   const summary = `${item.ai_summary_zh || ''} ${item.ai_insight_zh || ''} ${item.summary || ''}`.toLowerCase();
@@ -1671,10 +1688,24 @@ function isHighValueTodayPublishedItem(item) {
   return true;
 }
 
-function renderTodayPublishedSection(items) {
-  const todayItems = sortTodayPublishedItems((items || []).filter(isHighValueTodayPublishedItem));
-  const visibleItems = todayItems.slice(0, 6);
-  const overflowItems = todayItems.slice(6);
+function isHighValueTodayPublishedItem(item) {
+  return isTodayPublishedItem(item) && isHighValueFreshItem(item);
+}
+
+function isHighValueTodayCapturedItem(item) {
+  return isTodayScrapedItem(item) && isHighValueFreshItem(item);
+}
+
+function renderTodayPublishedSection(items, statsData = null) {
+  const todayPublishedItems = sortTodayPublishedItems((items || []).filter(isHighValueTodayPublishedItem));
+  const todayCapturedItems = sortTodayPublishedItems(
+    (items || []).filter((item) => isHighValueTodayCapturedItem(item) && !isTodayPublishedItem(item))
+  );
+  const displayMode = todayPublishedItems.length ? 'published' : (todayCapturedItems.length ? 'captured' : 'empty');
+  const activeItems = displayMode === 'published' ? todayPublishedItems : todayCapturedItems;
+  const visibleItems = activeItems.slice(0, 6);
+  const overflowItems = activeItems.slice(6);
+  const scrapedCount = Number(statsData?.today_items || 0) || sortTodayPublishedItems((items || []).filter(isTodayScrapedItem)).length;
   const section = el('section', 'today-published-section');
   section.innerHTML = `
     <div class="section-heading-row">
@@ -1683,21 +1714,24 @@ function renderTodayPublishedSection(items) {
         <h2 class="section-title">${t('section_today_published')}</h2>
       </div>
       <div class="section-meta section-meta-column">
-        <span>${t('section_today_published_desc')}</span>
-        <span>${todayItems.length} ${t('section_today_published_count')}</span>
+        <span>${displayMode === 'captured' ? t('section_today_published_desc_fallback') : t('section_today_published_desc')}</span>
+        <div class="today-published-meta-pills">
+          <span class="section-search-pill">${t('section_today_published')} ${todayPublishedItems.length}</span>
+          <span class="section-search-pill">${t('label_today_scraped')} ${scrapedCount}</span>
+        </div>
       </div>
     </div>
-	    ${todayItems.length ? `
+	    ${activeItems.length ? `
 	      <div class="today-published-list">
-	        ${visibleItems.map(renderTodayPublishedCard).join('')}
+	        ${visibleItems.map((item) => renderTodayPublishedCard(item, displayMode)).join('')}
 	        ${overflowItems.length ? `
 	          <details class="today-published-more">
 	            <summary class="report-detail-summary">
-	              <span class="report-detail-summary-closed">${t('section_today_published_expand')} ${overflowItems.length} ${t('section_today_published_count')}</span>
+	              <span class="report-detail-summary-closed">${displayMode === 'captured' ? `${t('label_today_scraped')} +${overflowItems.length}` : `${t('section_today_published_expand')} ${overflowItems.length} ${t('section_today_published_count')}`}</span>
 	              <span class="report-detail-summary-open">${t('section_today_published_collapse')}</span>
 	            </summary>
 	            <div class="today-published-list today-published-list-extra">
-	              ${overflowItems.map(renderTodayPublishedCard).join('')}
+	              ${overflowItems.map((item) => renderTodayPublishedCard(item, displayMode)).join('')}
 	            </div>
 	          </details>
 	        ` : ''}
@@ -1707,7 +1741,7 @@ function renderTodayPublishedSection(items) {
   return section;
 }
 
-function renderTodayPublishedCard(item) {
+function renderTodayPublishedCard(item, mode = 'published') {
   const title = (state.lang === 'zh' && item.title_zh) ? item.title_zh : (item.title || item.title_zh || '—');
   const subtitle = item.title && item.title !== title ? item.title : '';
   const summary = (state.lang === 'zh' ? item.ai_summary_zh : '') || item.summary || item.summary_zh || '';
@@ -1723,6 +1757,7 @@ function renderTodayPublishedCard(item) {
         <span class="ip-badge ${item.ip_type || 'general'}">${getIpTypeLabel(item.ip_type || 'general')}</span>
         ${renderGeoBadges(item, true, 1)}
         ${renderAnalysisDepthBadge(item, true)}
+        ${mode === 'captured' ? `<span class="today-published-state">${t('today_published_state_captured')}</span>` : ''}
         <span class="today-published-date">${escapeHtml(buildPrimaryDateLabel(item))}</span>
       </div>
       <strong class="today-published-title">${escapeHtml(truncateText(title, 92))}</strong>
@@ -3792,7 +3827,7 @@ function renderExpandedOverviewHeader() {
 
 function appendGlobalDashboardSections(container, statsData, overviewData, dataTotal, boardItems, todayPublishedItems, dailyReport, weeklyReport, topics) {
   container.appendChild(renderWarRoomHero(statsData, overviewData, dataTotal));
-  container.appendChild(renderTodayPublishedSection(todayPublishedItems));
+  container.appendChild(renderTodayPublishedSection(todayPublishedItems, statsData));
   container.appendChild(renderCommanderReports(dailyReport, weeklyReport));
   container.appendChild(renderTopicTheater(topics || []));
 }
