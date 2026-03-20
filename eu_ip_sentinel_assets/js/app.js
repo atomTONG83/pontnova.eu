@@ -559,6 +559,14 @@ const i18n = {
     stream_group_this_month: '本月较早',
     stream_group_undated: '待补日期',
     stream_group_items: '条',
+    stream_group_expand: '展开其余',
+    stream_group_collapse: '收起本组',
+    stream_group_browser_hint: '左右滑动浏览本组档案',
+    stream_group_open_modal: '查看本组全部',
+    chronology_modal_timeline_label: '时间轴',
+    chronology_modal_summary_range: '覆盖范围',
+    chronology_modal_summary_dates: '日期节点',
+    chronology_modal_summary_items: '资讯条目',
     card_priority: '优先阅读',
     card_latest: '最新信号',
     card_sources: '热源监测',
@@ -1115,6 +1123,14 @@ const i18n = {
     stream_group_this_month: 'Earlier This Month',
     stream_group_undated: 'Undated',
     stream_group_items: 'items',
+    stream_group_expand: 'Show remaining',
+    stream_group_collapse: 'Collapse group',
+    stream_group_browser_hint: 'Swipe to browse this archive lane',
+    stream_group_open_modal: 'Open full group',
+    chronology_modal_timeline_label: 'Timeline',
+    chronology_modal_summary_range: 'Coverage',
+    chronology_modal_summary_dates: 'Dates',
+    chronology_modal_summary_items: 'Items',
     card_priority: 'Priority Read',
     card_latest: 'Latest Signals',
     card_sources: 'Heat Sources',
@@ -2206,14 +2222,20 @@ async function renderNewsPage(container) {
     let mergedItems = [...(data.items || [])];
     if (state.pagination.page === 1 && data.pages > 1) {
       let probePage = 2;
-      while (probePage <= Math.min(data.pages, 3)) {
+      while (probePage <= Math.min(data.pages, 10)) {
         const featuredCount = mergedItems.filter(isPresentationItem).length;
         const streamCount = mergedItems.filter(isStreamItem).length;
-        if (featuredCount >= 5 && streamCount >= state.pagination.limit) break;
+        const chronologyGroups = countChronologyGroups(mergedItems.filter(isRelevantDisplayItem));
+        if (featuredCount >= 5 && streamCount >= state.pagination.limit && chronologyGroups >= 4) break;
         const probeParams = new URLSearchParams(params);
         probeParams.set('page', String(probePage));
-        const extra = await apiFetch(`/news?${probeParams}`);
-        mergedItems = mergedItems.concat(extra.items || []);
+        try {
+          const extra = await apiFetch(`/news?${probeParams}`);
+          mergedItems = mergedItems.concat(extra.items || []);
+        } catch (error) {
+          console.warn('Chronology probe stopped early', probePage, error);
+          break;
+        }
         probePage += 1;
       }
     }
@@ -2222,7 +2244,7 @@ async function renderNewsPage(container) {
     const displayTotal = data.total;
     const featuredItems = sortBySignalPriority(mergedItems.filter(isPresentationItem), 'brief');
     const streamItems = mergedItems.filter(isStreamItem);
-    const visibleItems = sortByChronology(streamItems.length ? streamItems : mergedItems).slice(0, state.pagination.limit);
+    const visibleItems = selectChronologyWindow(streamItems.length ? streamItems : mergedItems, state.pagination.limit, state.pagination.page);
     const boardItems = featuredItems.length ? featuredItems : visibleItems;
     const focusedMode = isFocusedNewsMode();
 
@@ -2242,13 +2264,13 @@ async function renderNewsPage(container) {
         topicBriefs?.topics || []
       );
     }
-    container.appendChild(renderStreamHeader(displayTotal));
+    container.appendChild(renderStreamHeader(displayTotal, streamItems.length ? streamItems : mergedItems));
 
     // News Grid
     container.appendChild(renderIntelStreamSections(visibleItems));
 
     // Pagination
-    if (data.pages > 1) {
+    if (data.pages > 1 && isFocusedNewsMode()) {
       container.appendChild(renderPagination(data.page, data.pages, data.total));
     }
 
@@ -3775,7 +3797,8 @@ function appendGlobalDashboardSections(container, statsData, overviewData, dataT
   container.appendChild(renderTopicTheater(topics || []));
 }
 
-function renderStreamHeader(total) {
+function renderStreamHeader(total, items = []) {
+  const chronologySummary = buildChronologySummary(items);
   return el('div', 'section-heading-row', `
     <div>
       <div class="section-kicker">${t('section_pulse')}</div>
@@ -3784,6 +3807,7 @@ function renderStreamHeader(total) {
     <div class="section-meta">
       ${t('label_showing')}: <strong>${total.toLocaleString()}</strong>
       <span class="section-search-pill">${t('stream_sort_note')}</span>
+      ${chronologySummary}
       ${state.filters.q ? `<span class="section-search-pill">"${escapeHtml(state.filters.q)}"</span>` : ''}
     </div>
   `);
@@ -4396,6 +4420,193 @@ function sortByChronology(items) {
   return [...(items || [])].sort((a, b) => parseItemTimestamp(b) - parseItemTimestamp(a));
 }
 
+function selectChronologyWindow(items, limit, page = 1) {
+  const ordered = sortByChronology(items);
+  if (page !== 1 || ordered.length <= limit) {
+    return ordered.slice(0, limit);
+  }
+
+  const maxItems = Math.max(limit * 6, 120);
+  const selected = [];
+  const seenGroups = new Set();
+  const groupCounts = new Map();
+  const targetMinimums = new Map([
+    ['today', Math.min(limit, 24)],
+    ['yesterday', 3],
+    ['this-week', 3],
+    ['this-month', 8],
+  ]);
+
+  ordered.some((item) => {
+    const key = getChronologyGroupMeta(item).key;
+    selected.push(item);
+    seenGroups.add(key);
+    groupCounts.set(key, (groupCounts.get(key) || 0) + 1);
+    const hasTargetCoverage = [...targetMinimums.entries()].every(([groupKey, minCount]) => (
+      seenGroups.has(groupKey) && (groupCounts.get(groupKey) || 0) >= minCount
+    ));
+    return selected.length >= maxItems || (selected.length >= limit && hasTargetCoverage);
+  });
+
+  return selected;
+}
+
+function countChronologyGroups(items) {
+  const groups = new Set();
+  (items || []).forEach((item) => groups.add(getChronologyGroupMeta(item).key));
+  return groups.size;
+}
+
+function buildChronologySummary(items) {
+  const buckets = [
+    ['today', t('stream_group_today')],
+    ['yesterday', t('stream_group_yesterday')],
+    ['this-week', t('stream_group_this_week')],
+    ['this-month', t('stream_group_this_month')],
+  ];
+  const counts = new Map(buckets.map(([key]) => [key, 0]));
+  (items || []).forEach((item) => {
+    const key = getChronologyGroupMeta(item).key;
+    if (counts.has(key)) counts.set(key, counts.get(key) + 1);
+  });
+  return buckets
+    .map(([key, label]) => `<span class="section-search-pill">${escapeHtml(label)} ${counts.get(key) || 0}</span>`)
+    .join('');
+}
+
+function groupChronologyModalItems(items) {
+  const grouped = [];
+  const groupMap = new Map();
+  sortByChronology(items).forEach((item) => {
+    const ts = parseItemTimestamp(item);
+    if (!ts) {
+      if (!groupMap.has('undated')) {
+        const payload = { key: 'undated', label: t('stream_group_undated'), items: [] };
+        groupMap.set('undated', payload);
+        grouped.push(payload);
+      }
+      groupMap.get('undated').items.push(item);
+      return;
+    }
+    const date = new Date(ts);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    if (!groupMap.has(key)) {
+      const payload = { key, label: buildPrimaryDateLabel(item), items: [] };
+      groupMap.set(key, payload);
+      grouped.push(payload);
+    }
+    groupMap.get(key).items.push(item);
+  });
+  return grouped;
+}
+
+function showChronologyGroupModal(group) {
+  const root = document.getElementById('modal-root');
+  const items = group?.items || [];
+  if (!root || !items.length) return;
+  const dateGroups = groupChronologyModalItems(items);
+  const newestLabel = buildPrimaryDateLabel(items[0]);
+  const oldestLabel = buildPrimaryDateLabel(items[items.length - 1]);
+  const rangeLabel = newestLabel && oldestLabel && newestLabel !== oldestLabel
+    ? `${newestLabel} → ${oldestLabel}`
+    : (newestLabel || '—');
+  const overlay = el('div', 'modal-overlay');
+  overlay.innerHTML = `
+    <div class="modal modal-wide chronology-modal">
+      <div class="modal-header">
+        <div class="modal-header-copy">
+          <div class="modal-header-tags">
+            <span class="section-search-pill">${escapeHtml(group.label || t('section_stream'))}</span>
+            <span class="section-search-pill">${items.length} ${t('stream_group_items')}</span>
+          </div>
+          <div class="modal-header-caption">${escapeHtml(rangeLabel)}</div>
+        </div>
+        <button class="modal-close" id="modal-close">✕</button>
+      </div>
+      <div class="modal-body chronology-modal-body">
+        <div class="chronology-modal-summary">
+          <div class="chronology-summary-card">
+            <div class="chronology-summary-label">${t('chronology_modal_summary_range')}</div>
+            <div class="chronology-summary-value">${escapeHtml(rangeLabel)}</div>
+          </div>
+          <div class="chronology-summary-card compact">
+            <div class="chronology-summary-label">${t('chronology_modal_summary_dates')}</div>
+            <div class="chronology-summary-value">${dateGroups.length}</div>
+          </div>
+          <div class="chronology-summary-card compact">
+            <div class="chronology-summary-label">${t('chronology_modal_summary_items')}</div>
+            <div class="chronology-summary-value">${items.length}</div>
+          </div>
+        </div>
+        <div class="chronology-modal-layout">
+          <aside class="chronology-modal-timeline">
+            <div class="chronology-modal-timeline-label">${t('chronology_modal_timeline_label')}</div>
+            <div class="chronology-modal-timeline-inner"></div>
+          </aside>
+          <div class="chronology-modal-content"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="modal-close-btn">${t('btn_close')}</button>
+      </div>
+    </div>
+  `;
+  const timeline = overlay.querySelector('.chronology-modal-timeline-inner');
+  const content = overlay.querySelector('.chronology-modal-content');
+  const buttons = [];
+  const sections = [];
+
+  dateGroups.forEach((dateGroup) => {
+    const section = el('section', 'chronology-modal-section');
+    section.dataset.chronoAnchor = dateGroup.key;
+    section.innerHTML = `
+      <div class="chronology-modal-section-head">
+        <div class="chronology-modal-section-date">${escapeHtml(dateGroup.label)}</div>
+        <div class="chronology-modal-section-count">${dateGroup.items.length} ${t('stream_group_items')}</div>
+      </div>
+    `;
+    const grid = el('div', 'chronology-modal-grid');
+    dateGroup.items.forEach((item, index) => grid.appendChild(renderNewsCard(item, group.key === 'today' && index < 2 ? 'must-read' : 'scan')));
+    section.appendChild(grid);
+    content.appendChild(section);
+    sections.push(section);
+
+    const btn = el('button', 'chronology-timeline-btn');
+    btn.type = 'button';
+    btn.dataset.targetKey = dateGroup.key;
+    btn.innerHTML = `
+      <span class="chronology-timeline-date">${escapeHtml(dateGroup.label)}</span>
+      <span class="chronology-timeline-count">${dateGroup.items.length}</span>
+    `;
+    btn.addEventListener('click', () => {
+      content.scrollTo({ top: section.offsetTop - 8, behavior: 'smooth' });
+    });
+    timeline.appendChild(btn);
+    buttons.push(btn);
+  });
+
+  const syncActiveDate = () => {
+    let activeKey = sections[0]?.dataset.chronoAnchor || '';
+    sections.forEach((section) => {
+      if (section.offsetTop - content.scrollTop <= 48) {
+        activeKey = section.dataset.chronoAnchor;
+      }
+    });
+    buttons.forEach((btn) => {
+      const active = btn.dataset.targetKey === activeKey;
+      btn.classList.toggle('active', active);
+      if (active) btn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
+  };
+
+  content.addEventListener('scroll', syncActiveDate, { passive: true });
+  syncActiveDate();
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector('#modal-close')?.addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#modal-close-btn')?.addEventListener('click', () => overlay.remove());
+  root.appendChild(overlay);
+}
+
 function formatArchiveMonthLabel(date) {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return t('stream_group_undated');
   return state.lang === 'zh'
@@ -4635,8 +4846,17 @@ function renderIntelStreamSections(items) {
       </div>
     `;
     const grid = el('div', 'news-grid intelligence-stream chronology-grid');
-    list.forEach((item, index) => grid.appendChild(renderNewsCard(item, group.key === 'today' && index < 2 ? 'must-read' : 'scan')));
+    const previewLimit = group.key === 'today' ? list.length : 3;
+    const previewItems = list.slice(0, previewLimit);
+    previewItems.forEach((item, index) => grid.appendChild(renderNewsCard(item, group.key === 'today' && index < 2 ? 'must-read' : 'scan')));
     block.appendChild(grid);
+    if (group.key !== 'today' && list.length > previewLimit) {
+      const actionRow = el('div', 'chronology-group-actions');
+      const button = el('button', 'btn btn-secondary chronology-open-btn', `${t('stream_group_open_modal')} ${list.length} ${t('stream_group_items')}`);
+      button.addEventListener('click', () => showChronologyGroupModal(group));
+      actionRow.appendChild(button);
+      block.appendChild(actionRow);
+    }
     shell.appendChild(block);
   });
   return shell;
