@@ -4403,6 +4403,31 @@ function buildPrimaryDateLabel(item) {
   return '—';
 }
 
+function formatTimelineDateLabel(item) {
+  const raw = typeof item === 'string'
+    ? item
+    : (item?.published_at || item?.scraped_at || '');
+  if (!raw) return t('stream_group_undated');
+  try {
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) return formatDate(raw);
+    if (state.lang === 'zh') {
+      return date.toLocaleDateString('zh-CN', {
+        month: 'numeric',
+        day: 'numeric',
+        weekday: 'short',
+      }).replace(/\s+/g, '');
+    }
+    return date.toLocaleDateString('en-GB', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    }).replace(',', '');
+  } catch {
+    return formatDate(raw);
+  }
+}
+
 function buildOriginalLinkDateMeta(item) {
   const published = formatDate(item?.published_at || '');
   const captured = formatDate(item?.scraped_at || '');
@@ -4481,7 +4506,12 @@ function groupChronologyModalItems(items) {
     const ts = parseItemTimestamp(item);
     if (!ts) {
       if (!groupMap.has('undated')) {
-        const payload = { key: 'undated', label: t('stream_group_undated'), items: [] };
+        const payload = {
+          key: 'undated',
+          label: t('stream_group_undated'),
+          timelineLabel: t('stream_group_undated'),
+          items: [],
+        };
         groupMap.set('undated', payload);
         grouped.push(payload);
       }
@@ -4491,7 +4521,12 @@ function groupChronologyModalItems(items) {
     const date = new Date(ts);
     const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     if (!groupMap.has(key)) {
-      const payload = { key, label: buildPrimaryDateLabel(item), items: [] };
+      const payload = {
+        key,
+        label: buildPrimaryDateLabel(item),
+        timelineLabel: formatTimelineDateLabel(item),
+        items: [],
+      };
       groupMap.set(key, payload);
       grouped.push(payload);
     }
@@ -4574,8 +4609,10 @@ function showChronologyGroupModal(group) {
     const btn = el('button', 'chronology-timeline-btn');
     btn.type = 'button';
     btn.dataset.targetKey = dateGroup.key;
+    btn.title = dateGroup.label;
+    btn.setAttribute('aria-label', dateGroup.label);
     btn.innerHTML = `
-      <span class="chronology-timeline-date">${escapeHtml(dateGroup.label)}</span>
+      <span class="chronology-timeline-date">${escapeHtml(dateGroup.timelineLabel || dateGroup.label)}</span>
       <span class="chronology-timeline-count">${dateGroup.items.length}</span>
     `;
     btn.addEventListener('click', () => {
