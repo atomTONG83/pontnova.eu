@@ -1659,6 +1659,15 @@ function isTodayScrapedItem(item) {
   return datePart === `${yyyy}-${mm}-${dd}`;
 }
 
+function isFreshTodayCapture(item, maxAgeDays = 7) {
+  const raw = item?.published_at || item?.scraped_at || '';
+  if (!raw) return true;
+  const parsed = Date.parse(raw);
+  if (!Number.isFinite(parsed)) return true;
+  const ageMs = Date.now() - parsed;
+  return ageMs <= maxAgeDays * 24 * 60 * 60 * 1000;
+}
+
 function sortTodayPublishedItems(items) {
   return [...(items || [])].sort((a, b) => {
     const aTime = Date.parse(a?.published_at || a?.scraped_at || '') || 0;
@@ -1693,7 +1702,7 @@ function isHighValueTodayPublishedItem(item) {
 }
 
 function isHighValueTodayCapturedItem(item) {
-  return isTodayScrapedItem(item) && isHighValueFreshItem(item);
+  return isTodayScrapedItem(item) && isHighValueFreshItem(item) && isFreshTodayCapture(item);
 }
 
 function renderTodayPublishedSection(items, statsData = null) {
