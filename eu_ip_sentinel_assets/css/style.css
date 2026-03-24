@@ -5453,6 +5453,57 @@ body::before {
   line-height: 1.8;
 }
 
+.focus-timeline-panel {
+  margin-bottom: 28px;
+}
+
+.focus-timeline-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.focus-timeline-group {
+  display: grid;
+  gap: 12px;
+}
+
+.focus-timeline-group + .focus-timeline-group {
+  padding-top: 18px;
+  border-top: 1px solid rgba(120, 98, 60, 0.08);
+}
+
+.focus-timeline-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.focus-timeline-group-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.focus-timeline-group-meta {
+  color: var(--color-text-3);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.focus-timeline-list {
+  gap: 10px;
+}
+
+.focus-timeline-item {
+  padding: 16px 18px;
+}
+
+.focus-timeline-item-footer {
+  color: var(--color-text-3);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
 .priority-topline {
   display: flex;
   align-items: center;
@@ -6935,6 +6986,11 @@ body::before {
 
   .focus-mode-ai-bridge-actions {
     justify-content: flex-start;
+  }
+
+  .focus-timeline-group-head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .topbar-status-group {

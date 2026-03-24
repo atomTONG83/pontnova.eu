@@ -2222,6 +2222,9 @@ async function renderNewsPage(container) {
   container.innerHTML = renderSkeletons(6);
 
   try {
+    const sepTimelineMode = isSepTimelineMode();
+    const sepTimelineLimit = 48;
+    const sepTimelineWindowLimit = 72;
     const now = new Date();
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -2229,7 +2232,10 @@ async function renderNewsPage(container) {
     const todayStart = `${yyyy}-${mm}-${dd} 00:00:00`;
     const todayEnd = `${yyyy}-${mm}-${dd} 23:59:59`;
     // Build query params
-    const params = new URLSearchParams({ page: state.pagination.page, limit: state.pagination.limit });
+    const params = new URLSearchParams({
+      page: sepTimelineMode ? 1 : state.pagination.page,
+      limit: sepTimelineMode ? sepTimelineLimit : state.pagination.limit,
+    });
     params.set('relevant_only', 'true');
     if (state.filters.ip_type && state.filters.ip_type !== 'all') params.set('ip_type', state.filters.ip_type);
     if (state.filters.category && state.filters.category !== 'all') params.set('category', state.filters.category);
@@ -2261,10 +2267,31 @@ async function renderNewsPage(container) {
     state.topicBriefs = topicBriefs?.topics || [];
     state.sources = sourcesData?.sources || [];
     state.pagination.total = data.total;
-    state.pagination.pages = data.pages;
+    state.pagination.pages = sepTimelineMode ? 1 : data.pages;
+    if (sepTimelineMode) state.pagination.page = 1;
 
     let mergedItems = [...(data.items || [])];
-    if (state.pagination.page === 1 && data.pages > 1) {
+    if (sepTimelineMode && data.pages > 1) {
+      let probePage = 2;
+      while (probePage <= Math.min(data.pages, 12)) {
+        const relevantItems = mergedItems.filter(isRelevantDisplayItem);
+        const streamCandidates = relevantItems.filter(isStreamItem);
+        const sepTimelineItems = sortByChronology(streamCandidates.length ? streamCandidates : relevantItems);
+        const chronologyGroups = countChronologyGroups(sepTimelineItems);
+        if (sepTimelineItems.length >= sepTimelineWindowLimit || chronologyGroups >= 6) break;
+        const probeParams = new URLSearchParams(params);
+        probeParams.set('page', String(probePage));
+        try {
+          const extra = await apiFetch(`/news?${probeParams}`);
+          mergedItems = mergedItems.concat(extra.items || []);
+        } catch (error) {
+          console.warn('SEP timeline probe stopped early', probePage, error);
+          break;
+        }
+        probePage += 1;
+      }
+    }
+    if (!sepTimelineMode && state.pagination.page === 1 && data.pages > 1) {
       let probePage = 2;
       while (probePage <= Math.min(data.pages, 10)) {
         const featuredCount = mergedItems.filter(isPresentationItem).length;
@@ -2288,7 +2315,9 @@ async function renderNewsPage(container) {
     const displayTotal = data.total;
     const featuredItems = sortBySignalPriority(mergedItems.filter(isPresentationItem), 'brief');
     const streamItems = mergedItems.filter(isStreamItem);
-    const visibleItems = selectChronologyWindow(streamItems.length ? streamItems : mergedItems, state.pagination.limit, state.pagination.page);
+    const visibleItems = sepTimelineMode
+      ? selectChronologyWindow(streamItems.length ? streamItems : mergedItems, sepTimelineWindowLimit, 1)
+      : selectChronologyWindow(streamItems.length ? streamItems : mergedItems, state.pagination.limit, state.pagination.page);
     const boardItems = featuredItems.length ? featuredItems : visibleItems;
     const focusedMode = isFocusedNewsMode();
 
@@ -2310,11 +2339,14 @@ async function renderNewsPage(container) {
     }
     container.appendChild(renderStreamHeader(displayTotal, streamItems.length ? streamItems : mergedItems));
 
-    // News Grid
-    container.appendChild(renderIntelStreamSections(visibleItems));
+    if (sepTimelineMode) {
+      container.appendChild(renderFocusedSepTimeline(visibleItems, displayTotal));
+    } else {
+      container.appendChild(renderIntelStreamSections(visibleItems));
+    }
 
     // Pagination
-    if (data.pages > 1 && isFocusedNewsMode()) {
+    if (data.pages > 1 && isFocusedNewsMode() && !sepTimelineMode) {
       container.appendChild(renderPagination(data.page, data.pages, data.total));
     }
 
@@ -3065,6 +3097,94 @@ function renderTopicTimeline(items) {
   return section;
 }
 
+function renderFocusedSepTimeline(items, total = 0) {
+  if (!items.length) {
+    const wrap = el('div', 'intel-stream-shell');
+    wrap.appendChild(renderEmptyState());
+    return wrap;
+  }
+
+  const timelineItems = [];
+  const orderedItems = sortByChronology(items || []);
+  const grouped = [];
+  const groupMap = new Map();
+  orderedItems.forEach((item) => {
+    const meta = getChronologyGroupMeta(item);
+    if (!groupMap.has(meta.key)) {
+      const payload = { ...meta, items: [] };
+      groupMap.set(meta.key, payload);
+      grouped.push(payload);
+    }
+    groupMap.get(meta.key).items.push(item);
+  });
+
+  const section = el('section', 'focus-timeline-panel');
+  const accents = ['gold', 'teal', 'slate'];
+  const desc = state.lang === 'zh'
+    ? `当前共 ${Number(total || items.length).toLocaleString()} 条 SEP 相关资讯；这里把最近 ${Number(orderedItems.length || 0).toLocaleString()} 条按时间轴一次展开，减少翻页切换。`
+    : `There are ${Number(total || items.length).toLocaleString()} SEP-related signals in total. This view expands the latest ${Number(orderedItems.length || 0).toLocaleString()} in one scrollable timeline.`;
+  const groupsMarkup = grouped.length ? grouped.map((group, groupIndex) => {
+    const list = group.items || [];
+    const newestLabel = buildPrimaryDateLabel(list[0]);
+    const oldestLabel = buildPrimaryDateLabel(list[list.length - 1]);
+    const rangeLabel = newestLabel && oldestLabel && newestLabel !== oldestLabel
+      ? `${newestLabel} → ${oldestLabel}`
+      : (newestLabel || group.label);
+    return `
+    <section class="intel-stream-section chronology-group focus-timeline-group ${group.key}">
+      <div class="focus-timeline-group-head">
+        <div class="focus-timeline-group-copy">
+          <div class="intel-stream-kicker ${accents[groupIndex % accents.length]}">${escapeHtml(group.label)}</div>
+          <div class="focus-timeline-group-meta">${escapeHtml(rangeLabel)}</div>
+        </div>
+        <div class="intel-stream-count">${String(list.length).padStart(2, '0')} ${t('stream_group_items')}</div>
+      </div>
+      <div class="topic-timeline-list focus-timeline-list">
+        ${list.map((item) => {
+          const index = timelineItems.push(item) - 1;
+          const titleText = (state.lang === 'zh' && item.title_zh) ? item.title_zh : item.title;
+          const summaryText = resolvePointList(item.ai_core_points_zh, item.ai_summary_zh || item.summary || '', 1, 120)[0]
+            || truncateText(item.ai_summary_zh || item.summary || '', 120)
+            || '—';
+          return `
+            <button class="topic-timeline-item focus-timeline-item" data-focus-timeline-index="${index}">
+              <span class="topic-timeline-rail">
+                <span class="topic-timeline-dot">${String(index + 1).padStart(2, '0')}</span>
+              </span>
+              <span class="topic-timeline-copy">
+                <span class="topic-timeline-meta">
+                  <span class="topic-timeline-meta-left">
+                    <span class="source-badge ${item.category || 'media'}">${escapeHtml(compactSourceName(item.source_name || ''))}</span>
+                    <span class="ip-badge ${item.ip_type || 'general'}">${getIpTypeLabel(item.ip_type || 'general')}</span>
+                    ${renderGeoBadges(item)}
+                    ${renderSignalTagPills(item, true)}
+                  </span>
+                  <span class="news-card-date">${escapeHtml(buildPrimaryDateLabel(item))}</span>
+                </span>
+                <strong class="topic-timeline-title">${escapeHtml(titleText || '—')}</strong>
+                <span class="topic-timeline-summary">${escapeHtml(summaryText)}</span>
+                <span class="focus-timeline-item-footer">${escapeHtml(buildOriginalLinkDateMeta(item))}</span>
+              </span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+    </section>
+  `;
+  }).join('') : `<div class="mini-empty">${t('card_empty')}</div>`;
+
+  section.innerHTML = `
+    <div class="focus-timeline-shell">
+      <div class="section-meta focus-timeline-meta">${escapeHtml(desc)} ${buildChronologySummary(orderedItems)}</div>
+      ${groupsMarkup}
+    </div>
+  `;
+  section.querySelectorAll('[data-focus-timeline-index]').forEach((btn) => {
+    btn.addEventListener('click', () => showNewsDetail(timelineItems[Number(btn.dataset.focusTimelineIndex)]));
+  });
+  return section;
+}
+
 function renderWarRoomHero(stats, overview, total) {
   const aiDone = stats.ai_analyzed ?? 0;
   const aiRatio = stats.total_items ? Math.round((aiDone / stats.total_items) * 100) : 0;
@@ -3708,6 +3828,10 @@ function isFocusedNewsMode() {
     Boolean(state.filters.has_ai) ||
     state.filters.scope !== 'eu'
   );
+}
+
+function isSepTimelineMode() {
+  return state.currentPage === 'news' && state.filters.ip_type === 'sep';
 }
 
 function clearNewsFocusFilters() {
