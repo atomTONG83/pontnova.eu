@@ -11,7 +11,19 @@
 
 const API = '/api';
 const STATIC_MODE = true;
-const STATIC_SNAPSHOT_URL = 'eu_ip_sentinel_assets/data/snapshot.json';
+const STATIC_DATA_ROOT = 'eu_ip_sentinel_assets/data';
+const STATIC_SNAPSHOT_URL = `${STATIC_DATA_ROOT}/snapshot.index.json`;
+const LEGACY_STATIC_SNAPSHOT_URL = `${STATIC_DATA_ROOT}/snapshot.json`;
+const STATIC_DEFAULT_FILES = {
+  news_index: 'news.index.json',
+  news_lane_files: {
+    core: 'news.core.json',
+    watch: 'news.watch.json',
+    calendar: 'news.calendar.json',
+    pending: 'news.pending.json',
+  },
+  topic_details_dir: 'topic-details',
+};
 const DEFAULT_LANG = 'zh';
 const THEME_VALUES = ['light', 'dark'];
 const SCOPE_VALUES = ['eu', 'intl', 'uk', 'de', 'fr', 'benelux', 'scandinavia', 'all'];
@@ -29,6 +41,7 @@ const state = {
   pendingTopicScrollId: '',
   filters: {
     ip_type: 'all',
+    editorial_lane: 'all',
     category: 'all',
     source: '',
     q: '',
@@ -54,19 +67,116 @@ const state = {
 localStorage.setItem('pontnova_lang', DEFAULT_LANG);
 
 let staticSnapshotPromise = null;
+let staticNewsIndexPromise = null;
+let staticNewsIndexUrl = '';
+const staticNewsLanePromises = new Map();
+const staticTopicDetailPromises = new Map();
 
 function cloneData(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
 }
 
+function normalizeEditorialLaneValue(lane = '') {
+  const normalized = String(lane || '').trim().toLowerCase();
+  return ['core', 'watch', 'calendar', 'pending'].includes(normalized) ? normalized : '';
+}
+
+function resolveStaticFileUrl(path = '') {
+  const rawPath = String(path || '');
+  if (!rawPath) return STATIC_DATA_ROOT;
+  if (/^https?:\/\//i.test(rawPath)) return rawPath;
+  const normalized = rawPath.replace(/^\/+/, '');
+  if (normalized.startsWith(STATIC_DATA_ROOT)) return normalized;
+  return `${STATIC_DATA_ROOT}/${normalized}`;
+}
+
+async function fetchStaticJson(url) {
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Static snapshot error: ${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+function decorateStaticSnapshot(snapshot) {
+  const staticFiles = snapshot?.static_files || {};
+  return {
+    ...snapshot,
+    _staticFiles: {
+      news_index: resolveStaticFileUrl(staticFiles.news_index || STATIC_DEFAULT_FILES.news_index),
+      news_lane_files: Object.fromEntries(
+        Object.entries({ ...STATIC_DEFAULT_FILES.news_lane_files, ...(staticFiles.news_lane_files || {}) })
+          .map(([lane, path]) => [lane, resolveStaticFileUrl(path)])
+      ),
+      topic_details_dir: resolveStaticFileUrl(staticFiles.topic_details_dir || STATIC_DEFAULT_FILES.topic_details_dir),
+      topic_detail_files: staticFiles.topic_detail_files || {},
+    },
+  };
+}
+
 async function loadStaticSnapshot() {
   if (!staticSnapshotPromise) {
-    staticSnapshotPromise = fetch(STATIC_SNAPSHOT_URL, { cache: 'no-store' }).then(async (res) => {
-      if (!res.ok) throw new Error(`Static snapshot error: ${res.status} ${res.statusText}`);
-      return res.json();
-    });
+    staticSnapshotPromise = (async () => {
+      try {
+        return decorateStaticSnapshot(await fetchStaticJson(STATIC_SNAPSHOT_URL));
+      } catch {
+        return decorateStaticSnapshot(await fetchStaticJson(LEGACY_STATIC_SNAPSHOT_URL));
+      }
+    })();
   }
   return staticSnapshotPromise;
+}
+
+async function loadStaticNewsLane(snapshot, lane) {
+  const normalizedLane = normalizeEditorialLaneValue(lane);
+  if (!normalizedLane) return [];
+  const laneUrl = snapshot?._staticFiles?.news_lane_files?.[normalizedLane];
+  if (!laneUrl) return [];
+  if (!staticNewsLanePromises.has(laneUrl)) {
+    staticNewsLanePromises.set(laneUrl, fetchStaticJson(laneUrl).then((payload) => payload?.items || []));
+  }
+  return staticNewsLanePromises.get(laneUrl);
+}
+
+async function loadStaticNewsIndex(snapshot, lane = '') {
+  const normalizedLane = normalizeEditorialLaneValue(lane);
+  if (Array.isArray(snapshot?.news_items)) {
+    return normalizedLane
+      ? snapshot.news_items.filter((item) => getEditorialLane(item) === normalizedLane)
+      : snapshot.news_items;
+  }
+  if (normalizedLane) {
+    try {
+      return await loadStaticNewsLane(snapshot, normalizedLane);
+    } catch (error) {
+      console.warn('Lane shard fallback to full news index', normalizedLane, error);
+    }
+  }
+  const newsUrl = snapshot?._staticFiles?.news_index || resolveStaticFileUrl(STATIC_DEFAULT_FILES.news_index);
+  if (!staticNewsIndexPromise || staticNewsIndexUrl !== newsUrl) {
+    staticNewsIndexUrl = newsUrl;
+    staticNewsIndexPromise = fetchStaticJson(newsUrl).then((payload) => payload?.items || []);
+  }
+  const items = await staticNewsIndexPromise;
+  return normalizedLane
+    ? items.filter((item) => getEditorialLane(item) === normalizedLane)
+    : items;
+}
+
+async function loadStaticTopicDetail(snapshot, topicId) {
+  if (snapshot?.topic_details?.[topicId]) {
+    return snapshot.topic_details[topicId];
+  }
+  const explicitUrl = snapshot?._staticFiles?.topic_detail_files?.[topicId];
+  const detailUrl = explicitUrl
+    ? resolveStaticFileUrl(explicitUrl)
+    : `${snapshot?._staticFiles?.topic_details_dir || resolveStaticFileUrl(STATIC_DEFAULT_FILES.topic_details_dir)}/${encodeURIComponent(topicId)}.json`;
+  if (!staticTopicDetailPromises.has(detailUrl)) {
+    staticTopicDetailPromises.set(detailUrl, fetchStaticJson(detailUrl).catch(() => ({
+      brief: snapshot?.topic_briefs_payload?.topics?.find((topic) => topic?.topic_id === topicId) || null,
+      items: [],
+      total: 0,
+    })));
+  }
+  return staticTopicDetailPromises.get(detailUrl);
 }
 
 function getStaticComparableDate(item) {
@@ -83,6 +193,7 @@ function staticMatchScope(item, scope) {
 function staticFilterNews(items, params) {
   let filtered = [...(items || [])];
   const ipType = params.get('ip_type');
+  const editorialLane = params.get('editorial_lane');
   const source = params.get('source');
   const category = params.get('category');
   const query = (params.get('q') || '').trim().toLowerCase();
@@ -93,6 +204,7 @@ function staticFilterNews(items, params) {
   const scope = params.get('scope') || '';
 
   if (ipType && ipType !== 'all') filtered = filtered.filter((item) => item.ip_type === ipType);
+  if (editorialLane && editorialLane !== 'all') filtered = filtered.filter((item) => getEditorialLane(item) === editorialLane);
   if (source) filtered = filtered.filter((item) => item.source_id === source);
   if (category) filtered = filtered.filter((item) => item.category === category);
   if (scope) filtered = filtered.filter((item) => staticMatchScope(item, scope));
@@ -149,17 +261,21 @@ async function staticApiFetch(path, options = {}) {
   if (rawPath === '/reports/archive') return cloneData(snapshot.archive || { groups: { daily: [], weekly: [] }, items: [], total: 0 });
   if (rawPath === '/sources') return cloneData(snapshot.sources_payload);
   if (rawPath === '/topic-briefs') return cloneData(snapshot.topic_briefs_payload);
-  if (rawPath === '/news') return staticFilterNews(cloneData(snapshot.news_items || []), params);
+  if (rawPath === '/news') {
+    const newsItems = await loadStaticNewsIndex(snapshot, params.get('editorial_lane') || '');
+    return staticFilterNews(cloneData(newsItems || []), params);
+  }
 
   const topicDetailMatch = rawPath.match(/^\/topic-briefs\/([^/]+)$/);
   if (topicDetailMatch) {
     const topicId = decodeURIComponent(topicDetailMatch[1]);
-    return cloneData(snapshot.topic_details?.[topicId]?.brief || null);
+    const detail = await loadStaticTopicDetail(snapshot, topicId);
+    return cloneData(detail?.brief || null);
   }
   const topicItemsMatch = rawPath.match(/^\/topic-briefs\/([^/]+)\/items$/);
   if (topicItemsMatch) {
     const topicId = decodeURIComponent(topicItemsMatch[1]);
-    const detail = snapshot.topic_details?.[topicId] || { items: [], total: 0 };
+    const detail = await loadStaticTopicDetail(snapshot, topicId);
     return cloneData({ items: detail.items || [], total: detail.total || (detail.items || []).length });
   }
 
@@ -220,6 +336,10 @@ const i18n = {
     filter_official: '官方',
     filter_media: '媒体',
     filter_lawfirm: '律所',
+    filter_lane: '阅读层级',
+    filter_lane_core: '核心流',
+    filter_lane_watch: '观察流',
+    filter_lane_calendar: '活动公告',
     filter_has_ai: '🤖 有AI分析',
     search_placeholder: '搜索知识产权新闻...',
     btn_refresh: '全源刷新',
@@ -533,6 +653,15 @@ const i18n = {
     section_theaters: '主题版图',
     section_stream: '资讯情报流',
     section_latest: '最新动态',
+    lane_core_kicker: '主流信号',
+    lane_core_title: '核心资讯流',
+    lane_core_desc: '优先处理判决、政策、官方更新与高信号专题分析。',
+    lane_watch_kicker: '趋势补充',
+    lane_watch_title: '观察资讯',
+    lane_watch_desc: '保留值得跟踪的分析评论，适合扫面趋势与补充判断。',
+    lane_calendar_kicker: '活动提醒',
+    lane_calendar_title: '活动与公告',
+    lane_calendar_desc: '会议、活动和通知单独放在这里，不再挤占主资讯流。',
     focus_mode_kicker: '主题浏览模式',
     focus_mode_title: '当前已切换到聚焦资讯流',
     focus_mode_desc: '当你按专利、商标、地理标志或关键词筛选时，页面会优先展示当前主题相关资讯；全局态势、报表和专题模块会收起，避免浏览时被前面大块内容打断。',
@@ -791,6 +920,10 @@ const i18n = {
     filter_official: 'Official',
     filter_media: 'Media',
     filter_lawfirm: 'Law Firm',
+    filter_lane: 'Reading Lane',
+    filter_lane_core: 'Core',
+    filter_lane_watch: 'Watch',
+    filter_lane_calendar: 'Calendar',
     search_placeholder: 'Search IP news...',
     btn_refresh: 'Full Refresh',
     btn_refreshing: 'Refreshing...',
@@ -1103,6 +1236,15 @@ const i18n = {
     section_theaters: 'Topic Map',
     section_stream: 'Intel Stream',
     section_latest: 'Latest Moves',
+    lane_core_kicker: 'Primary Signals',
+    lane_core_title: 'Core Stream',
+    lane_core_desc: 'Prioritize judgments, policy moves, official updates, and high-signal analysis.',
+    lane_watch_kicker: 'Trend Watch',
+    lane_watch_title: 'Watch Stream',
+    lane_watch_desc: 'Keep worthwhile commentary in view without letting it dominate the main stream.',
+    lane_calendar_kicker: 'Calendar',
+    lane_calendar_title: 'Events & Notices',
+    lane_calendar_desc: 'Meetings, events, and notices live here instead of crowding the main stream.',
     focus_mode_kicker: 'Focused View',
     focus_mode_title: 'Filtered stream first',
     focus_mode_desc: 'When you filter by patent, trademark, GI, source or keyword, the page now prioritizes the relevant intel stream first; global overview, reports and topic blocks stay collapsed until needed.',
@@ -1683,13 +1825,14 @@ function isHighValueFreshItem(item) {
   const title = `${item.title_zh || ''} ${item.title || ''}`.toLowerCase();
   const summary = `${item.ai_summary_zh || ''} ${item.ai_insight_zh || ''} ${item.summary || ''}`.toLowerCase();
   const docType = String(item.ai_document_type || '').toLowerCase();
+  const editorialLane = getEditorialLane(item);
   const topic = String(item.ai_topic_primary || '').toLowerCase();
   const category = String(item.category || '').toLowerCase();
 
   if (/\\b(about|contact|terms|privacy|cookies|accessibility|editorial board|submit|advertise)\\b/i.test(title)) return false;
   if (/(conference|forum|webinar|podcast|event|rescheduled|weekly|miscellany)/i.test(title)) return false;
   if (/(tarifs?|fees?|formalit|praises? .* team|record london year)/i.test(title)) return false;
-  if (docType === 'event_notice') return false;
+  if (editorialLane === 'calendar' || docType === 'event_notice') return false;
   if (docType === 'market_commentary' && !['patent', 'sep', 'trademark', 'copyright'].includes(topic)) return false;
   if (topic === 'general' && category !== 'official' && !['judgment', 'policy_update', 'enforcement_action'].includes(docType)) return false;
   if (category === 'official' && /(employment|inclusive|forum|tarifs?|formalit)/i.test(`${title} ${summary}`)) return false;
@@ -2123,6 +2266,13 @@ function renderFilterBar() {
     ['lawfirm', t('filter_lawfirm')],
   ];
 
+  const laneTypes = [
+    ['all', t('filter_all')],
+    ['core', t('filter_lane_core')],
+    ['watch', t('filter_lane_watch')],
+    ['calendar', t('filter_lane_calendar')],
+  ];
+
   const scopeTypes = [
     ['eu', t('filter_scope_eu')],
     ['intl', t('filter_scope_intl')],
@@ -2144,6 +2294,11 @@ function renderFilterBar() {
              data-filter="category" data-value="${val}">${label}</button>`
   ).join('');
 
+  const laneChips = laneTypes.map(([val, label]) =>
+    `<button class="filter-chip ${state.filters.editorial_lane === val ? 'active' : ''}"
+             data-filter="editorial_lane" data-value="${val}">${label}</button>`
+  ).join('');
+
   const aiChip = `<button class="filter-chip ai-chip ${state.filters.has_ai ? 'active' : ''}"
     data-filter="has_ai" data-value="toggle">${t('filter_has_ai')}</button>`;
 
@@ -2155,6 +2310,10 @@ function renderFilterBar() {
     <div class="filter-group">
       <span class="filter-label">${state.lang === 'zh' ? '来源' : 'From'}</span>
       ${catChips}
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">${t('filter_lane')}</span>
+      ${laneChips}
     </div>
     <div class="filter-group">
       <span class="filter-label">${t('filter_scope')}</span>
@@ -2238,6 +2397,7 @@ async function renderNewsPage(container) {
     });
     params.set('relevant_only', 'true');
     if (state.filters.ip_type && state.filters.ip_type !== 'all') params.set('ip_type', state.filters.ip_type);
+    if (state.filters.editorial_lane && state.filters.editorial_lane !== 'all') params.set('editorial_lane', state.filters.editorial_lane);
     if (state.filters.category && state.filters.category !== 'all') params.set('category', state.filters.category);
     if (state.filters.scope && state.filters.scope !== 'all') params.set('scope', state.filters.scope);
     if (state.filters.q) params.set('q', state.filters.q);
@@ -2245,6 +2405,7 @@ async function renderNewsPage(container) {
     if (state.filters.has_ai) params.set('has_ai', 'true');
     const todayParams = new URLSearchParams({ page: 1, limit: 60 });
     todayParams.set('relevant_only', 'true');
+    if (state.filters.editorial_lane && state.filters.editorial_lane !== 'all') todayParams.set('editorial_lane', state.filters.editorial_lane);
     todayParams.set('date_from', todayStart);
     todayParams.set('date_to', todayEnd);
 
@@ -3792,6 +3953,7 @@ function applyTopicPreset(topicId) {
   state.currentPage = 'news';
   state.pagination.page = 1;
   state.focusViewExpanded = false;
+  state.filters.editorial_lane = 'all';
   state.filters.source = '';
   switch (topicId) {
     case 'upc':
@@ -3822,6 +3984,7 @@ function applyTopicPreset(topicId) {
 function isFocusedNewsMode() {
   return state.currentPage === 'news' && (
     state.filters.ip_type !== 'all' ||
+    state.filters.editorial_lane !== 'all' ||
     state.filters.category !== 'all' ||
     Boolean(state.filters.source) ||
     Boolean(state.filters.q) ||
@@ -3839,6 +4002,7 @@ function clearNewsFocusFilters() {
   state.pagination.page = 1;
   state.focusViewExpanded = false;
   state.filters.ip_type = 'all';
+  state.filters.editorial_lane = 'all';
   state.filters.category = 'all';
   state.filters.source = '';
   state.filters.q = '';
@@ -3857,6 +4021,7 @@ function getFilterSourceLabel(sourceId) {
 function getActiveFocusLabels() {
   const labels = [];
   if (state.filters.ip_type && state.filters.ip_type !== 'all') labels.push(getIpTypeLabel(state.filters.ip_type));
+  if (state.filters.editorial_lane && state.filters.editorial_lane !== 'all') labels.push(t(`filter_lane_${state.filters.editorial_lane}`));
   if (state.filters.category && state.filters.category !== 'all') labels.push(t(`filter_${state.filters.category}`));
   if (state.filters.scope && state.filters.scope !== 'eu') labels.push(resolveScopeLabel(state.filters.scope));
   if (state.filters.source) labels.push(getFilterSourceLabel(state.filters.source));
@@ -4641,7 +4806,14 @@ function selectChronologyWindow(items, limit, page = 1) {
     return selected.length >= maxItems || (selected.length >= limit && hasTargetCoverage);
   });
 
-  return selected;
+  if (!selected.some((item) => getEditorialLane(item) === 'calendar')) {
+    const calendarBoost = ordered
+      .filter((item) => getEditorialLane(item) === 'calendar' && !selected.some((entry) => entry.id === item.id))
+      .slice(0, 2);
+    if (calendarBoost.length) selected.push(...calendarBoost);
+  }
+
+  return sortByChronology(selected);
 }
 
 function countChronologyGroups(items) {
@@ -4874,6 +5046,7 @@ function isHardSignalHomeItem(item) {
   const summary = (item?.summary || '').trim().toLowerCase();
   const combined = `${title} ${summary}`;
   const docType = (item?.ai_document_type || '').trim().toLowerCase();
+  const editorialLane = getEditorialLane(item);
   const sourceTier = getSourceQualityTier(getSourceById(item?.source_id || ''));
 
   if (!title) return false;
@@ -4882,7 +5055,8 @@ function isHardSignalHomeItem(item) {
   if (/^all in a name:/.test(title)) return false;
   if (/recent trade mark successes/.test(title)) return false;
   if (/response to opposition/.test(title)) return false;
-  if (docType === 'event_notice') return false;
+  if (editorialLane === 'calendar' || docType === 'event_notice') return false;
+  if (editorialLane === 'core' && !['lawfirm_analysis', 'market_commentary'].includes(docType)) return true;
 
   if (docType === 'lawfirm_analysis') {
     return /(court|judgment|general court|patents court|cjeu|upc|referral|appeal|proceedings|sued|dispute|revok|invalidity|dismissal|injunction|crime|counterfeit|raid|seizure)/.test(combined);
@@ -4906,6 +5080,18 @@ function isRelevantDisplayItem(item) {
   return true;
 }
 
+function getEditorialLane(item) {
+  const lane = String(item?.editorial_lane || '').trim().toLowerCase();
+  if (['core', 'watch', 'calendar', 'pending'].includes(lane)) return lane;
+  const docType = String(item?.ai_document_type || '').trim().toLowerCase();
+  if (!docType) return 'pending';
+  if (docType === 'event_notice') return 'calendar';
+  if (['judgment', 'official_news', 'policy_update', 'guidance', 'enforcement_action', 'legislation', 'data_release'].includes(docType)) {
+    return 'core';
+  }
+  return 'watch';
+}
+
 function getIntelPriorityScore(item) {
   let score = 0;
   const now = Date.now();
@@ -4913,6 +5099,7 @@ function getIntelPriorityScore(item) {
   const contentLen = (item?.content || '').trim().length;
   const aiConfidence = Number(item?.ai_confidence || 0);
   const docType = (item?.ai_document_type || '').trim().toLowerCase();
+  const editorialLane = getEditorialLane(item);
   const scope = (item?.primary_scope || item?.ai_primary_scope || '').trim().toLowerCase();
   const title = (item?.title || '').trim().toLowerCase();
   const summary = (item?.summary || '').trim().toLowerCase();
@@ -4929,10 +5116,13 @@ function getIntelPriorityScore(item) {
   if ((item.category || '') === 'lawfirm') score += 1;
   if (sourceTier === 'core') score += 2;
   if (sourceTier === 'watch') score -= 2;
+  if (editorialLane === 'core') score += 2;
+  if (editorialLane === 'watch') score -= 1;
+  if (editorialLane === 'calendar') score -= 4;
   if (['patent', 'trademark', 'design', 'sep'].includes(item.ip_type || '')) score += 1;
   if ((item.ip_type || '') === 'general') score -= 2;
   if (['judgment', 'official_news', 'enforcement_action'].includes(docType)) score += 1;
-  if (['market_commentary', 'data_release', 'event_notice'].includes(docType)) score -= 2;
+  if (['market_commentary', 'event_notice'].includes(docType)) score -= 2;
   if (docType === 'lawfirm_analysis') score -= 1;
   if (scope === 'intl') score -= 1;
   if (/(judgment|court of appeal|court of justice|general court|board of appeal|patents court|upc|cjeu|euipo|epo|ukipo|wto|injunction|invalidity|revok|dismissal|counterfeit|ip crime|fees from|funding|referral|sued|dispute|litigation|appeal|seizure|customs|frand|patent pool|licensing alliance)/.test(combined)) {
@@ -4959,12 +5149,16 @@ function getIntelPriorityScore(item) {
 function getPriorityBriefScore(item) {
   let score = getIntelPriorityScore(item);
   const docType = (item?.ai_document_type || '').trim().toLowerCase();
+  const editorialLane = getEditorialLane(item);
   const scope = (item?.primary_scope || item?.ai_primary_scope || '').trim().toLowerCase();
   const sourceId = (item?.source_id || '').trim().toLowerCase();
   const sourceTier = getSourceQualityTier(getSourceById(sourceId));
   if (item.ai_status === 'done') score += 8;
   if ((item.category || '') === 'official') score += 4;
   if ((item.category || '') === 'media') score += 2;
+  if (editorialLane === 'core') score += 3;
+  if (editorialLane === 'watch') score -= 1;
+  if (editorialLane === 'calendar') score -= 4;
   if (['judgment', 'enforcement_action'].includes(docType)) score += 4;
   if (docType === 'official_news') score += 3;
   if (docType === 'lawfirm_analysis') score -= 2;
@@ -5017,52 +5211,114 @@ function renderIntelStreamSections(items) {
     return wrap;
   }
 
-  const orderedItems = sortByChronology(items);
-  const grouped = [];
-  const groupMap = new Map();
+  function getEditorialLaneMeta(lane) {
+    const fallback = {
+      kicker: t('lane_watch_kicker'),
+      title: t('lane_watch_title'),
+      desc: t('lane_watch_desc'),
+    };
+    const map = {
+      core: {
+        kicker: t('lane_core_kicker'),
+        title: t('lane_core_title'),
+        desc: t('lane_core_desc'),
+      },
+      watch: fallback,
+      calendar: {
+        kicker: t('lane_calendar_kicker'),
+        title: t('lane_calendar_title'),
+        desc: t('lane_calendar_desc'),
+      },
+    };
+    return map[lane] || fallback;
+  }
 
-  orderedItems.forEach((item) => {
-    const meta = getChronologyGroupMeta(item);
-    if (!groupMap.has(meta.key)) {
-      const payload = { ...meta, items: [] };
-      groupMap.set(meta.key, payload);
-      grouped.push(payload);
-    }
-    groupMap.get(meta.key).items.push(item);
+  function buildChronologyGroups(itemsForLane) {
+    const grouped = [];
+    const groupMap = new Map();
+    sortByChronology(itemsForLane).forEach((item) => {
+      const meta = getChronologyGroupMeta(item);
+      if (!groupMap.has(meta.key)) {
+        const payload = { ...meta, items: [] };
+        groupMap.set(meta.key, payload);
+        grouped.push(payload);
+      }
+      groupMap.get(meta.key).items.push(item);
+    });
+    return grouped;
+  }
+
+  function renderChronologyGroups(groups) {
+    const shell = el('div', 'intel-stream-shell chronology-stream');
+    groups.forEach((group) => {
+      const list = group.items || [];
+      if (!list.length) return;
+      const newestLabel = buildPrimaryDateLabel(list[0]);
+      const oldestLabel = buildPrimaryDateLabel(list[list.length - 1]);
+      const rangeLabel = newestLabel && oldestLabel && newestLabel !== oldestLabel
+        ? `${newestLabel} → ${oldestLabel}`
+        : (newestLabel || '—');
+      const block = el('section', `intel-stream-section chronology-group ${group.key}`);
+      block.innerHTML = `
+        <div class="intel-stream-head chronology-head">
+          <div>
+            <div class="intel-stream-kicker ${group.accent}">${group.label}</div>
+            <div class="intel-stream-desc">${rangeLabel}</div>
+          </div>
+          <div class="intel-stream-count">${String(list.length).padStart(2, '0')} ${t('stream_group_items')}</div>
+        </div>
+      `;
+      const grid = el('div', 'news-grid intelligence-stream chronology-grid');
+      const previewLimit = group.key === 'today' ? list.length : 3;
+      const previewItems = list.slice(0, previewLimit);
+      previewItems.forEach((item, index) => grid.appendChild(renderNewsCard(item, group.key === 'today' && index < 2 ? 'must-read' : 'scan')));
+      block.appendChild(grid);
+      if (group.key !== 'today' && list.length > previewLimit) {
+        const actionRow = el('div', 'chronology-group-actions');
+        const button = el('button', 'btn btn-secondary chronology-open-btn', `${t('stream_group_open_modal')} ${list.length} ${t('stream_group_items')}`);
+        button.addEventListener('click', () => showChronologyGroupModal(group));
+        actionRow.appendChild(button);
+        block.appendChild(actionRow);
+      }
+      shell.appendChild(block);
+    });
+    return shell;
+  }
+
+  const laneBuckets = new Map([
+    ['core', []],
+    ['watch', []],
+    ['calendar', []],
+  ]);
+  sortByChronology(items).forEach((item) => {
+    const lane = getEditorialLane(item);
+    if (!laneBuckets.has(lane)) laneBuckets.set(lane, []);
+    laneBuckets.get(lane).push(item);
   });
 
-  const shell = el('div', 'intel-stream-shell chronology-stream');
-  grouped.forEach((group) => {
-    const list = group.items || [];
-    if (!list.length) return;
-    const newestLabel = buildPrimaryDateLabel(list[0]);
-    const oldestLabel = buildPrimaryDateLabel(list[list.length - 1]);
-    const rangeLabel = newestLabel && oldestLabel && newestLabel !== oldestLabel
-      ? `${newestLabel} → ${oldestLabel}`
-      : (newestLabel || '—');
-    const block = el('section', `intel-stream-section chronology-group ${group.key}`);
-    block.innerHTML = `
-      <div class="intel-stream-head chronology-head">
+  const shell = el('div', 'intel-stream-shell');
+  laneBuckets.forEach((laneItems, lane) => {
+    if (!laneItems.length) return;
+    const meta = getEditorialLaneMeta(lane);
+    const laneWrap = el('section', `editorial-lane-section editorial-lane-${lane}`);
+    laneWrap.style.display = 'grid';
+    laneWrap.style.gap = '14px';
+    const sourceCount = new Set(laneItems.map((item) => item.source_id).filter(Boolean)).size;
+    laneWrap.innerHTML = `
+      <div class="section-heading-row editorial-lane-heading">
         <div>
-          <div class="intel-stream-kicker ${group.accent}">${group.label}</div>
-          <div class="intel-stream-desc">${rangeLabel}</div>
+          <div class="section-kicker">${meta.kicker}</div>
+          <h2 class="section-title">${meta.title}</h2>
         </div>
-        <div class="intel-stream-count">${String(list.length).padStart(2, '0')} ${t('stream_group_items')}</div>
+        <div class="section-search-meta">
+          <span class="section-search-pill">${laneItems.length} ${t('stream_group_items')}</span>
+          <span class="section-search-pill">${sourceCount} ${t('focus_mode_sources')}</span>
+        </div>
       </div>
+      <div class="section-meta">${meta.desc}</div>
     `;
-    const grid = el('div', 'news-grid intelligence-stream chronology-grid');
-    const previewLimit = group.key === 'today' ? list.length : 3;
-    const previewItems = list.slice(0, previewLimit);
-    previewItems.forEach((item, index) => grid.appendChild(renderNewsCard(item, group.key === 'today' && index < 2 ? 'must-read' : 'scan')));
-    block.appendChild(grid);
-    if (group.key !== 'today' && list.length > previewLimit) {
-      const actionRow = el('div', 'chronology-group-actions');
-      const button = el('button', 'btn btn-secondary chronology-open-btn', `${t('stream_group_open_modal')} ${list.length} ${t('stream_group_items')}`);
-      button.addEventListener('click', () => showChronologyGroupModal(group));
-      actionRow.appendChild(button);
-      block.appendChild(actionRow);
-    }
-    shell.appendChild(block);
+    laneWrap.appendChild(renderChronologyGroups(buildChronologyGroups(laneItems)));
+    shell.appendChild(laneWrap);
   });
   return shell;
 }
@@ -5090,6 +5346,7 @@ function isStreamItem(item) {
   if (/^esearch/i.test(title)) return false;
   if (/(if you missed .* last week|never too late|sunday digest|this week on)/i.test(title)) return false;
   if (!hasEuropeanSignal(item)) return false;
+  if (getEditorialLane(item) === 'calendar') return true;
   if (!isHardSignalHomeItem(item)) return false;
   return true;
 }
