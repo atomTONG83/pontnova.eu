@@ -2533,6 +2533,38 @@ body::before {
   opacity: 0.98;
 }
 
+.europe-base-map {
+  filter: drop-shadow(0 12px 22px rgba(43, 57, 69, 0.08));
+}
+
+.europe-base-map .europe-heat-country {
+  transition: fill 180ms ease, opacity 180ms ease;
+}
+
+.europe-base-map .europe-heat-country.base {
+  fill: #d9ded8;
+  stroke: #fffaf3;
+  stroke-width: 1.12;
+}
+
+.europe-base-map .europe-heat-country.steady {
+  fill: rgba(215, 160, 84, 0.72);
+  stroke: rgba(255, 248, 241, 0.96);
+  stroke-width: 1.16;
+}
+
+.europe-base-map .europe-heat-country.warm {
+  fill: rgba(215, 117, 78, 0.88);
+  stroke: rgba(255, 247, 241, 0.98);
+  stroke-width: 1.18;
+}
+
+.europe-base-map .europe-heat-country.hot {
+  fill: rgba(213, 68, 38, 0.96);
+  stroke: rgba(255, 248, 242, 0.98);
+  stroke-width: 1.2;
+}
+
 .europe-heat-node-halo {
   fill: rgba(206, 86, 58, 0.12);
 }
@@ -7853,6 +7885,30 @@ html[data-theme="dark"] .europe-heat-sea {
 html[data-theme="dark"] .europe-heat-base-image {
   opacity: 0.94;
   filter: saturate(0.94) brightness(0.92);
+}
+
+html[data-theme="dark"] .europe-base-map {
+  filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.2));
+}
+
+html[data-theme="dark"] .europe-base-map .europe-heat-country.base {
+  fill: rgba(119, 136, 154, 0.46);
+  stroke: rgba(231, 238, 246, 0.28);
+}
+
+html[data-theme="dark"] .europe-base-map .europe-heat-country.steady {
+  fill: rgba(196, 152, 87, 0.74);
+  stroke: rgba(255, 244, 230, 0.7);
+}
+
+html[data-theme="dark"] .europe-base-map .europe-heat-country.warm {
+  fill: rgba(211, 112, 77, 0.9);
+  stroke: rgba(255, 242, 236, 0.74);
+}
+
+html[data-theme="dark"] .europe-base-map .europe-heat-country.hot {
+  fill: rgba(224, 86, 54, 0.96);
+  stroke: rgba(255, 244, 239, 0.8);
 }
 
 html[data-theme="dark"] .europe-heat-node-ring {

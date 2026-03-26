@@ -110,6 +110,13 @@ const EUROPE_HEAT_POINTS = [
 ];
 
 const EUROPE_HEAT_MAP_ASSET = 'eu_ip_sentinel_assets/assets/europe-heat-base.svg';
+const EUROPE_HEAT_SHAPE_GROUPS = {
+  uk: ['gb'],
+  benelux: ['be', 'nl', 'lu'],
+  scandinavia: ['is', 'no', 'se', 'fi'],
+};
+
+let europeHeatBaseMapPromise = null;
 
 localStorage.setItem('pontnova_lang', DEFAULT_LANG);
 
@@ -2545,7 +2552,7 @@ async function renderNewsPage(container) {
     if (focusedMode) {
       container.appendChild(renderFocusedNewsIntro(statsData, displayTotal, mergedItems, data, topicBriefs?.topics || []));
     } else {
-      appendGlobalDashboardSections(
+      await appendGlobalDashboardSections(
         container,
         statsData,
         overviewData,
@@ -2573,7 +2580,7 @@ async function renderNewsPage(container) {
 
     if (focusedMode && state.focusViewExpanded) {
       container.appendChild(renderExpandedOverviewHeader());
-      appendGlobalDashboardSections(
+      await appendGlobalDashboardSections(
         container,
         statsData,
         overviewData,
@@ -4186,9 +4193,9 @@ function renderExpandedOverviewHeader() {
   `);
 }
 
-function appendGlobalDashboardSections(container, statsData, overviewData, dataTotal, boardItems, todayPublishedItems, dailyReport, weeklyReport, topics, pulseItems = []) {
+async function appendGlobalDashboardSections(container, statsData, overviewData, dataTotal, boardItems, todayPublishedItems, dailyReport, weeklyReport, topics, pulseItems = []) {
   container.appendChild(renderWarRoomHero(statsData, overviewData, dataTotal));
-  container.appendChild(renderEuropeHeatSection(pulseItems));
+  container.appendChild(await renderEuropeHeatSection(pulseItems));
   container.appendChild(renderTodayPublishedSection(todayPublishedItems, statsData));
   container.appendChild(renderCommanderReports(dailyReport, weeklyReport));
   container.appendChild(renderTopicTheater(topics || []));
@@ -4884,27 +4891,57 @@ function buildEuropeHeatData(items) {
   };
 }
 
-function renderEuropeHeatSection(items) {
+function getEuropeHeatTone(count, maxCount) {
+  const ratio = count / (maxCount || 1);
+  if (ratio >= 0.72) return 'hot';
+  if (ratio >= 0.42) return 'warm';
+  return 'steady';
+}
+
+function getEuropeHeatShapeIds(id) {
+  return EUROPE_HEAT_SHAPE_GROUPS[id] || [id];
+}
+
+async function loadEuropeHeatBaseMapMarkup() {
+  if (!europeHeatBaseMapPromise) {
+    europeHeatBaseMapPromise = fetch(EUROPE_HEAT_MAP_ASSET)
+      .then((response) => (response.ok ? response.text() : ''))
+      .then((text) => {
+        const match = text.match(/<g class="europe-base-map"[\s\S]*<\/g>/i);
+        return match ? match[0] : '';
+      })
+      .catch((error) => {
+        console.warn('Failed to load Europe heat base map', error);
+        return '';
+      });
+  }
+  return europeHeatBaseMapPromise;
+}
+
+function decorateEuropeHeatMapMarkup(mapMarkup, hotspots, maxCount) {
+  const toneByIso = new Map();
+  hotspots.forEach((entry) => {
+    const tone = getEuropeHeatTone(entry.count, maxCount);
+    getEuropeHeatShapeIds(entry.id).forEach((iso) => toneByIso.set(iso, tone));
+  });
+  return mapMarkup.replace(/<path id="country-([a-z]+)"([^>]*)\/>/gi, (full, iso, rest) => {
+    const tone = toneByIso.get(String(iso).toLowerCase()) || 'base';
+    return `<path id="country-${String(iso).toLowerCase()}" class="europe-heat-country ${tone}"${rest}></path>`;
+  });
+}
+
+async function renderEuropeHeatSection(items) {
   const data = buildEuropeHeatData(items);
   const mapNodes = data.hotspots.slice(0, 7);
   const calloutNodes = mapNodes.slice(0, 4);
   const hotspotRows = data.hotspots.slice(0, 6);
   const maxCount = data.maxCount || 1;
-  const mapNodesMarkup = mapNodes.map((entry) => {
-    const ratio = entry.count / maxCount;
-    const tone = ratio >= 0.72 ? 'hot' : ratio >= 0.42 ? 'warm' : 'steady';
-    const radius = 7 + Math.round(ratio * 12);
-    return `
-      <g class="europe-heat-node ${tone}">
-        <title>${escapeHtml(entry.label)} · ${entry.count}</title>
-        <circle class="europe-heat-node-halo" cx="${entry.x}" cy="${entry.y}" r="${radius + 10}"></circle>
-        <circle class="europe-heat-node-ring" cx="${entry.x}" cy="${entry.y}" r="${radius + 2}"></circle>
-        <circle class="europe-heat-node-core" cx="${entry.x}" cy="${entry.y}" r="${radius}"></circle>
-      </g>
-    `;
-  }).join('');
+  const baseMapMarkup = mapNodes.length ? await loadEuropeHeatBaseMapMarkup() : '';
+  const mapSurfaceMarkup = baseMapMarkup
+    ? decorateEuropeHeatMapMarkup(baseMapMarkup, mapNodes, maxCount)
+    : `<image class="europe-heat-base-image" href="${EUROPE_HEAT_MAP_ASSET}" x="0" y="0" width="560" height="360" preserveAspectRatio="xMidYMid meet"></image>`;
   const calloutMarkup = calloutNodes.map((entry) => {
-    const tone = entry.count / maxCount >= 0.72 ? 'hot' : entry.count / maxCount >= 0.42 ? 'warm' : 'steady';
+    const tone = getEuropeHeatTone(entry.count, maxCount);
     const pillText = `${entry.label} · ${entry.count}`;
     const pillWidth = Math.max(94, Math.min(168, Math.round(pillText.length * 7.1) + 24));
     const pillHeight = 28;
@@ -4953,10 +4990,7 @@ function renderEuropeHeatSection(items) {
                 </linearGradient>
               </defs>
               <rect class="europe-heat-sea" x="10" y="10" width="540" height="340" rx="26" fill="url(#europeHeatSea)"></rect>
-              <image class="europe-heat-base-image" href="${EUROPE_HEAT_MAP_ASSET}" x="0" y="0" width="560" height="360" preserveAspectRatio="xMidYMid meet"></image>
-              <g class="europe-heat-node-layer">
-                ${mapNodesMarkup}
-              </g>
+              ${mapSurfaceMarkup}
               <g class="europe-heat-callouts">
                 ${calloutMarkup}
               </g>
