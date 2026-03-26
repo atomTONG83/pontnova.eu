@@ -2515,7 +2515,7 @@ body::before {
   border-radius: 22px;
   overflow: hidden;
   border: 1px solid rgba(66, 87, 97, 0.08);
-  background: linear-gradient(180deg, rgba(251, 249, 244, 0.88), rgba(232, 240, 242, 0.92));
+  background: linear-gradient(180deg, rgba(247, 244, 238, 0.92), rgba(217, 231, 234, 0.96));
 }
 
 .europe-heat-svg {
@@ -2529,23 +2529,12 @@ body::before {
   stroke-width: 1.2;
 }
 
-.europe-heat-rings path {
-  fill: none;
-  stroke: rgba(95, 114, 128, 0.16);
-  stroke-width: 1.15;
-  stroke-linecap: round;
-  stroke-dasharray: 5 9;
-}
-
-.europe-heat-land path,
-.europe-heat-land ellipse {
-  fill: url(#europeHeatLandFill);
-  stroke: rgba(84, 102, 110, 0.22);
-  stroke-width: 1.15;
+.europe-heat-base-image {
+  opacity: 0.98;
 }
 
 .europe-heat-node-halo {
-  fill: rgba(41, 128, 185, 0.14);
+  fill: rgba(206, 86, 58, 0.12);
 }
 
 .europe-heat-node-ring {
@@ -7861,14 +7850,9 @@ html[data-theme="dark"] .europe-heat-sea {
   stroke: rgba(148, 163, 184, 0.16);
 }
 
-html[data-theme="dark"] .europe-heat-land path,
-html[data-theme="dark"] .europe-heat-land ellipse {
-  fill: rgba(126, 148, 169, 0.22);
-  stroke: rgba(148, 163, 184, 0.2);
-}
-
-html[data-theme="dark"] .europe-heat-rings path {
-  stroke: rgba(148, 163, 184, 0.12);
+html[data-theme="dark"] .europe-heat-base-image {
+  opacity: 0.94;
+  filter: saturate(0.94) brightness(0.92);
 }
 
 html[data-theme="dark"] .europe-heat-node-ring {

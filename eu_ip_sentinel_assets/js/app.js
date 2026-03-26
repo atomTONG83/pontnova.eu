@@ -86,28 +86,30 @@ const state = {
 };
 
 const EUROPE_HEAT_POINTS = [
-  { id: 'ie', x: 88, y: 122, lx: 54, ly: 102, anchor: 'end' },
-  { id: 'uk', x: 118, y: 108, lx: 92, ly: 76, anchor: 'end' },
-  { id: 'pt', x: 112, y: 248, lx: 76, ly: 280, anchor: 'end' },
-  { id: 'es', x: 154, y: 224, lx: 120, ly: 284, anchor: 'end' },
-  { id: 'fr', x: 194, y: 172, lx: 150, ly: 214, anchor: 'end' },
-  { id: 'benelux', x: 234, y: 140, lx: 202, ly: 102, anchor: 'end' },
-  { id: 'de', x: 272, y: 142, lx: 320, ly: 118, anchor: 'start' },
-  { id: 'ch', x: 246, y: 186, lx: 228, ly: 226, anchor: 'end' },
-  { id: 'it', x: 286, y: 236, lx: 256, ly: 300, anchor: 'end' },
-  { id: 'dk', x: 278, y: 104, lx: 316, ly: 78, anchor: 'start' },
-  { id: 'scandinavia', x: 322, y: 74, lx: 386, ly: 54, anchor: 'start' },
-  { id: 'pl', x: 342, y: 140, lx: 404, ly: 126, anchor: 'start' },
-  { id: 'sk', x: 324, y: 170, lx: 374, ly: 176, anchor: 'start' },
-  { id: 'hu', x: 340, y: 190, lx: 392, ly: 206, anchor: 'start' },
-  { id: 'si', x: 308, y: 206, lx: 342, ly: 240, anchor: 'start' },
-  { id: 'bg', x: 386, y: 238, lx: 436, ly: 254, anchor: 'start' },
-  { id: 'gr', x: 372, y: 294, lx: 414, ly: 316, anchor: 'start' },
-  { id: 'mt', x: 272, y: 314, lx: 242, ly: 334, anchor: 'end' },
-  { id: 'cy', x: 448, y: 324, lx: 488, ly: 338, anchor: 'start' },
-  { id: 'lt', x: 374, y: 108, lx: 432, ly: 92, anchor: 'start' },
-  { id: 'al', x: 350, y: 272, lx: 388, ly: 294, anchor: 'start' },
+  { id: 'ie', x: 182, y: 195, lx: 144, ly: 176, anchor: 'end' },
+  { id: 'uk', x: 202, y: 180, lx: 174, ly: 146, anchor: 'end' },
+  { id: 'pt', x: 185, y: 287, lx: 150, ly: 322, anchor: 'end' },
+  { id: 'es', x: 207, y: 283, lx: 198, ly: 320, anchor: 'end' },
+  { id: 'fr', x: 231, y: 247, lx: 188, ly: 272, anchor: 'end' },
+  { id: 'benelux', x: 246, y: 214, lx: 225, ly: 184, anchor: 'end' },
+  { id: 'de', x: 268, y: 205, lx: 314, ly: 184, anchor: 'start' },
+  { id: 'ch', x: 260, y: 243, lx: 240, ly: 272, anchor: 'end' },
+  { id: 'it', x: 277, y: 274, lx: 252, ly: 323, anchor: 'end' },
+  { id: 'dk', x: 269, y: 177, lx: 288, ly: 150, anchor: 'start' },
+  { id: 'scandinavia', x: 304, y: 104, lx: 356, ly: 72, anchor: 'start' },
+  { id: 'pl', x: 308, y: 207, lx: 356, ly: 200, anchor: 'start' },
+  { id: 'sk', x: 310, y: 230, lx: 342, ly: 233, anchor: 'start' },
+  { id: 'hu', x: 310, y: 240, lx: 350, ly: 254, anchor: 'start' },
+  { id: 'si', x: 289, y: 248, lx: 315, ly: 278, anchor: 'start' },
+  { id: 'bg', x: 337, y: 268, lx: 380, ly: 277, anchor: 'start' },
+  { id: 'gr', x: 330, y: 296, lx: 374, ly: 326, anchor: 'start' },
+  { id: 'mt', x: 286, y: 309, lx: 260, ly: 338, anchor: 'end' },
+  { id: 'cy', x: 373, y: 314, lx: 414, ly: 336, anchor: 'start' },
+  { id: 'lt', x: 330, y: 182, lx: 372, ly: 168, anchor: 'start' },
+  { id: 'al', x: 313, y: 279, lx: 347, ly: 302, anchor: 'start' },
 ];
+
+const EUROPE_HEAT_MAP_ASSET = 'eu_ip_sentinel_assets/assets/europe-heat-base.svg';
 
 localStorage.setItem('pontnova_lang', DEFAULT_LANG);
 
@@ -4949,33 +4951,9 @@ function renderEuropeHeatSection(items) {
                   <stop offset="55%" stop-color="rgba(230, 240, 242, 0.92)"></stop>
                   <stop offset="100%" stop-color="rgba(215, 230, 236, 0.96)"></stop>
                 </linearGradient>
-                <linearGradient id="europeHeatLandFill" x1="12%" y1="10%" x2="78%" y2="88%">
-                  <stop offset="0%" stop-color="rgba(243, 239, 229, 0.98)"></stop>
-                  <stop offset="60%" stop-color="rgba(224, 231, 223, 0.96)"></stop>
-                  <stop offset="100%" stop-color="rgba(204, 214, 212, 0.98)"></stop>
-                </linearGradient>
-                <filter id="europeHeatShadow" x="-8%" y="-8%" width="116%" height="116%">
-                  <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="rgba(34, 51, 68, 0.12)"></feDropShadow>
-                </filter>
               </defs>
               <rect class="europe-heat-sea" x="10" y="10" width="540" height="340" rx="26" fill="url(#europeHeatSea)"></rect>
-              <g class="europe-heat-rings">
-                <path d="M86 196C164 152 262 139 356 149C430 158 484 182 512 212"></path>
-                <path d="M72 252C154 224 258 211 360 221C435 229 488 249 514 270"></path>
-                <path d="M122 92C170 66 236 54 304 58C372 62 426 78 460 102"></path>
-              </g>
-              <g class="europe-heat-land" filter="url(#europeHeatShadow)">
-                <path d="M98 232C100 212 108 196 126 181C145 165 162 153 182 145C202 137 221 125 243 126C257 127 269 120 288 121C307 122 321 131 334 141C345 149 356 156 371 156C390 156 404 166 410 182C415 196 411 211 401 220C394 227 394 235 400 244C403 252 401 258 393 262C380 268 366 269 354 275C344 280 333 285 320 283C305 280 295 271 289 260C283 251 279 243 268 238C255 233 245 233 234 227C219 220 209 209 195 203C177 196 163 200 149 209C136 218 121 230 107 236C101 239 98 238 98 232Z"></path>
-                <path d="M270 119C276 101 286 81 301 66C315 52 332 45 344 49C353 53 358 64 355 79C351 93 344 105 335 116C324 129 313 136 297 136C286 136 277 129 270 119Z"></path>
-                <path d="M109 129C110 112 117 100 128 93C138 87 147 90 150 100C151 113 146 127 137 137C128 145 117 145 109 129Z"></path>
-                <path d="M86 136C88 124 93 114 100 110C107 108 112 114 113 121C114 132 109 141 101 146C93 149 87 145 86 136Z"></path>
-                <path d="M61 89C67 81 78 77 89 80C95 83 97 90 93 96C84 102 72 103 62 98C58 95 58 92 61 89Z"></path>
-                <path d="M265 224C273 228 281 237 288 249C294 260 301 273 300 287C292 284 288 276 284 268C279 258 275 250 270 242C265 235 262 229 265 224Z"></path>
-                <path d="M348 262C360 258 373 260 384 267C391 273 392 281 384 287C376 294 364 297 354 292C347 287 344 274 348 262Z"></path>
-                <ellipse cx="452" cy="319" rx="8" ry="5"></ellipse>
-                <ellipse cx="275" cy="313" rx="6" ry="4"></ellipse>
-                <path d="M260 112C264 107 271 106 275 111C277 116 274 120 268 121C263 121 260 118 260 112Z"></path>
-              </g>
+              <image class="europe-heat-base-image" href="${EUROPE_HEAT_MAP_ASSET}" x="0" y="0" width="560" height="360" preserveAspectRatio="xMidYMid meet"></image>
               <g class="europe-heat-node-layer">
                 ${mapNodesMarkup}
               </g>
