@@ -86,27 +86,27 @@ const state = {
 };
 
 const EUROPE_HEAT_POINTS = [
-  { id: 'ie', x: 88, y: 122 },
-  { id: 'uk', x: 118, y: 108 },
-  { id: 'pt', x: 112, y: 248 },
-  { id: 'es', x: 154, y: 224 },
-  { id: 'fr', x: 194, y: 172 },
-  { id: 'benelux', x: 234, y: 140 },
-  { id: 'de', x: 272, y: 142 },
-  { id: 'ch', x: 246, y: 186 },
-  { id: 'it', x: 286, y: 236 },
-  { id: 'dk', x: 278, y: 104 },
-  { id: 'scandinavia', x: 322, y: 74 },
-  { id: 'pl', x: 342, y: 140 },
-  { id: 'sk', x: 324, y: 170 },
-  { id: 'hu', x: 340, y: 190 },
-  { id: 'si', x: 308, y: 206 },
-  { id: 'bg', x: 386, y: 238 },
-  { id: 'gr', x: 372, y: 294 },
-  { id: 'mt', x: 272, y: 314 },
-  { id: 'cy', x: 448, y: 324 },
-  { id: 'lt', x: 374, y: 108 },
-  { id: 'al', x: 350, y: 272 },
+  { id: 'ie', x: 88, y: 122, lx: 54, ly: 102, anchor: 'end' },
+  { id: 'uk', x: 118, y: 108, lx: 92, ly: 76, anchor: 'end' },
+  { id: 'pt', x: 112, y: 248, lx: 76, ly: 280, anchor: 'end' },
+  { id: 'es', x: 154, y: 224, lx: 120, ly: 284, anchor: 'end' },
+  { id: 'fr', x: 194, y: 172, lx: 150, ly: 214, anchor: 'end' },
+  { id: 'benelux', x: 234, y: 140, lx: 202, ly: 102, anchor: 'end' },
+  { id: 'de', x: 272, y: 142, lx: 320, ly: 118, anchor: 'start' },
+  { id: 'ch', x: 246, y: 186, lx: 228, ly: 226, anchor: 'end' },
+  { id: 'it', x: 286, y: 236, lx: 256, ly: 300, anchor: 'end' },
+  { id: 'dk', x: 278, y: 104, lx: 316, ly: 78, anchor: 'start' },
+  { id: 'scandinavia', x: 322, y: 74, lx: 386, ly: 54, anchor: 'start' },
+  { id: 'pl', x: 342, y: 140, lx: 404, ly: 126, anchor: 'start' },
+  { id: 'sk', x: 324, y: 170, lx: 374, ly: 176, anchor: 'start' },
+  { id: 'hu', x: 340, y: 190, lx: 392, ly: 206, anchor: 'start' },
+  { id: 'si', x: 308, y: 206, lx: 342, ly: 240, anchor: 'start' },
+  { id: 'bg', x: 386, y: 238, lx: 436, ly: 254, anchor: 'start' },
+  { id: 'gr', x: 372, y: 294, lx: 414, ly: 316, anchor: 'start' },
+  { id: 'mt', x: 272, y: 314, lx: 242, ly: 334, anchor: 'end' },
+  { id: 'cy', x: 448, y: 324, lx: 488, ly: 338, anchor: 'start' },
+  { id: 'lt', x: 374, y: 108, lx: 432, ly: 92, anchor: 'start' },
+  { id: 'al', x: 350, y: 272, lx: 388, ly: 294, anchor: 'start' },
 ];
 
 localStorage.setItem('pontnova_lang', DEFAULT_LANG);
@@ -4885,8 +4885,46 @@ function buildEuropeHeatData(items) {
 function renderEuropeHeatSection(items) {
   const data = buildEuropeHeatData(items);
   const mapNodes = data.hotspots.slice(0, 7);
+  const calloutNodes = mapNodes.slice(0, 4);
   const hotspotRows = data.hotspots.slice(0, 6);
   const maxCount = data.maxCount || 1;
+  const mapNodesMarkup = mapNodes.map((entry) => {
+    const ratio = entry.count / maxCount;
+    const tone = ratio >= 0.72 ? 'hot' : ratio >= 0.42 ? 'warm' : 'steady';
+    const radius = 7 + Math.round(ratio * 12);
+    return `
+      <g class="europe-heat-node ${tone}">
+        <title>${escapeHtml(entry.label)} · ${entry.count}</title>
+        <circle class="europe-heat-node-halo" cx="${entry.x}" cy="${entry.y}" r="${radius + 10}"></circle>
+        <circle class="europe-heat-node-ring" cx="${entry.x}" cy="${entry.y}" r="${radius + 2}"></circle>
+        <circle class="europe-heat-node-core" cx="${entry.x}" cy="${entry.y}" r="${radius}"></circle>
+      </g>
+    `;
+  }).join('');
+  const calloutMarkup = calloutNodes.map((entry) => {
+    const tone = entry.count / maxCount >= 0.72 ? 'hot' : entry.count / maxCount >= 0.42 ? 'warm' : 'steady';
+    const pillText = `${entry.label} · ${entry.count}`;
+    const pillWidth = Math.max(94, Math.min(168, Math.round(pillText.length * 7.1) + 24));
+    const pillHeight = 28;
+    const anchor = entry.anchor === 'end' ? 'end' : 'start';
+    const pillX = anchor === 'start' ? entry.lx : entry.lx - pillWidth;
+    const textX = anchor === 'start' ? pillX + 14 : pillX + pillWidth - 14;
+    const lineEndX = anchor === 'start' ? pillX : pillX + pillWidth;
+    const lineEndY = entry.ly;
+    const midX = anchor === 'start' ? lineEndX - 18 : lineEndX + 18;
+    const controlX = entry.x + (midX - entry.x) * 0.48;
+    const controlY = entry.y + (lineEndY - entry.y) * 0.38;
+    return `
+      <g class="europe-heat-callout ${tone}">
+        <path class="europe-heat-callout-line" d="M${entry.x} ${entry.y} Q${controlX.toFixed(1)} ${controlY.toFixed(1)} ${midX} ${lineEndY} L${lineEndX} ${lineEndY}"></path>
+        <circle class="europe-heat-callout-anchor" cx="${entry.x}" cy="${entry.y}" r="3.5"></circle>
+        <g class="europe-heat-callout-pill" transform="translate(${pillX}, ${lineEndY - pillHeight / 2})">
+          <rect width="${pillWidth}" height="${pillHeight}" rx="14"></rect>
+          <text x="${textX - pillX}" y="18" text-anchor="${anchor}">${escapeHtml(pillText)}</text>
+        </g>
+      </g>
+    `;
+  }).join('');
   const section = el('section', 'europe-heat-section');
   section.innerHTML = `
     <div class="section-heading-row">
@@ -4905,33 +4943,45 @@ function renderEuropeHeatSection(items) {
         ${mapNodes.length ? `
           <div class="europe-heat-visual">
             <svg class="europe-heat-svg" viewBox="0 0 560 360" role="img" aria-label="${escapeHtml(t('section_europe_heat'))}">
-              <g class="europe-heat-land">
-                <ellipse cx="228" cy="168" rx="128" ry="82" transform="rotate(-8 228 168)"></ellipse>
-                <ellipse cx="156" cy="226" rx="72" ry="50" transform="rotate(11 156 226)"></ellipse>
-                <ellipse cx="324" cy="72" rx="66" ry="30" transform="rotate(-18 324 72)"></ellipse>
-                <ellipse cx="114" cy="108" rx="34" ry="24" transform="rotate(-18 114 108)"></ellipse>
-                <ellipse cx="84" cy="126" rx="16" ry="14"></ellipse>
-                <ellipse cx="288" cy="246" rx="24" ry="46" transform="rotate(-22 288 246)"></ellipse>
-                <ellipse cx="354" cy="224" rx="56" ry="42" transform="rotate(8 354 224)"></ellipse>
-                <ellipse cx="450" cy="324" rx="18" ry="10"></ellipse>
+              <defs>
+                <linearGradient id="europeHeatSea" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="rgba(247, 242, 235, 0.95)"></stop>
+                  <stop offset="55%" stop-color="rgba(230, 240, 242, 0.92)"></stop>
+                  <stop offset="100%" stop-color="rgba(215, 230, 236, 0.96)"></stop>
+                </linearGradient>
+                <linearGradient id="europeHeatLandFill" x1="12%" y1="10%" x2="78%" y2="88%">
+                  <stop offset="0%" stop-color="rgba(243, 239, 229, 0.98)"></stop>
+                  <stop offset="60%" stop-color="rgba(224, 231, 223, 0.96)"></stop>
+                  <stop offset="100%" stop-color="rgba(204, 214, 212, 0.98)"></stop>
+                </linearGradient>
+                <filter id="europeHeatShadow" x="-8%" y="-8%" width="116%" height="116%">
+                  <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="rgba(34, 51, 68, 0.12)"></feDropShadow>
+                </filter>
+              </defs>
+              <rect class="europe-heat-sea" x="10" y="10" width="540" height="340" rx="26" fill="url(#europeHeatSea)"></rect>
+              <g class="europe-heat-rings">
+                <path d="M86 196C164 152 262 139 356 149C430 158 484 182 512 212"></path>
+                <path d="M72 252C154 224 258 211 360 221C435 229 488 249 514 270"></path>
+                <path d="M122 92C170 66 236 54 304 58C372 62 426 78 460 102"></path>
               </g>
-              <g class="europe-heat-grid">
-                <path d="M78 182C146 150 214 136 296 142C364 148 420 170 474 214"></path>
-                <path d="M92 236C170 210 250 202 342 212C396 218 436 234 472 258"></path>
+              <g class="europe-heat-land" filter="url(#europeHeatShadow)">
+                <path d="M98 232C100 212 108 196 126 181C145 165 162 153 182 145C202 137 221 125 243 126C257 127 269 120 288 121C307 122 321 131 334 141C345 149 356 156 371 156C390 156 404 166 410 182C415 196 411 211 401 220C394 227 394 235 400 244C403 252 401 258 393 262C380 268 366 269 354 275C344 280 333 285 320 283C305 280 295 271 289 260C283 251 279 243 268 238C255 233 245 233 234 227C219 220 209 209 195 203C177 196 163 200 149 209C136 218 121 230 107 236C101 239 98 238 98 232Z"></path>
+                <path d="M270 119C276 101 286 81 301 66C315 52 332 45 344 49C353 53 358 64 355 79C351 93 344 105 335 116C324 129 313 136 297 136C286 136 277 129 270 119Z"></path>
+                <path d="M109 129C110 112 117 100 128 93C138 87 147 90 150 100C151 113 146 127 137 137C128 145 117 145 109 129Z"></path>
+                <path d="M86 136C88 124 93 114 100 110C107 108 112 114 113 121C114 132 109 141 101 146C93 149 87 145 86 136Z"></path>
+                <path d="M61 89C67 81 78 77 89 80C95 83 97 90 93 96C84 102 72 103 62 98C58 95 58 92 61 89Z"></path>
+                <path d="M265 224C273 228 281 237 288 249C294 260 301 273 300 287C292 284 288 276 284 268C279 258 275 250 270 242C265 235 262 229 265 224Z"></path>
+                <path d="M348 262C360 258 373 260 384 267C391 273 392 281 384 287C376 294 364 297 354 292C347 287 344 274 348 262Z"></path>
+                <ellipse cx="452" cy="319" rx="8" ry="5"></ellipse>
+                <ellipse cx="275" cy="313" rx="6" ry="4"></ellipse>
+                <path d="M260 112C264 107 271 106 275 111C277 116 274 120 268 121C263 121 260 118 260 112Z"></path>
               </g>
-              ${mapNodes.map((entry) => {
-                const ratio = entry.count / maxCount;
-                const tone = ratio >= 0.72 ? 'hot' : ratio >= 0.42 ? 'warm' : 'steady';
-                const radius = 10 + Math.round(ratio * 13);
-                return `
-                  <g class="europe-heat-node ${tone}">
-                    <title>${escapeHtml(entry.label)} · ${entry.count}</title>
-                    <circle class="europe-heat-node-halo" cx="${entry.x}" cy="${entry.y}" r="${radius + 7}"></circle>
-                    <circle class="europe-heat-node-core" cx="${entry.x}" cy="${entry.y}" r="${radius}"></circle>
-                    <text class="europe-heat-node-label" x="${entry.x}" y="${entry.y + 1}">${escapeHtml(entry.shortLabel)}</text>
-                  </g>
-                `;
-              }).join('')}
+              <g class="europe-heat-node-layer">
+                ${mapNodesMarkup}
+              </g>
+              <g class="europe-heat-callouts">
+                ${calloutMarkup}
+              </g>
             </svg>
           </div>
         ` : `<div class="mini-empty">${t('section_europe_heat_empty')}</div>`}

@@ -2452,16 +2452,50 @@ body::before {
 
 .europe-heat-shell {
   display: grid;
-  grid-template-columns: minmax(0, 1.18fr) minmax(280px, 0.82fr);
+  grid-template-columns: minmax(0, 1.3fr) minmax(260px, 0.7fr);
   gap: 18px;
 }
 
 .europe-heat-map-card,
 .europe-heat-list-card {
+  position: relative;
   padding: 18px 20px;
   border-radius: 24px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(249, 244, 237, 0.94));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 241, 233, 0.94));
   border: 1px solid rgba(34, 51, 68, 0.08);
+  box-shadow: 0 18px 32px rgba(27, 40, 52, 0.06);
+}
+
+.europe-heat-map-card {
+  overflow: hidden;
+}
+
+.europe-heat-map-card::before,
+.europe-heat-map-card::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.europe-heat-map-card::before {
+  width: 250px;
+  height: 250px;
+  top: -112px;
+  right: -32px;
+  background: radial-gradient(circle, rgba(62, 119, 126, 0.16), transparent 72%);
+}
+
+.europe-heat-map-card::after {
+  width: 220px;
+  height: 220px;
+  left: -64px;
+  bottom: -96px;
+  background: radial-gradient(circle, rgba(194, 145, 76, 0.16), transparent 72%);
+}
+
+.europe-heat-list-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 244, 238, 0.94));
 }
 
 .europe-heat-meta-row {
@@ -2470,10 +2504,18 @@ body::before {
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 12px;
+  position: relative;
+  z-index: 1;
 }
 
 .europe-heat-visual {
-  min-height: 320px;
+  position: relative;
+  z-index: 1;
+  min-height: 332px;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid rgba(66, 87, 97, 0.08);
+  background: linear-gradient(180deg, rgba(251, 249, 244, 0.88), rgba(232, 240, 242, 0.92));
 }
 
 .europe-heat-svg {
@@ -2482,22 +2524,34 @@ body::before {
   display: block;
 }
 
-.europe-heat-land ellipse {
-  fill: rgba(190, 199, 208, 0.28);
-  stroke: rgba(96, 112, 128, 0.16);
+.europe-heat-sea {
+  stroke: rgba(255, 255, 255, 0.66);
   stroke-width: 1.2;
 }
 
-.europe-heat-grid path {
+.europe-heat-rings path {
   fill: none;
-  stroke: rgba(120, 136, 151, 0.18);
-  stroke-width: 1.2;
+  stroke: rgba(95, 114, 128, 0.16);
+  stroke-width: 1.15;
   stroke-linecap: round;
-  stroke-dasharray: 4 8;
+  stroke-dasharray: 5 9;
+}
+
+.europe-heat-land path,
+.europe-heat-land ellipse {
+  fill: url(#europeHeatLandFill);
+  stroke: rgba(84, 102, 110, 0.22);
+  stroke-width: 1.15;
 }
 
 .europe-heat-node-halo {
-  fill: rgba(41, 128, 185, 0.10);
+  fill: rgba(41, 128, 185, 0.14);
+}
+
+.europe-heat-node-ring {
+  fill: rgba(255, 255, 255, 0.22);
+  stroke: rgba(255, 255, 255, 0.82);
+  stroke-width: 1.6;
 }
 
 .europe-heat-node-core {
@@ -2514,13 +2568,47 @@ body::before {
   fill: rgba(193, 145, 76, 0.94);
 }
 
-.europe-heat-node-label {
-  fill: #ffffff;
-  font-size: 10px;
+.europe-heat-callout-line {
+  fill: none;
+  stroke: rgba(52, 102, 111, 0.42);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.europe-heat-callout.hot .europe-heat-callout-line {
+  stroke: rgba(184, 88, 61, 0.5);
+}
+
+.europe-heat-callout.warm .europe-heat-callout-line {
+  stroke: rgba(193, 145, 76, 0.52);
+}
+
+.europe-heat-callout-anchor {
+  fill: rgba(255, 255, 255, 0.98);
+  stroke: rgba(67, 87, 96, 0.55);
+  stroke-width: 1.8;
+}
+
+.europe-heat-callout-pill rect {
+  fill: rgba(255, 255, 255, 0.86);
+  stroke: rgba(76, 96, 105, 0.12);
+  stroke-width: 1;
+}
+
+.europe-heat-callout.hot .europe-heat-callout-pill rect {
+  fill: rgba(255, 246, 241, 0.92);
+}
+
+.europe-heat-callout.warm .europe-heat-callout-pill rect {
+  fill: rgba(255, 249, 238, 0.92);
+}
+
+.europe-heat-callout-pill text {
+  fill: #213042;
+  font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-anchor: middle;
-  dominant-baseline: middle;
+  letter-spacing: 0.02em;
 }
 
 .europe-heat-list-card {
@@ -7195,6 +7283,10 @@ body::before {
     min-height: 0;
   }
 
+  .europe-heat-callout-pill text {
+    font-size: 9.6px;
+  }
+
   .authority-strip-list {
     grid-template-columns: 1fr;
   }
@@ -7753,13 +7845,74 @@ html[data-theme="dark"] .topic-brief-subtitle {
   color: #b6c3d4 !important;
 }
 
+html[data-theme="dark"] .europe-heat-map-card,
+html[data-theme="dark"] .europe-heat-list-card {
+  background: linear-gradient(180deg, rgba(21, 29, 41, 0.98), rgba(16, 23, 34, 0.95));
+  border-color: rgba(148, 163, 184, 0.14);
+  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.22);
+}
+
+html[data-theme="dark"] .europe-heat-visual {
+  background: linear-gradient(180deg, rgba(22, 31, 44, 0.92), rgba(18, 27, 39, 0.96));
+  border-color: rgba(148, 163, 184, 0.14);
+}
+
+html[data-theme="dark"] .europe-heat-sea {
+  stroke: rgba(148, 163, 184, 0.16);
+}
+
+html[data-theme="dark"] .europe-heat-land path,
 html[data-theme="dark"] .europe-heat-land ellipse {
-  fill: rgba(126, 148, 169, 0.16);
+  fill: rgba(126, 148, 169, 0.22);
+  stroke: rgba(148, 163, 184, 0.2);
+}
+
+html[data-theme="dark"] .europe-heat-rings path {
+  stroke: rgba(148, 163, 184, 0.12);
+}
+
+html[data-theme="dark"] .europe-heat-node-ring {
+  fill: rgba(255, 255, 255, 0.06);
+  stroke: rgba(226, 232, 240, 0.56);
+}
+
+html[data-theme="dark"] .europe-heat-node-core {
+  fill: rgba(67, 164, 170, 0.94);
+  stroke: rgba(226, 232, 240, 0.84);
+}
+
+html[data-theme="dark"] .europe-heat-node.hot .europe-heat-node-core {
+  fill: rgba(216, 116, 91, 0.96);
+}
+
+html[data-theme="dark"] .europe-heat-node.warm .europe-heat-node-core {
+  fill: rgba(210, 168, 92, 0.95);
+}
+
+html[data-theme="dark"] .europe-heat-callout-line {
+  stroke: rgba(186, 199, 212, 0.34);
+}
+
+html[data-theme="dark"] .europe-heat-callout.hot .europe-heat-callout-line {
+  stroke: rgba(216, 116, 91, 0.54);
+}
+
+html[data-theme="dark"] .europe-heat-callout.warm .europe-heat-callout-line {
+  stroke: rgba(210, 168, 92, 0.54);
+}
+
+html[data-theme="dark"] .europe-heat-callout-anchor {
+  fill: rgba(12, 18, 28, 0.92);
+  stroke: rgba(186, 199, 212, 0.48);
+}
+
+html[data-theme="dark"] .europe-heat-callout-pill rect {
+  fill: rgba(18, 26, 38, 0.88);
   stroke: rgba(148, 163, 184, 0.18);
 }
 
-html[data-theme="dark"] .europe-heat-grid path {
-  stroke: rgba(148, 163, 184, 0.12);
+html[data-theme="dark"] .europe-heat-callout-pill text {
+  fill: #e6eef8;
 }
 
 html[data-theme="dark"] .europe-heat-row-bar {
