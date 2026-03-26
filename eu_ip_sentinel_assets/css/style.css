@@ -2444,6 +2444,130 @@ body::before {
   font-size: 21px;
 }
 
+.europe-heat-section {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.europe-heat-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.18fr) minmax(280px, 0.82fr);
+  gap: 18px;
+}
+
+.europe-heat-map-card,
+.europe-heat-list-card {
+  padding: 18px 20px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(249, 244, 237, 0.94));
+  border: 1px solid rgba(34, 51, 68, 0.08);
+}
+
+.europe-heat-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.europe-heat-visual {
+  min-height: 320px;
+}
+
+.europe-heat-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.europe-heat-land ellipse {
+  fill: rgba(190, 199, 208, 0.28);
+  stroke: rgba(96, 112, 128, 0.16);
+  stroke-width: 1.2;
+}
+
+.europe-heat-grid path {
+  fill: none;
+  stroke: rgba(120, 136, 151, 0.18);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-dasharray: 4 8;
+}
+
+.europe-heat-node-halo {
+  fill: rgba(41, 128, 185, 0.10);
+}
+
+.europe-heat-node-core {
+  fill: rgba(52, 102, 111, 0.92);
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-width: 2;
+}
+
+.europe-heat-node.hot .europe-heat-node-core {
+  fill: rgba(184, 88, 61, 0.96);
+}
+
+.europe-heat-node.warm .europe-heat-node-core {
+  fill: rgba(193, 145, 76, 0.94);
+}
+
+.europe-heat-node-label {
+  fill: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.europe-heat-list-card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.europe-heat-list-title {
+  color: #1f2a37;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.europe-heat-row {
+  display: grid;
+  grid-template-columns: minmax(96px, auto) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.europe-heat-row-name {
+  color: var(--color-text);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.europe-heat-row strong {
+  color: #1f2a37;
+  font-size: 13px;
+}
+
+.europe-heat-row-bar {
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(31, 42, 55, 0.08);
+  overflow: hidden;
+}
+
+.europe-heat-row-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(193, 165, 112, 0.92), rgba(52, 102, 111, 0.92));
+}
+
 .hero-main,
 .priority-brief-card,
 .intel-panel,
@@ -6908,6 +7032,7 @@ body::before {
   }
 
   .hero-shell,
+  .europe-heat-shell,
   .warroom-grid,
   .authority-strip,
   .command-action-grid {
@@ -7058,6 +7183,16 @@ body::before {
   .authority-strip {
     padding: 16px;
     border-radius: 22px;
+  }
+
+  .europe-heat-map-card,
+  .europe-heat-list-card {
+    padding: 16px;
+    border-radius: 22px;
+  }
+
+  .europe-heat-visual {
+    min-height: 0;
   }
 
   .authority-strip-list {
@@ -7570,6 +7705,8 @@ html[data-theme="dark"] .sep-case-line-link:hover {
 html[data-theme="dark"] .hero-shell,
 html[data-theme="dark"] .hero-main,
 html[data-theme="dark"] .hero-note,
+html[data-theme="dark"] .europe-heat-map-card,
+html[data-theme="dark"] .europe-heat-list-card,
 html[data-theme="dark"] .hero-refresh,
 html[data-theme="dark"] .command-stat-card,
 html[data-theme="dark"] .reports-current-shell,
@@ -7593,6 +7730,8 @@ html[data-theme="dark"] .briefing-report-section-kicker {
 html[data-theme="dark"] .hero-title,
 html[data-theme="dark"] .hero-refresh strong,
 html[data-theme="dark"] .command-stat-card .stat-card-value,
+html[data-theme="dark"] .europe-heat-list-title,
+html[data-theme="dark"] .europe-heat-row strong,
 html[data-theme="dark"] .mini-empty,
 html[data-theme="dark"] .topic-brief-title,
 html[data-theme="dark"] .action-panel-title {
@@ -7605,12 +7744,26 @@ html[data-theme="dark"] .hero-meta-line span,
 html[data-theme="dark"] .hero-refresh span,
 html[data-theme="dark"] .hero-note-copy,
 html[data-theme="dark"] .hero-note-foot,
+html[data-theme="dark"] .europe-heat-row-name,
 html[data-theme="dark"] .command-stat-card .stat-card-label,
 html[data-theme="dark"] .command-stat-card .stat-card-sub,
 html[data-theme="dark"] .topic-brief-micro,
 html[data-theme="dark"] .topic-brief-summary,
 html[data-theme="dark"] .topic-brief-subtitle {
   color: #b6c3d4 !important;
+}
+
+html[data-theme="dark"] .europe-heat-land ellipse {
+  fill: rgba(126, 148, 169, 0.16);
+  stroke: rgba(148, 163, 184, 0.18);
+}
+
+html[data-theme="dark"] .europe-heat-grid path {
+  stroke: rgba(148, 163, 184, 0.12);
+}
+
+html[data-theme="dark"] .europe-heat-row-bar {
+  background: rgba(148, 163, 184, 0.12);
 }
 
 html[data-theme="dark"] .briefing-report-section-chip {
