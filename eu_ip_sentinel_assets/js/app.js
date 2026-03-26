@@ -4583,8 +4583,10 @@ function buildDetailNextWatchPoints(item) {
 function renderSchemeASignalCard(item, rank) {
   const category = item?.category || 'media';
   const ipType = item?.ip_type || 'general';
-  const primaryTitle = (state.lang === 'zh' && item?.title_zh) ? item.title_zh : (item?.title || item?.title_zh || '—');
-  const englishTitle = item?.title && item.title !== primaryTitle ? item.title : '';
+  const originalTitle = item?.title || item?.title_zh || '—';
+  const chineseTitle = item?.title_zh && item.title_zh !== originalTitle ? item.title_zh : '';
+  const summaryPoints = resolvePointList(item?.ai_core_points_zh, item?.ai_summary_zh || item?.summary || buildFallbackBrief(item, 'summary'), 3, 138);
+  const insightPoints = resolvePointList(item?.ai_insight_points_zh, item?.ai_insight_zh || buildSignalImportanceFallback(item), 2, 132);
   const card = el('article', 'scheme-a-signal-card');
   card.innerHTML = `
     <div class="scheme-a-signal-head">
@@ -4597,25 +4599,24 @@ function renderSchemeASignalCard(item, rank) {
         <span class="news-card-date">${escapeHtml(buildPrimaryDateLabel(item))}</span>
       </div>
     </div>
-    <h3 class="scheme-a-signal-title">${escapeHtml(primaryTitle)}</h3>
-    ${englishTitle ? `<div class="scheme-a-signal-subtitle">${escapeHtml(truncateText(englishTitle, 128))}</div>` : ''}
+    <h3 class="scheme-a-signal-title">${escapeHtml(originalTitle)}</h3>
+    ${chineseTitle ? `<div class="scheme-a-signal-subtitle">${escapeHtml(truncateText(chineseTitle, 128))}</div>` : ''}
     <div class="scheme-a-signal-tag-row">${renderSignalTagPills(item, true)}</div>
     <div class="scheme-a-signal-lines">
       <div class="scheme-a-signal-line">
-        <span class="scheme-a-signal-label">${t('scheme_a_line_what')}</span>
-        <p>${escapeHtml(buildSignalWhatChanged(item))}</p>
+        <span class="scheme-a-signal-label">${t('block_core_points')}</span>
+        ${renderPointList(summaryPoints.length ? summaryPoints : [buildSignalWhatChanged(item)], 'intel-points compact')}
       </div>
       <div class="scheme-a-signal-line">
-        <span class="scheme-a-signal-label">${t('scheme_a_line_why')}</span>
-        <p>${escapeHtml(buildSignalWhyImportant(item))}</p>
-      </div>
-      <div class="scheme-a-signal-line">
-        <span class="scheme-a-signal-label">${t('scheme_a_line_next')}</span>
-        <p>${escapeHtml(buildSignalNextWatch(item))}</p>
+        <span class="scheme-a-signal-label">${t('block_insight')}</span>
+        ${renderPointList(insightPoints.length ? insightPoints : [buildSignalWhyImportant(item)], 'intel-points compact')}
       </div>
     </div>
     <div class="scheme-a-signal-footer">
-      <div class="scheme-a-signal-footer-meta">${escapeHtml(buildOriginalLinkDateMeta(item))}</div>
+      <div class="scheme-a-signal-footer-meta">
+        <span class="scheme-a-signal-label">${t('block_original_link')}</span>
+        <span>${escapeHtml(buildOriginalLinkDateMeta(item))}</span>
+      </div>
       <div class="scheme-a-signal-actions">
         <button class="btn btn-secondary" type="button" data-open-detail>${t('detail_view_btn')}</button>
         <a href="${escapeHtml(item?.url || '#')}" target="_blank" rel="noopener" class="read-more-link compact-pill" data-open-source>${t('detail_btn_short')}</a>
@@ -4962,13 +4963,13 @@ function renderPriorityBrief(overview, items) {
     return card;
   }
 
-  const primaryTitle = state.lang === 'zh' && item.title_zh ? item.title_zh : item.title;
-  const secondaryTitle = item.title && item.title !== primaryTitle ? item.title : '';
+  const originalTitle = item.title || item.title_zh || '—';
+  const chineseTitle = item.title_zh && item.title_zh !== originalTitle ? item.title_zh : '';
   const summary = item.ai_summary_zh || item.summary || '';
   const insight = item.ai_insight_zh || '';
   const date = formatDate(item.published_at || item.scraped_at);
   const linkDateMeta = buildOriginalLinkDateMeta(item);
-  const titleVariant = getHeadlineVariantClass(primaryTitle);
+  const titleVariant = getHeadlineVariantClass(originalTitle);
   const fallbackSummary = buildFallbackBrief(item, 'summary');
   const fallbackSignal = buildFallbackBrief(item, 'signal');
   const summaryPoints = resolvePointList(item.ai_core_points_zh, summary || fallbackSummary, 3, 120);
@@ -4987,8 +4988,8 @@ function renderPriorityBrief(overview, items) {
     </div>
     <div class="priority-flag">${t('card_priority')}</div>
     <div class="intel-block intel-block-title">
-      <h2 class="priority-title ${titleVariant}">${escapeHtml(primaryTitle)}</h2>
-      ${secondaryTitle ? `<div class="priority-subtitle">${escapeHtml(secondaryTitle)}</div>` : ''}
+      <h2 class="priority-title ${titleVariant}">${escapeHtml(originalTitle)}</h2>
+      ${chineseTitle ? `<div class="priority-subtitle">${escapeHtml(chineseTitle)}</div>` : ''}
     </div>
     <div class="intel-block-grid priority-brief-grid">
       <div class="intel-block">
@@ -5526,15 +5527,8 @@ function showChronologyGroupModal(group) {
     `;
     const grid = el('div', 'chronology-modal-grid');
     dateGroup.items.forEach((item, index) => {
-      if (lane === 'watch') {
-        grid.appendChild(renderWatchSignalCard(item, { groupKey: group.key }));
-        return;
-      }
-      if (lane === 'calendar') {
-        grid.appendChild(renderCalendarNoticeCard(item, { groupKey: group.key }));
-        return;
-      }
-      grid.appendChild(renderNewsCard(item, group.key === 'today' && index < 2 ? 'must-read' : 'scan'));
+      const tier = lane === 'core' && group.key === 'today' && index < 2 ? 'must-read' : 'scan';
+      grid.appendChild(renderNewsCard(item, tier));
     });
     section.appendChild(grid);
     content.appendChild(section);
@@ -5843,12 +5837,6 @@ function renderIntelStreamSections(items) {
   }
 
   function renderStreamLaneItem(item, lane, tier = 'scan', context = {}) {
-    if (lane === 'watch') {
-      return renderWatchSignalCard(item, context);
-    }
-    if (lane === 'calendar') {
-      return renderCalendarNoticeCard(item, context);
-    }
     return renderNewsCard(item, tier);
   }
 
@@ -5971,11 +5959,12 @@ function renderNewsCard(item, tier = 'scan') {
   const linkDateMeta = buildOriginalLinkDateMeta(item);
   const catLabel = { official: t('filter_official'), media: t('filter_media'), lawfirm: t('filter_lawfirm') }[category] || category;
   const aiDone = item.ai_status === 'done';
-  const primaryTitle = item.title_zh || item.title || '—';
-  const englishTitle = item.title && item.title !== primaryTitle ? item.title : '';
-  const whatChanged = buildSignalWhatChanged(item, tier === 'must-read' ? 82 : 68);
-  const whyImportant = buildSignalWhyImportant(item, tier === 'must-read' ? 86 : 72);
-  const nextWatch = truncateText(buildSignalNextWatch(item), tier === 'must-read' ? 86 : 72);
+  const originalTitle = item.title || item.title_zh || '—';
+  const chineseTitle = item.title_zh && item.title_zh !== originalTitle ? item.title_zh : '';
+  const fallbackSummary = buildFallbackBrief(item, 'summary');
+  const fallbackInsight = buildSignalImportanceFallback(item);
+  const summaryPoints = resolvePointList(item.ai_core_points_zh, item.ai_summary_zh || item.summary || fallbackSummary, tier === 'must-read' ? 4 : 3, tier === 'must-read' ? 150 : 128);
+  const insightPoints = resolvePointList(item.ai_insight_points_zh, item.ai_insight_zh || fallbackInsight, 2, tier === 'must-read' ? 148 : 132);
 
   const card = el('div', `news-card news-card--latest-style tier-${tier}${aiDone ? ' has-ai' : ''}`);
   card.dataset.type = ipType;
@@ -5989,31 +5978,30 @@ function renderNewsCard(item, tier = 'scan') {
       <span class="news-card-date">${date}</span>
     </div>
     <div class="news-card-rubric">${escapeHtml(compactSourceName(item.source_name || ''))}</div>
-    <div class="news-card-title is-compact">${escapeHtml(truncateText(primaryTitle, 72))}</div>
-    ${englishTitle ? `<div class="news-card-title-sub news-card-title-en">${escapeHtml(truncateText(englishTitle, 118))}</div>` : ''}
+    <div class="news-card-title is-compact">${escapeHtml(truncateText(originalTitle, 84))}</div>
+    ${chineseTitle ? `<div class="news-card-title-sub news-card-title-en">${escapeHtml(truncateText(chineseTitle, 118))}</div>` : ''}
     <div class="news-card-brief-stack latest-like">
       <div class="news-card-brief-row">
-        <span class="news-card-brief-label">${t('scheme_a_line_what')}</span>
-        <span class="news-card-brief-copy">${escapeHtml(whatChanged || '—')}</span>
+        <span class="news-card-brief-label">${t('block_core_points')}</span>
+        ${renderPointList(summaryPoints.length ? summaryPoints : [buildSignalWhatChanged(item, tier === 'must-read' ? 150 : 128)], 'news-card-points-compact latest-like')}
       </div>
       <div class="news-card-brief-row">
-        <span class="news-card-brief-label">${t('scheme_a_line_why')}</span>
-        <span class="news-card-brief-copy">${escapeHtml(whyImportant || '—')}</span>
+        <span class="news-card-brief-label">${t('block_insight')}</span>
+        ${renderPointList(insightPoints.length ? insightPoints : [buildSignalWhyImportant(item, tier === 'must-read' ? 148 : 132)], 'news-card-points-compact latest-like')}
       </div>
       <div class="news-card-brief-row">
-        <span class="news-card-brief-label">${t('scheme_a_line_next')}</span>
-        <span class="news-card-brief-copy">${escapeHtml(nextWatch || '—')}</span>
+        <span class="news-card-brief-label">${t('block_original_link')}</span>
+        <div class="news-card-footer compact latest-like">
+          <div class="news-card-footer-meta">
+            <span class="news-card-source-name">${escapeHtml(compactSourceName(item.source_name || '—'))}</span>
+            <span class="news-card-date">${escapeHtml(linkDateMeta)}</span>
+          </div>
+          <a href="${item.url}" target="_blank" rel="noopener" class="read-more-link compact-pill"
+             onclick="event.stopPropagation()">
+            ${t('detail_btn_short')}
+          </a>
+        </div>
       </div>
-    </div>
-    <div class="news-card-footer compact latest-like">
-      <div class="news-card-footer-meta">
-        <span class="news-card-source-name">${escapeHtml(compactSourceName(item.source_name || '—'))}</span>
-        <span class="news-card-date">${escapeHtml(linkDateMeta)}</span>
-      </div>
-      <a href="${item.url}" target="_blank" rel="noopener" class="read-more-link compact-pill"
-         onclick="event.stopPropagation()">
-        ${t('detail_btn_short')}
-      </a>
     </div>
   `;
   card.addEventListener('click', () => showNewsDetail(item));
@@ -6021,78 +6009,11 @@ function renderNewsCard(item, tier = 'scan') {
 }
 
 function renderWatchSignalCard(item, context = {}) {
-  const ipType = item.ip_type || 'general';
-  const category = item.category || 'media';
-  const date = buildPrimaryDateLabel(item);
-  const title = (state.lang === 'zh' && item.title_zh) ? item.title_zh : (item.title || item.title_zh || '—');
-  const whyWatch = buildSignalWhyImportant(item, 92);
-  const whatChanged = buildSignalWhatChanged(item, 86);
-  const card = el('article', 'stream-watch-card');
-  card.innerHTML = `
-    <div class="stream-watch-topline">
-      <div class="stream-watch-meta">
-        <span class="source-badge ${category}">${escapeHtml(compactSourceName(item.source_name || '') || '—')}</span>
-        <span class="ip-badge ${ipType}">${getIpTypeLabel(ipType)}</span>
-        ${renderGeoBadges(item, true, 1)}
-      </div>
-      <span class="news-card-date">${escapeHtml(date)}</span>
-    </div>
-    <div class="stream-watch-title">${escapeHtml(truncateText(title, context.groupKey === 'today' ? 90 : 78))}</div>
-    <div class="stream-watch-line">
-      <span class="stream-watch-label">${t('scheme_a_line_what')}</span>
-      <p>${escapeHtml(whatChanged || '—')}</p>
-    </div>
-    <div class="stream-watch-line reason">
-      <span class="stream-watch-label">${t('stream_watch_reason')}</span>
-      <p>${escapeHtml(whyWatch || '—')}</p>
-    </div>
-    <div class="stream-watch-footer">
-      <span>${escapeHtml(buildOriginalLinkDateMeta(item))}</span>
-      <button class="btn btn-secondary stream-watch-open" type="button">${t('detail_view_btn')}</button>
-    </div>
-  `;
-  card.addEventListener('click', () => showNewsDetail(item));
-  card.querySelector('.stream-watch-open')?.addEventListener('click', (event) => {
-    event.stopPropagation();
-    showNewsDetail(item);
-  });
-  return card;
+  return renderNewsCard(item, context.groupKey === 'today' ? 'scan' : 'background');
 }
 
 function renderCalendarNoticeCard(item, context = {}) {
-  const category = item.category || 'official';
-  const title = (state.lang === 'zh' && item.title_zh) ? item.title_zh : (item.title || item.title_zh || '—');
-  const notice = truncateText(item.ai_summary_zh || item.summary || buildFallbackBrief(item, 'summary'), context.groupKey === 'today' ? 110 : 92);
-  const card = el('article', 'calendar-notice-card');
-  card.innerHTML = `
-    <div class="calendar-notice-head">
-      <div class="calendar-notice-meta">
-        <span class="source-badge ${category}">${escapeHtml(compactSourceName(item.source_name || '') || '—')}</span>
-        ${renderGeoBadges(item, true, 1)}
-      </div>
-      <span class="calendar-notice-date">${escapeHtml(buildPrimaryDateLabel(item))}</span>
-    </div>
-    <div class="calendar-notice-title">${escapeHtml(truncateText(title, 92))}</div>
-    <div class="calendar-notice-line">
-      <span class="calendar-notice-label">${t('stream_calendar_when')}</span>
-      <p>${escapeHtml(buildOriginalLinkDateMeta(item))}</p>
-    </div>
-    <div class="calendar-notice-line">
-      <span class="calendar-notice-label">${t('stream_calendar_note')}</span>
-      <p>${escapeHtml(notice || '—')}</p>
-    </div>
-    <div class="calendar-notice-actions">
-      <button class="btn btn-secondary calendar-notice-open" type="button">${t('detail_view_btn')}</button>
-      <a href="${escapeHtml(item.url || '#')}" target="_blank" rel="noopener" class="read-more-link compact-pill">${t('detail_btn_short')}</a>
-    </div>
-  `;
-  card.addEventListener('click', () => showNewsDetail(item));
-  card.querySelector('.calendar-notice-open')?.addEventListener('click', (event) => {
-    event.stopPropagation();
-    showNewsDetail(item);
-  });
-  card.querySelector('.read-more-link')?.addEventListener('click', (event) => event.stopPropagation());
-  return card;
+  return renderNewsCard(item, context.groupKey === 'today' ? 'scan' : 'background');
 }
 
 function renderPagination(page, pages, total) {
@@ -7098,13 +7019,12 @@ function showNewsDetail(item) {
   const linkDateMeta = buildOriginalLinkDateMeta(item);
   const aiDone = item.ai_status === 'done';
   const hostname = (() => { try { return new URL(item.url).hostname; } catch { return item.url; } })();
-  const primaryTitle = state.lang === 'zh' && item.title_zh ? item.title_zh : item.title;
-  const secondaryTitle = item.title_zh ? item.title : '';
+  const originalTitle = item.title || item.title_zh || '—';
+  const chineseTitle = item.title_zh && item.title_zh !== originalTitle ? item.title_zh : '';
   const fallbackSummary = buildFallbackBrief(item, 'summary');
-  const fallbackInsight = buildFallbackBrief(item, 'signal');
+  const fallbackInsight = buildSignalImportanceFallback(item);
   const summaryPoints = resolvePointList(item.ai_core_points_zh, item.ai_summary_zh || item.summary || fallbackSummary, 4, 180);
   const insightPoints = resolvePointList(item.ai_insight_points_zh, item.ai_insight_zh || fallbackInsight, 3, 170);
-  const nextWatchPoints = buildDetailNextWatchPoints(item);
 
   const overlay = el('div', 'modal-overlay');
   overlay.innerHTML = `
@@ -7126,21 +7046,17 @@ function showNewsDetail(item) {
       <div class="modal-body">
         <div class="intel-block modal-intel-block title">
           <div class="modal-title-pair">
-            <div class="modal-title-main">${escapeHtml(primaryTitle)}</div>
-            ${secondaryTitle ? `<div class="modal-title-sub">${escapeHtml(secondaryTitle)}</div>` : ''}
+            <div class="modal-title-main">${escapeHtml(originalTitle)}</div>
+            ${chineseTitle ? `<div class="modal-title-sub">${escapeHtml(chineseTitle)}</div>` : ''}
           </div>
         </div>
         <div class="intel-block modal-intel-block">
-          <div class="intel-block-label">${t('scheme_a_line_what')}</div>
+          <div class="intel-block-label">${t('block_core_points')}</div>
           ${renderPointList(summaryPoints.length ? summaryPoints : [buildSignalWhatChanged(item, 180)])}
         </div>
         <div class="intel-block modal-intel-block insight">
-          <div class="intel-block-label">${t('scheme_a_line_why')}</div>
+          <div class="intel-block-label">${t('block_insight')}</div>
           ${renderPointList(insightPoints.length ? insightPoints : [buildSignalWhyImportant(item, 170)])}
-        </div>
-        <div class="intel-block modal-intel-block">
-          <div class="intel-block-label">${t('scheme_a_line_next')}</div>
-          ${renderPointList(nextWatchPoints)}
         </div>
         <div class="intel-block modal-intel-block intel-link-block">
           <div class="intel-block-label">${t('block_original_link')}</div>
