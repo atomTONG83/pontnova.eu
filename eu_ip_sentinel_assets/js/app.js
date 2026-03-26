@@ -587,31 +587,6 @@ const i18n = {
     section_today_published_collapse: '收起今日发布',
     label_today_scraped: '今日新抓',
     today_published_state_captured: '今日新抓',
-    scheme_a_key_kicker: '第一层',
-    scheme_a_key_title: '今日最重要的 5 条',
-    scheme_a_key_desc: '先压缩出当前盘面最值得优先读完的五条信号，帮助快速抓住今天真正改变判断的内容。',
-    scheme_a_event_kicker: '第二层',
-    scheme_a_event_title: '正在升温的事件',
-    scheme_a_event_desc: '把同一议题下的多条相关资讯合并起来看，更容易判断这是不是正在形成持续事件。',
-    scheme_a_stream_kicker: '第三层',
-    scheme_a_stream_title: '完整资讯流',
-    scheme_a_stream_desc: '在读完重点与升温事件后，再按时间轴完整展开全部资讯，确保不漏掉相关补充内容。',
-    scheme_a_line_what: '发生了什么',
-    scheme_a_line_why: '为什么重要',
-    scheme_a_line_next: '下一步看什么',
-    scheme_a_event_items: '关联资讯',
-    scheme_a_event_sources: '涉及来源',
-    scheme_a_event_latest: '最近信号',
-    scheme_a_event_open: '展开关联内容',
-    scheme_a_event_empty: '当前窗口内还没有形成明显升温的同题事件。',
-    scheme_a_event_stage: '事件阶段',
-    scheme_a_event_mix: '来源分布',
-    scheme_a_event_watchpoint: '下一触发点',
-    scheme_a_event_range: '覆盖时间',
-    scheme_a_event_stage_emerging: '初始触发',
-    scheme_a_event_stage_heating: '快速升温',
-    scheme_a_event_stage_action: '进入处置',
-    scheme_a_event_stage_follow: '持续跟进',
     section_latest_dynamics: '最新动态',
     section_latest_dynamics_desc: '在进入完整情报流前，先快速扫一遍近48小时最值得优先关注的高信号变化。',
     section_latest_dynamics_empty: '近48小时暂无新的高信号动态。',
@@ -745,9 +720,6 @@ const i18n = {
     chronology_modal_summary_range: '覆盖范围',
     chronology_modal_summary_dates: '日期节点',
     chronology_modal_summary_items: '资讯条目',
-    stream_watch_reason: '为什么留意',
-    stream_calendar_when: '安排时间',
-    stream_calendar_note: '提醒内容',
     card_priority: '优先阅读',
     card_latest: '最新信号',
     card_sources: '热源监测',
@@ -1198,31 +1170,6 @@ const i18n = {
     section_today_published_collapse: 'Collapse today list',
     label_today_scraped: 'Captured today',
     today_published_state_captured: 'Captured today',
-    scheme_a_key_kicker: 'Layer One',
-    scheme_a_key_title: 'Today\'s Five Priority Signals',
-    scheme_a_key_desc: 'Compress the current window into five signals that most clearly change today\'s judgment, so the reader can get to the point fast.',
-    scheme_a_event_kicker: 'Layer Two',
-    scheme_a_event_title: 'Events Heating Up',
-    scheme_a_event_desc: 'Group related items around the same issue so it is easier to see when separate updates are turning into a sustained event.',
-    scheme_a_stream_kicker: 'Layer Three',
-    scheme_a_stream_title: 'Full Intel Stream',
-    scheme_a_stream_desc: 'After the priority read and the heating events, unfold the complete chronology so no relevant supporting signal is missed.',
-    scheme_a_line_what: 'What Changed',
-    scheme_a_line_why: 'Why It Matters',
-    scheme_a_line_next: 'What To Watch',
-    scheme_a_event_items: 'linked items',
-    scheme_a_event_sources: 'sources',
-    scheme_a_event_latest: 'Latest signal',
-    scheme_a_event_open: 'Open linked coverage',
-    scheme_a_event_empty: 'No clearly heating shared event is visible in the current window yet.',
-    scheme_a_event_stage: 'Event Stage',
-    scheme_a_event_mix: 'Source Mix',
-    scheme_a_event_watchpoint: 'Next Trigger',
-    scheme_a_event_range: 'Coverage Window',
-    scheme_a_event_stage_emerging: 'Early Trigger',
-    scheme_a_event_stage_heating: 'Heating Up',
-    scheme_a_event_stage_action: 'Action Phase',
-    scheme_a_event_stage_follow: 'Follow-through',
     section_latest_dynamics: 'Latest Signal Readout',
     section_latest_dynamics_desc: 'Scan the most actionable changes from the last 48 hours before moving into the full stream.',
     section_latest_dynamics_empty: 'No high-signal updates in the last 48 hours.',
@@ -1353,9 +1300,6 @@ const i18n = {
     chronology_modal_summary_range: 'Coverage',
     chronology_modal_summary_dates: 'Dates',
     chronology_modal_summary_items: 'Items',
-    stream_watch_reason: 'Why Watch',
-    stream_calendar_when: 'Timing',
-    stream_calendar_note: 'Notice',
     card_priority: 'Priority Read',
     card_latest: 'Latest Signals',
     card_sources: 'Heat Sources',
@@ -2574,13 +2518,8 @@ async function renderNewsPage(container) {
         weeklyReport,
         topicBriefs?.topics || []
       );
-      container.appendChild(renderSchemeAStack(mergedItems));
     }
-    container.appendChild(renderStreamHeader(
-      displayTotal,
-      streamItems.length ? streamItems : mergedItems,
-      { schemeA: !focusedMode }
-    ));
+    container.appendChild(renderStreamHeader(displayTotal, streamItems.length ? streamItems : mergedItems));
 
     if (sepTimelineMode) {
       container.appendChild(renderFocusedSepTimeline(visibleItems, displayTotal));
@@ -4214,520 +4153,20 @@ function appendGlobalDashboardSections(container, statsData, overviewData, dataT
   container.appendChild(renderTopicTheater(topics || []));
 }
 
-function renderStreamHeader(total, items = [], options = {}) {
+function renderStreamHeader(total, items = []) {
   const chronologySummary = buildChronologySummary(items);
-  const schemeA = Boolean(options?.schemeA);
   return el('div', 'section-heading-row', `
     <div>
-      <div class="section-kicker">${schemeA ? t('scheme_a_stream_kicker') : t('section_pulse')}</div>
-      <h2 class="section-title">${schemeA ? t('scheme_a_stream_title') : t('section_stream')}</h2>
+      <div class="section-kicker">${t('section_pulse')}</div>
+      <h2 class="section-title">${t('section_stream')}</h2>
     </div>
-    <div class="section-meta section-meta-column">
-      ${schemeA ? `<span>${t('scheme_a_stream_desc')}</span>` : ''}
-      <span>
-        ${t('label_showing')}: <strong>${total.toLocaleString()}</strong>
-        <span class="section-search-pill">${t('stream_sort_note')}</span>
-        ${chronologySummary}
-        ${state.filters.q ? `<span class="section-search-pill">"${escapeHtml(state.filters.q)}"</span>` : ''}
-      </span>
+    <div class="section-meta">
+      ${t('label_showing')}: <strong>${total.toLocaleString()}</strong>
+      <span class="section-search-pill">${t('stream_sort_note')}</span>
+      ${chronologySummary}
+      ${state.filters.q ? `<span class="section-search-pill">"${escapeHtml(state.filters.q)}"</span>` : ''}
     </div>
   `);
-}
-
-function renderSchemeAStack(items) {
-  const shell = el('section', 'scheme-a-stack');
-  shell.appendChild(renderSchemeAKeySignalsSection(items));
-  shell.appendChild(renderSchemeAEventSection(items));
-  return shell;
-}
-
-function renderSchemeAKeySignalsSection(items) {
-  const selected = selectSchemeAKeySignals(items, 5);
-  const section = el('section', 'scheme-a-section scheme-a-key-section');
-  section.innerHTML = `
-    <div class="section-heading-row">
-      <div>
-        <div class="section-kicker">${t('scheme_a_key_kicker')}</div>
-        <h2 class="section-title">${t('scheme_a_key_title')}</h2>
-      </div>
-      <div class="section-meta">${t('scheme_a_key_desc')}</div>
-    </div>
-  `;
-  const grid = el('div', 'scheme-a-signal-grid');
-  if (!selected.length) {
-    grid.innerHTML = `<div class="mini-empty">${t('card_empty')}</div>`;
-  } else {
-    selected.forEach((item, index) => grid.appendChild(renderSchemeASignalCard(item, index + 1)));
-  }
-  section.appendChild(grid);
-  return section;
-}
-
-function renderSchemeAEventSection(items) {
-  const events = buildHeatingEventClusters(items, 4);
-  const section = el('section', 'scheme-a-section scheme-a-event-section');
-  section.innerHTML = `
-    <div class="section-heading-row">
-      <div>
-        <div class="section-kicker">${t('scheme_a_event_kicker')}</div>
-        <h2 class="section-title">${t('scheme_a_event_title')}</h2>
-      </div>
-      <div class="section-meta">${t('scheme_a_event_desc')}</div>
-    </div>
-  `;
-  const grid = el('div', 'scheme-a-event-grid');
-  if (!events.length) {
-    grid.innerHTML = `<div class="mini-empty">${t('scheme_a_event_empty')}</div>`;
-  } else {
-    events.forEach((cluster, index) => grid.appendChild(renderHeatingEventCard(cluster, index + 1)));
-  }
-  section.appendChild(grid);
-  return section;
-}
-
-function selectSchemeAKeySignals(items, limit = 5) {
-  const sorted = sortBySignalPriority((items || []).filter(isRelevantDisplayItem).filter(isStreamItem), 'brief');
-  const selected = [];
-  const seenIds = new Set();
-  const seenClusters = new Set();
-  const typeCounts = new Map();
-  const balanceTypes = !state.filters.ip_type || state.filters.ip_type === 'all';
-
-  const tryPick = (item, relaxed = false) => {
-    const itemId = item?.id || item?.guid || item?.url;
-    if (!itemId || seenIds.has(itemId)) return false;
-    const clusterKey = String(item?.event_cluster_key || '').trim();
-    const ipType = item?.ip_type || 'general';
-    const typeCount = typeCounts.get(ipType) || 0;
-    if (!relaxed) {
-      if (clusterKey && seenClusters.has(clusterKey)) return false;
-      if (balanceTypes && typeCount >= 2 && selected.length < limit - 1) return false;
-    }
-    selected.push(item);
-    seenIds.add(itemId);
-    if (clusterKey) seenClusters.add(clusterKey);
-    typeCounts.set(ipType, typeCount + 1);
-    return true;
-  };
-
-  sorted.forEach((item) => {
-    if (selected.length < limit) tryPick(item, false);
-  });
-  sorted.forEach((item) => {
-    if (selected.length < limit) tryPick(item, true);
-  });
-  return selected.slice(0, limit);
-}
-
-function buildHeatingEventClusters(items, limit = 4) {
-  const maxAgeMs = 10 * 24 * 60 * 60 * 1000;
-  const now = Date.now();
-  const grouped = new Map();
-  sortByChronology((items || []).filter(isRelevantDisplayItem)).forEach((item) => {
-    const key = String(item?.event_cluster_key || '').trim();
-    if (!key) return;
-    const ts = parseItemTimestamp(item);
-    if (ts && (now - ts) > maxAgeMs) return;
-    if (!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key).push(item);
-  });
-
-  return Array.from(grouped.entries())
-    .map(([key, groupItems]) => {
-      const uniqueItems = Array.from(new Map(
-        groupItems.map((item) => [item?.id || item?.guid || item?.url, item])
-      ).values());
-      const orderedItems = sortBySignalPriority(uniqueItems, 'stream');
-      const representative = getPriorityBriefItem(orderedItems) || orderedItems[0] || null;
-      const sourceCount = new Set(orderedItems.map((item) => item.source_id || item.source_name || item.url).filter(Boolean)).size;
-      const sources = [...new Set(orderedItems.map((item) => compactSourceName(item.source_name || item.source_id || '')).filter(Boolean))];
-      const latestAt = orderedItems.reduce((max, item) => Math.max(max, parseItemTimestamp(item)), 0);
-      const earliestAt = orderedItems.reduce((min, item) => {
-        const ts = parseItemTimestamp(item);
-        if (!ts) return min;
-        return min ? Math.min(min, ts) : ts;
-      }, 0);
-      const coreCount = orderedItems.filter((item) => getEditorialLane(item) === 'core').length;
-      const ipTypes = [...new Set(orderedItems.map((item) => item.ip_type || 'general').filter(Boolean))].slice(0, 3);
-      const categoryCounts = getClusterCategoryCounts(orderedItems);
-      const stage = getHeatingEventStage({
-        items: orderedItems,
-        latestAt,
-        earliestAt,
-        sourceCount,
-        coreCount,
-        itemCount: orderedItems.length,
-      });
-      const watchpoint = buildHeatingEventWatchpoint({
-        items: orderedItems,
-        representative,
-        sourceCount,
-        coreCount,
-      });
-      return {
-        key,
-        items: orderedItems,
-        representative,
-        sourceCount,
-        sources: sources.slice(0, 3),
-        latestAt,
-        earliestAt,
-        coreCount,
-        itemCount: orderedItems.length,
-        ipTypes,
-        categoryCounts,
-        stage,
-        watchpoint,
-      };
-    })
-    .filter((cluster) => cluster.itemCount >= 2 && (cluster.sourceCount >= 2 || cluster.itemCount >= 3))
-    .sort((left, right) => {
-      const leftFresh = left.latestAt && (now - left.latestAt) <= 72 * 60 * 60 * 1000 ? 12 : 0;
-      const rightFresh = right.latestAt && (now - right.latestAt) <= 72 * 60 * 60 * 1000 ? 12 : 0;
-      const leftScore = left.itemCount * 8 + left.sourceCount * 12 + left.coreCount * 6 + leftFresh;
-      const rightScore = right.itemCount * 8 + right.sourceCount * 12 + right.coreCount * 6 + rightFresh;
-      if (rightScore !== leftScore) return rightScore - leftScore;
-      return right.latestAt - left.latestAt;
-    })
-    .slice(0, limit);
-}
-
-function getClusterCategoryCounts(items) {
-  const counts = { official: 0, media: 0, lawfirm: 0 };
-  (items || []).forEach((item) => {
-    const category = String(item?.category || '').toLowerCase();
-    if (counts[category] != null) counts[category] += 1;
-  });
-  return counts;
-}
-
-function getHeatingEventStage(cluster) {
-  const items = cluster?.items || [];
-  const docTypes = items.map((item) => String(item?.ai_document_type || '').toLowerCase());
-  const spanDays = cluster?.latestAt && cluster?.earliestAt
-    ? Math.max(0, Math.round((cluster.latestAt - cluster.earliestAt) / (24 * 60 * 60 * 1000)))
-    : 0;
-  const latestFreshHours = cluster?.latestAt
-    ? (Date.now() - cluster.latestAt) / (60 * 60 * 1000)
-    : 999;
-  const hasDecisionLike = docTypes.some((type) => ['judgment', 'appeal', 'order', 'enforcement_action'].includes(type));
-  const hasOfficialLike = docTypes.some((type) => ['official_news', 'policy_update', 'guidance', 'legislation'].includes(type));
-
-  if (hasDecisionLike && cluster?.coreCount >= 2) {
-    return {
-      key: 'action',
-      label: t('scheme_a_event_stage_action'),
-      desc: state.lang === 'zh'
-        ? '已经出现判决、执法或正式程序节点，事件进入可执行判断阶段。'
-        : 'A judgment, enforcement move or formal procedure milestone is already present, so the event has entered an actionable phase.',
-    };
-  }
-  if ((cluster?.itemCount || 0) >= 4 && (cluster?.sourceCount || 0) >= 3 && latestFreshHours <= 96) {
-    return {
-      key: 'heating',
-      label: t('scheme_a_event_stage_heating'),
-      desc: state.lang === 'zh'
-        ? '不同来源正在密集跟进，议题已经从单点更新变成连续升温。'
-        : 'Multiple sources are now following up in close succession, turning a single update into a sustained heating event.',
-    };
-  }
-  if (spanDays >= 5 && ((cluster?.itemCount || 0) >= 4 || hasOfficialLike)) {
-    return {
-      key: 'follow',
-      label: t('scheme_a_event_stage_follow'),
-      desc: state.lang === 'zh'
-        ? '事件已跨越多个时间节点，重点转向后续制度落地、回应与延伸影响。'
-        : 'The event is already spanning multiple time points, so the focus shifts to implementation, response and follow-through impact.',
-    };
-  }
-  return {
-    key: 'emerging',
-    label: t('scheme_a_event_stage_emerging'),
-    desc: state.lang === 'zh'
-      ? '当前仍以最初触发信号为主，正在等待更多官方或跨来源确认。'
-      : 'The cluster is still led by the initial trigger and is waiting for broader official or cross-source confirmation.',
-  };
-}
-
-function buildHeatingEventWatchpoint(cluster) {
-  const items = cluster?.items || [];
-  const docTypes = items.map((item) => String(item?.ai_document_type || '').toLowerCase());
-  if (docTypes.some((type) => ['judgment', 'appeal', 'order'].includes(type))) {
-    return state.lang === 'zh'
-      ? '优先盯后续上诉、执行、费用裁定和关联案件是否同步出现。'
-      : 'Watch first for appeals, enforcement, cost decisions and linked cases moving in parallel.';
-  }
-  if (docTypes.some((type) => ['official_news', 'policy_update', 'guidance', 'legislation'].includes(type))) {
-    return state.lang === 'zh'
-      ? '优先盯正式生效时间、实施细则、成员国或主管机构是否开始跟进。'
-      : 'Watch first for entry into force, implementing guidance and whether member states or authorities start to follow through.';
-  }
-  if (docTypes.some((type) => type === 'enforcement_action')) {
-    return state.lang === 'zh'
-      ? '优先盯执法范围是否扩大、处罚细节是否公开，以及平台或品牌方的回应。'
-      : 'Watch first for scope expansion, penalty detail and responses from platforms or affected brands.';
-  }
-  if ((cluster?.sourceCount || 0) >= 3) {
-    return state.lang === 'zh'
-      ? '优先盯是否出现官方文件或法院节点，把当前舆情/评论型升温转成硬信号。'
-      : 'Watch first for an official filing or court milestone that can convert the current commentary-driven heating into a hard signal.';
-  }
-  return state.lang === 'zh'
-    ? '优先盯是否出现更多跨来源跟进，确认这不是一次性孤立更新。'
-    : 'Watch first for broader cross-source follow-through to confirm that this is not a one-off isolated update.';
-}
-
-function buildHeatingEventRange(cluster) {
-  const latestLabel = cluster?.latestAt ? formatDate(cluster.latestAt ? new Date(cluster.latestAt).toISOString() : '') : '—';
-  const earliestLabel = cluster?.earliestAt ? formatDate(cluster.earliestAt ? new Date(cluster.earliestAt).toISOString() : '') : '—';
-  if (latestLabel !== '—' && earliestLabel !== '—' && latestLabel !== earliestLabel) {
-    return `${earliestLabel} → ${latestLabel}`;
-  }
-  return latestLabel !== '—' ? latestLabel : earliestLabel;
-}
-
-function buildSignalWhatChanged(item, maxLength = 92) {
-  const fallback = buildFallbackBrief(item, 'summary');
-  return resolvePointList(item?.ai_core_points_zh, item?.ai_summary_zh || item?.summary || fallback, 1, maxLength)[0]
-    || truncateText(item?.ai_summary_zh || item?.summary || fallback, maxLength)
-    || '—';
-}
-
-function buildSignalWhyImportant(item, maxLength = 96) {
-  const fallback = buildSignalImportanceFallback(item);
-  return resolvePointList(item?.ai_insight_points_zh, item?.ai_insight_zh || fallback, 1, maxLength)[0]
-    || truncateText(item?.ai_insight_zh || fallback, maxLength)
-    || '—';
-}
-
-function buildSignalImportanceFallback(item) {
-  const source = compactSourceName(item?.source_name || '') || '该来源';
-  const docType = String(item?.ai_document_type || '').trim().toLowerCase();
-  const ipLabel = getIpTypeLabel(item?.ip_type || 'general');
-  if (state.lang === 'zh') {
-    if (['judgment', 'appeal', 'order'].includes(docType)) {
-      return `这属于裁判或程序节点型信号，往往会直接改变 ${ipLabel} 争议的诉讼节奏、执法口径或市场预期。`;
-    }
-    if (['official_news', 'policy_update', 'guidance', 'legislation'].includes(docType)) {
-      return '这是官方口径或制度变化，通常会先于市场评论影响申请、合规、执法或交易判断。';
-    }
-    if (docType === 'enforcement_action') {
-      return '这类执法信号往往会直接影响品牌保护、边境措施、平台治理或企业合规动作。';
-    }
-    if (docType === 'data_release') {
-      return `这是一条数据型更新，更适合与近几期走势对读，用来判断 ${ipLabel} 盘面是否正在升温或回落。`;
-    }
-    return `这条信号来自 ${source}，适合与同主题的官方、法院或多来源跟进一起判断其真实影响。`;
-  }
-  if (['judgment', 'appeal', 'order'].includes(docType)) {
-    return `This is a court or procedure milestone and can directly shift the litigation pace, enforcement posture or market expectation around ${ipLabel.toLowerCase()}.`;
-  }
-  if (['official_news', 'policy_update', 'guidance', 'legislation'].includes(docType)) {
-    return 'This is an official or policy signal and usually affects filing, compliance, enforcement or transaction judgment before commentary catches up.';
-  }
-  if (docType === 'enforcement_action') {
-    return 'This type of enforcement signal can quickly affect brand protection, border actions, platform governance and operational compliance.';
-  }
-  if (docType === 'data_release') {
-    return `This is a data-led update and is best read against recent releases to judge whether the ${ipLabel.toLowerCase()} picture is heating up or cooling off.`;
-  }
-  return `This signal comes from ${source} and is best judged alongside follow-up coverage from official, court or other high-signal sources.`;
-}
-
-function buildSignalNextWatch(item) {
-  const source = compactSourceName(item?.source_name || '') || '该来源';
-  const docType = String(item?.ai_document_type || '').trim().toLowerCase();
-  if (state.lang === 'zh') {
-    if (['judgment', 'appeal', 'order'].includes(docType)) {
-      return '下一步重点关注是否出现上诉、执行、费用裁定、程序延展或关联案件的同步跟进。';
-    }
-    if (['official_news', 'policy_update', 'guidance', 'legislation'].includes(docType)) {
-      return '下一步重点关注正式生效时间、实施细则、成员国或主管机构的配套口径，以及市场反馈。';
-    }
-    if (docType === 'enforcement_action') {
-      return '下一步重点关注执法范围是否扩大、是否披露处罚细节，以及品牌方或平台方的后续回应。';
-    }
-    if (docType === 'data_release') {
-      return '下一步重点关注下一个统计周期、结构分布变化，以及这轮趋势是否具有连续性。';
-    }
-    return `下一步重点关注 ${source} 之外是否出现官方文件、判决全文或更多跨来源共振。`;
-  }
-  if (['judgment', 'appeal', 'order'].includes(docType)) {
-    return 'Watch next for appeals, enforcement, costs decisions, procedural extensions or linked cases moving in parallel.';
-  }
-  if (['official_news', 'policy_update', 'guidance', 'legislation'].includes(docType)) {
-    return 'Watch next for entry-into-force timing, implementing guidance, member-state follow-through and market response.';
-  }
-  if (docType === 'enforcement_action') {
-    return 'Watch next for scope expansion, penalty detail and the response from affected brands, platforms or operators.';
-  }
-  if (docType === 'data_release') {
-    return 'Watch next for the following reporting cycle, any structural shift inside the data and whether the current trend holds.';
-  }
-  return `Watch next for official documents, full judgments or broader cross-source confirmation beyond ${source}.`;
-}
-
-function buildDetailNextWatchPoints(item) {
-  const points = [buildSignalNextWatch(item)];
-  if (item?.event_cluster_key) {
-    points.push(state.lang === 'zh'
-      ? '可结合这条资讯所属的同题关联内容一起看，判断该议题是否还在持续升温。'
-      : 'Read this signal alongside its linked event coverage to judge whether the issue is still heating up.');
-  }
-  return points
-    .map((point) => truncateText(point, 156))
-    .filter(Boolean)
-    .slice(0, 2);
-}
-
-function renderSchemeASignalCard(item, rank) {
-  const category = item?.category || 'media';
-  const ipType = item?.ip_type || 'general';
-  const originalTitle = item?.title || item?.title_zh || '—';
-  const chineseTitle = item?.title_zh && item.title_zh !== originalTitle ? item.title_zh : '';
-  const summaryPoints = resolvePointList(item?.ai_core_points_zh, item?.ai_summary_zh || item?.summary || buildFallbackBrief(item, 'summary'), 3, 138);
-  const insightPoints = resolvePointList(item?.ai_insight_points_zh, item?.ai_insight_zh || buildSignalImportanceFallback(item), 2, 132);
-  const card = el('article', 'scheme-a-signal-card');
-  card.innerHTML = `
-    <div class="scheme-a-signal-head">
-      <div class="scheme-a-signal-rank">${String(rank).padStart(2, '0')}</div>
-      <div class="scheme-a-signal-meta">
-        <span class="source-badge ${category}">${escapeHtml(compactSourceName(item?.source_name || '') || '—')}</span>
-        <span class="ip-badge ${ipType}">${getIpTypeLabel(ipType)}</span>
-        ${renderGeoBadges(item)}
-        ${renderAnalysisDepthBadge(item, true)}
-        <span class="news-card-date">${escapeHtml(buildPrimaryDateLabel(item))}</span>
-      </div>
-    </div>
-    <h3 class="scheme-a-signal-title">${escapeHtml(originalTitle)}</h3>
-    ${chineseTitle ? `<div class="scheme-a-signal-subtitle">${escapeHtml(truncateText(chineseTitle, 128))}</div>` : ''}
-    <div class="scheme-a-signal-tag-row">${renderSignalTagPills(item, true)}</div>
-    <div class="scheme-a-signal-lines">
-      <div class="scheme-a-signal-line">
-        <span class="scheme-a-signal-label">${t('block_core_points')}</span>
-        ${renderPointList(summaryPoints.length ? summaryPoints : [buildSignalWhatChanged(item)], 'intel-points compact')}
-      </div>
-      <div class="scheme-a-signal-line">
-        <span class="scheme-a-signal-label">${t('block_insight')}</span>
-        ${renderPointList(insightPoints.length ? insightPoints : [buildSignalWhyImportant(item)], 'intel-points compact')}
-      </div>
-    </div>
-    <div class="scheme-a-signal-footer">
-      <div class="scheme-a-signal-footer-meta">
-        <span class="scheme-a-signal-label">${t('block_original_link')}</span>
-        <span>${escapeHtml(buildOriginalLinkDateMeta(item))}</span>
-      </div>
-      <div class="scheme-a-signal-actions">
-        <button class="btn btn-secondary" type="button" data-open-detail>${t('detail_view_btn')}</button>
-        <a href="${escapeHtml(item?.url || '#')}" target="_blank" rel="noopener" class="read-more-link compact-pill" data-open-source>${t('detail_btn_short')}</a>
-      </div>
-    </div>
-  `;
-  card.addEventListener('click', () => showNewsDetail(item));
-  card.querySelector('[data-open-detail]')?.addEventListener('click', (event) => {
-    event.stopPropagation();
-    showNewsDetail(item);
-  });
-  card.querySelector('[data-open-source]')?.addEventListener('click', (event) => event.stopPropagation());
-  return card;
-}
-
-function renderHeatingEventCard(cluster, rank) {
-  const representative = cluster?.representative;
-  const section = el('article', 'scheme-a-event-card');
-  const representativeTitle = representative
-    ? ((state.lang === 'zh' && representative.title_zh) ? representative.title_zh : (representative.title || representative.title_zh || '—'))
-    : '—';
-  const previewItems = (cluster?.items || []).slice(0, 3);
-  const latestLabel = cluster?.latestAt ? formatDateTimeLabel(new Date(cluster.latestAt).toISOString()) : '—';
-  const sourceLine = (cluster?.sources || []).join(' · ');
-  const categoryCounts = cluster?.categoryCounts || {};
-  const categoryPills = [
-    ['official', t('filter_official'), categoryCounts.official || 0],
-    ['media', t('filter_media'), categoryCounts.media || 0],
-    ['lawfirm', t('filter_lawfirm'), categoryCounts.lawfirm || 0],
-  ].filter(([, , count]) => count > 0);
-  const rangeLabel = buildHeatingEventRange(cluster);
-  section.innerHTML = `
-    <div class="scheme-a-event-topline">
-      <div class="scheme-a-event-rank">${String(rank).padStart(2, '0')}</div>
-      <div class="scheme-a-event-pills">
-        <span class="section-search-pill">${cluster?.itemCount || 0} ${t('scheme_a_event_items')}</span>
-        <span class="section-search-pill">${cluster?.sourceCount || 0} ${t('scheme_a_event_sources')}</span>
-        <span class="section-search-pill">${t('scheme_a_event_latest')}: ${escapeHtml(latestLabel)}</span>
-      </div>
-    </div>
-    <h3 class="scheme-a-event-title">${escapeHtml(truncateText(representativeTitle, 110))}</h3>
-    <p class="scheme-a-event-summary">${escapeHtml(buildHeatingEventSummary(cluster))}</p>
-    <div class="scheme-a-event-meta-row">
-      <span>${escapeHtml(sourceLine || '—')}</span>
-      <span>${cluster?.ipTypes?.map((type) => getIpTypeLabel(type)).join(' · ') || getIpTypeLabel('general')}</span>
-    </div>
-    <div class="scheme-a-event-insight-grid">
-      <div class="scheme-a-event-insight-card">
-        <span class="scheme-a-event-insight-label">${t('scheme_a_event_stage')}</span>
-        <strong>${escapeHtml(cluster?.stage?.label || '—')}</strong>
-        <p>${escapeHtml(cluster?.stage?.desc || '—')}</p>
-      </div>
-      <div class="scheme-a-event-insight-card">
-        <span class="scheme-a-event-insight-label">${t('scheme_a_event_mix')}</span>
-        <div class="scheme-a-event-mix-pills">
-          ${categoryPills.length ? categoryPills.map(([cls, label, count]) => `
-            <span class="scheme-a-event-mix-pill ${cls}">${escapeHtml(label)} ${count}</span>
-          `).join('') : `<span class="scheme-a-event-mix-pill">${t('card_empty')}</span>`}
-        </div>
-        <p>${t('scheme_a_event_range')}: ${escapeHtml(rangeLabel || '—')}</p>
-      </div>
-    </div>
-    <div class="scheme-a-event-watchpoint">
-      <span class="scheme-a-event-insight-label">${t('scheme_a_event_watchpoint')}</span>
-      <p>${escapeHtml(cluster?.watchpoint || '—')}</p>
-    </div>
-    <div class="scheme-a-event-preview-list">
-      ${previewItems.map((item, index) => `
-        <button class="scheme-a-event-preview" type="button" data-event-item-index="${index}">
-          <span class="scheme-a-event-preview-index">${String(index + 1).padStart(2, '0')}</span>
-          <span class="scheme-a-event-preview-copy">
-            <span class="scheme-a-event-preview-meta">
-              <span class="source-badge ${item.category || 'media'}">${escapeHtml(compactSourceName(item.source_name || '') || '—')}</span>
-              <span class="news-card-date">${escapeHtml(buildPrimaryDateLabel(item))}</span>
-            </span>
-            <strong>${escapeHtml(truncateText((state.lang === 'zh' && item.title_zh) ? item.title_zh : (item.title || item.title_zh || '—'), 96))}</strong>
-          </span>
-        </button>
-      `).join('')}
-    </div>
-    <div class="scheme-a-event-actions">
-      <button class="btn btn-secondary" type="button" data-open-cluster>${t('scheme_a_event_open')}</button>
-      ${representative?.url ? `<a href="${escapeHtml(representative.url)}" target="_blank" rel="noopener" class="btn btn-primary" data-open-source>${t('detail_btn')}</a>` : ''}
-    </div>
-  `;
-  section.querySelectorAll('[data-event-item-index]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const item = previewItems[Number(btn.dataset.eventItemIndex)];
-      if (item) showNewsDetail(item);
-    });
-  });
-  section.querySelector('[data-open-cluster]')?.addEventListener('click', () => {
-    showChronologyGroupModal({
-      key: 'this-week',
-      label: representativeTitle,
-      items: cluster?.items || [],
-    });
-  });
-  section.querySelector('[data-open-source]')?.addEventListener('click', (event) => event.stopPropagation());
-  return section;
-}
-
-function buildHeatingEventSummary(cluster) {
-  const sourceCount = Number(cluster?.sourceCount || 0);
-  const itemCount = Number(cluster?.itemCount || 0);
-  const coreCount = Number(cluster?.coreCount || 0);
-  const representativeSource = compactSourceName(cluster?.representative?.source_name || '') || '该主题';
-  if (state.lang === 'zh') {
-    return `${sourceCount} 个来源、${itemCount} 条关联资讯正在指向同一议题，其中 ${coreCount} 条已进入核心流；最新代表信号来自 ${representativeSource}。`;
-  }
-  return `${sourceCount} sources and ${itemCount} linked items are now pointing to the same issue, with ${coreCount} already in the core lane; the latest representative signal comes from ${representativeSource}.`;
 }
 
 function renderLatestDynamicsSnapshot(items) {
@@ -4963,13 +4402,13 @@ function renderPriorityBrief(overview, items) {
     return card;
   }
 
-  const originalTitle = item.title || item.title_zh || '—';
-  const chineseTitle = item.title_zh && item.title_zh !== originalTitle ? item.title_zh : '';
+  const primaryTitle = state.lang === 'zh' && item.title_zh ? item.title_zh : item.title;
+  const secondaryTitle = item.title && item.title !== primaryTitle ? item.title : '';
   const summary = item.ai_summary_zh || item.summary || '';
   const insight = item.ai_insight_zh || '';
   const date = formatDate(item.published_at || item.scraped_at);
   const linkDateMeta = buildOriginalLinkDateMeta(item);
-  const titleVariant = getHeadlineVariantClass(originalTitle);
+  const titleVariant = getHeadlineVariantClass(primaryTitle);
   const fallbackSummary = buildFallbackBrief(item, 'summary');
   const fallbackSignal = buildFallbackBrief(item, 'signal');
   const summaryPoints = resolvePointList(item.ai_core_points_zh, summary || fallbackSummary, 3, 120);
@@ -4988,8 +4427,8 @@ function renderPriorityBrief(overview, items) {
     </div>
     <div class="priority-flag">${t('card_priority')}</div>
     <div class="intel-block intel-block-title">
-      <h2 class="priority-title ${titleVariant}">${escapeHtml(originalTitle)}</h2>
-      ${chineseTitle ? `<div class="priority-subtitle">${escapeHtml(chineseTitle)}</div>` : ''}
+      <h2 class="priority-title ${titleVariant}">${escapeHtml(primaryTitle)}</h2>
+      ${secondaryTitle ? `<div class="priority-subtitle">${escapeHtml(secondaryTitle)}</div>` : ''}
     </div>
     <div class="intel-block-grid priority-brief-grid">
       <div class="intel-block">
@@ -5462,7 +4901,6 @@ function groupChronologyModalItems(items) {
 function showChronologyGroupModal(group) {
   const root = document.getElementById('modal-root');
   const items = group?.items || [];
-  const lane = group?.lane || '';
   if (!root || !items.length) return;
   const dateGroups = groupChronologyModalItems(items);
   const newestLabel = buildPrimaryDateLabel(items[0]);
@@ -5526,10 +4964,7 @@ function showChronologyGroupModal(group) {
       </div>
     `;
     const grid = el('div', 'chronology-modal-grid');
-    dateGroup.items.forEach((item, index) => {
-      const tier = lane === 'core' && group.key === 'today' && index < 2 ? 'must-read' : 'scan';
-      grid.appendChild(renderNewsCard(item, tier));
-    });
+    dateGroup.items.forEach((item, index) => grid.appendChild(renderNewsCard(item, group.key === 'today' && index < 2 ? 'must-read' : 'scan')));
     section.appendChild(grid);
     content.appendChild(section);
     sections.push(section);
@@ -5836,17 +5271,7 @@ function renderIntelStreamSections(items) {
     return grouped;
   }
 
-  function renderStreamLaneItem(item, lane, tier = 'scan', context = {}) {
-    return renderNewsCard(item, tier);
-  }
-
-  function getPreviewLimitForLane(group, lane, total) {
-    if (lane === 'calendar') return group.key === 'today' ? Math.min(total, 6) : Math.min(total, 4);
-    if (lane === 'watch') return group.key === 'today' ? Math.min(total, 5) : Math.min(total, 4);
-    return group.key === 'today' ? total : 3;
-  }
-
-  function renderChronologyGroups(groups, lane) {
+  function renderChronologyGroups(groups) {
     const shell = el('div', 'intel-stream-shell chronology-stream');
     groups.forEach((group) => {
       const list = group.items || [];
@@ -5866,18 +5291,15 @@ function renderIntelStreamSections(items) {
           <div class="intel-stream-count">${String(list.length).padStart(2, '0')} ${t('stream_group_items')}</div>
         </div>
       `;
-      const grid = el('div', `news-grid intelligence-stream chronology-grid chronology-grid--${lane}`);
-      const previewLimit = getPreviewLimitForLane(group, lane, list.length);
+      const grid = el('div', 'news-grid intelligence-stream chronology-grid');
+      const previewLimit = group.key === 'today' ? list.length : 3;
       const previewItems = list.slice(0, previewLimit);
-      previewItems.forEach((item, index) => {
-        const tier = lane === 'core' && group.key === 'today' && index < 2 ? 'must-read' : 'scan';
-        grid.appendChild(renderStreamLaneItem(item, lane, tier, { groupKey: group.key }));
-      });
+      previewItems.forEach((item, index) => grid.appendChild(renderNewsCard(item, group.key === 'today' && index < 2 ? 'must-read' : 'scan')));
       block.appendChild(grid);
       if (group.key !== 'today' && list.length > previewLimit) {
         const actionRow = el('div', 'chronology-group-actions');
         const button = el('button', 'btn btn-secondary chronology-open-btn', `${t('stream_group_open_modal')} ${list.length} ${t('stream_group_items')}`);
-        button.addEventListener('click', () => showChronologyGroupModal({ ...group, lane }));
+        button.addEventListener('click', () => showChronologyGroupModal(group));
         actionRow.appendChild(button);
         block.appendChild(actionRow);
       }
@@ -5918,7 +5340,7 @@ function renderIntelStreamSections(items) {
       </div>
       <div class="section-meta">${meta.desc}</div>
     `;
-    laneWrap.appendChild(renderChronologyGroups(buildChronologyGroups(laneItems), lane));
+    laneWrap.appendChild(renderChronologyGroups(buildChronologyGroups(laneItems)));
     shell.appendChild(laneWrap);
   });
   return shell;
@@ -5959,12 +5381,15 @@ function renderNewsCard(item, tier = 'scan') {
   const linkDateMeta = buildOriginalLinkDateMeta(item);
   const catLabel = { official: t('filter_official'), media: t('filter_media'), lawfirm: t('filter_lawfirm') }[category] || category;
   const aiDone = item.ai_status === 'done';
-  const originalTitle = item.title || item.title_zh || '—';
-  const chineseTitle = item.title_zh && item.title_zh !== originalTitle ? item.title_zh : '';
+  const primaryTitle = item.title_zh || item.title || '—';
+  const englishTitle = item.title && item.title !== primaryTitle ? item.title : '';
+  const synopsis = item.ai_summary_zh || item.summary || '';
+  const insight = item.ai_insight_zh || '';
   const fallbackSummary = buildFallbackBrief(item, 'summary');
-  const fallbackInsight = buildSignalImportanceFallback(item);
-  const summaryPoints = resolvePointList(item.ai_core_points_zh, item.ai_summary_zh || item.summary || fallbackSummary, tier === 'must-read' ? 4 : 3, tier === 'must-read' ? 150 : 128);
-  const insightPoints = resolvePointList(item.ai_insight_points_zh, item.ai_insight_zh || fallbackInsight, 2, tier === 'must-read' ? 148 : 132);
+  const fallbackInsight = buildFallbackBrief(item, 'signal');
+  const summaryPoints = resolvePointList(item.ai_core_points_zh, synopsis || fallbackSummary, 2, tier === 'must-read' ? 78 : 68);
+  const insightPoints = resolvePointList(item.ai_insight_points_zh, insight || fallbackInsight, 1, 72);
+  const primaryInsight = insightPoints[0] || truncateText(insight || fallbackInsight, 72) || '';
 
   const card = el('div', `news-card news-card--latest-style tier-${tier}${aiDone ? ' has-ai' : ''}`);
   card.dataset.type = ipType;
@@ -5978,42 +5403,27 @@ function renderNewsCard(item, tier = 'scan') {
       <span class="news-card-date">${date}</span>
     </div>
     <div class="news-card-rubric">${escapeHtml(compactSourceName(item.source_name || ''))}</div>
-    <div class="news-card-title is-compact">${escapeHtml(truncateText(originalTitle, 84))}</div>
-    ${chineseTitle ? `<div class="news-card-title-sub news-card-title-en">${escapeHtml(truncateText(chineseTitle, 118))}</div>` : ''}
-    <div class="news-card-brief-stack latest-like">
-      <div class="news-card-brief-row">
-        <span class="news-card-brief-label">${t('block_core_points')}</span>
-        ${renderPointList(summaryPoints.length ? summaryPoints : [buildSignalWhatChanged(item, tier === 'must-read' ? 150 : 128)], 'news-card-points-compact latest-like')}
+    <div class="news-card-title is-compact">${escapeHtml(truncateText(primaryTitle, 72))}</div>
+    ${englishTitle ? `<div class="news-card-title-sub news-card-title-en">${escapeHtml(truncateText(englishTitle, 118))}</div>` : ''}
+    <div class="news-card-points-compact latest-like">
+      ${(summaryPoints.length ? summaryPoints : [truncateText(synopsis || fallbackSummary, 68) || '—']).map((point) => `
+        <span class="news-card-point-inline">${escapeHtml(point)}</span>
+      `).join('')}
+    </div>
+    <div class="news-card-insight-line news-card-insight-latest">${escapeHtml(primaryInsight || '—')}</div>
+    <div class="news-card-footer compact latest-like">
+      <div class="news-card-footer-meta">
+        <span class="news-card-source-name">${escapeHtml(compactSourceName(item.source_name || '—'))}</span>
+        <span class="news-card-date">${escapeHtml(linkDateMeta)}</span>
       </div>
-      <div class="news-card-brief-row">
-        <span class="news-card-brief-label">${t('block_insight')}</span>
-        ${renderPointList(insightPoints.length ? insightPoints : [buildSignalWhyImportant(item, tier === 'must-read' ? 148 : 132)], 'news-card-points-compact latest-like')}
-      </div>
-      <div class="news-card-brief-row">
-        <span class="news-card-brief-label">${t('block_original_link')}</span>
-        <div class="news-card-footer compact latest-like">
-          <div class="news-card-footer-meta">
-            <span class="news-card-source-name">${escapeHtml(compactSourceName(item.source_name || '—'))}</span>
-            <span class="news-card-date">${escapeHtml(linkDateMeta)}</span>
-          </div>
-          <a href="${item.url}" target="_blank" rel="noopener" class="read-more-link compact-pill"
-             onclick="event.stopPropagation()">
-            ${t('detail_btn_short')}
-          </a>
-        </div>
-      </div>
+      <a href="${item.url}" target="_blank" rel="noopener" class="read-more-link compact-pill"
+         onclick="event.stopPropagation()">
+        ${t('detail_btn_short')}
+      </a>
     </div>
   `;
   card.addEventListener('click', () => showNewsDetail(item));
   return card;
-}
-
-function renderWatchSignalCard(item, context = {}) {
-  return renderNewsCard(item, context.groupKey === 'today' ? 'scan' : 'background');
-}
-
-function renderCalendarNoticeCard(item, context = {}) {
-  return renderNewsCard(item, context.groupKey === 'today' ? 'scan' : 'background');
 }
 
 function renderPagination(page, pages, total) {
@@ -7019,10 +6429,10 @@ function showNewsDetail(item) {
   const linkDateMeta = buildOriginalLinkDateMeta(item);
   const aiDone = item.ai_status === 'done';
   const hostname = (() => { try { return new URL(item.url).hostname; } catch { return item.url; } })();
-  const originalTitle = item.title || item.title_zh || '—';
-  const chineseTitle = item.title_zh && item.title_zh !== originalTitle ? item.title_zh : '';
+  const primaryTitle = state.lang === 'zh' && item.title_zh ? item.title_zh : item.title;
+  const secondaryTitle = item.title_zh ? item.title : '';
   const fallbackSummary = buildFallbackBrief(item, 'summary');
-  const fallbackInsight = buildSignalImportanceFallback(item);
+  const fallbackInsight = buildFallbackBrief(item, 'signal');
   const summaryPoints = resolvePointList(item.ai_core_points_zh, item.ai_summary_zh || item.summary || fallbackSummary, 4, 180);
   const insightPoints = resolvePointList(item.ai_insight_points_zh, item.ai_insight_zh || fallbackInsight, 3, 170);
 
@@ -7039,24 +6449,24 @@ function showNewsDetail(item) {
             ${renderSignalTagPills(item, true)}
             ${aiDone ? '<span class="ai-badge ai-badge-sm">AI</span>' : ''}
           </div>
-          <div class="modal-header-caption">${t('detail_view_btn')}</div>
+          <div class="modal-header-caption">${t('section_priority')}</div>
         </div>
         <button class="modal-close" id="modal-close">✕</button>
       </div>
       <div class="modal-body">
         <div class="intel-block modal-intel-block title">
           <div class="modal-title-pair">
-            <div class="modal-title-main">${escapeHtml(originalTitle)}</div>
-            ${chineseTitle ? `<div class="modal-title-sub">${escapeHtml(chineseTitle)}</div>` : ''}
+            <div class="modal-title-main">${escapeHtml(primaryTitle)}</div>
+            ${secondaryTitle ? `<div class="modal-title-sub">${escapeHtml(secondaryTitle)}</div>` : ''}
           </div>
         </div>
         <div class="intel-block modal-intel-block">
           <div class="intel-block-label">${t('block_core_points')}</div>
-          ${renderPointList(summaryPoints.length ? summaryPoints : [buildSignalWhatChanged(item, 180)])}
+          ${renderPointList(summaryPoints)}
         </div>
         <div class="intel-block modal-intel-block insight">
           <div class="intel-block-label">${t('block_insight')}</div>
-          ${renderPointList(insightPoints.length ? insightPoints : [buildSignalWhyImportant(item, 170)])}
+          ${renderPointList(insightPoints)}
         </div>
         <div class="intel-block modal-intel-block intel-link-block">
           <div class="intel-block-label">${t('block_original_link')}</div>
