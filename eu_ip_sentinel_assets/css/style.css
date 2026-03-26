@@ -6798,6 +6798,94 @@ body::before {
   border-top: 1px dashed rgba(34, 51, 68, 0.08);
 }
 
+.chronology-grid--watch,
+.chronology-grid--calendar {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.stream-watch-card,
+.calendar-notice-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(34, 51, 68, 0.08);
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.stream-watch-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(246, 249, 252, 0.92));
+}
+
+.calendar-notice-card {
+  background: linear-gradient(180deg, rgba(255, 252, 244, 0.95), rgba(250, 246, 235, 0.92));
+}
+
+.stream-watch-topline,
+.calendar-notice-head,
+.stream-watch-footer,
+.calendar-notice-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.stream-watch-meta,
+.calendar-notice-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stream-watch-title,
+.calendar-notice-title {
+  color: var(--color-text);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.stream-watch-line,
+.calendar-notice-line {
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px;
+  border-radius: 14px;
+  background: rgba(247, 250, 252, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.calendar-notice-line {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.stream-watch-label,
+.calendar-notice-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.stream-watch-line p,
+.calendar-notice-line p,
+.stream-watch-footer,
+.calendar-notice-date {
+  margin: 0;
+  color: var(--color-text-2);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.stream-watch-open,
+.calendar-notice-open {
+  white-space: nowrap;
+}
+
 .news-card-footer.compact.latest-like {
   margin-top: auto;
   align-items: flex-end;
@@ -7532,6 +7620,30 @@ html[data-theme="dark"] .modal-ai-content {
 html[data-theme="dark"] .news-card-brief-row {
   background: rgba(26, 35, 49, 0.92) !important;
   border-color: rgba(148, 163, 184, 0.14) !important;
+}
+
+html[data-theme="dark"] .stream-watch-card,
+html[data-theme="dark"] .calendar-notice-card {
+  background: linear-gradient(180deg, rgba(21, 29, 41, 0.98), rgba(16, 23, 34, 0.95)) !important;
+  border-color: rgba(148, 163, 184, 0.14) !important;
+}
+
+html[data-theme="dark"] .stream-watch-line,
+html[data-theme="dark"] .calendar-notice-line {
+  background: rgba(26, 35, 49, 0.92) !important;
+  border-color: rgba(148, 163, 184, 0.14) !important;
+}
+
+html[data-theme="dark"] .stream-watch-title,
+html[data-theme="dark"] .calendar-notice-title {
+  color: #e7edf6 !important;
+}
+
+html[data-theme="dark"] .stream-watch-line p,
+html[data-theme="dark"] .calendar-notice-line p,
+html[data-theme="dark"] .stream-watch-footer,
+html[data-theme="dark"] .calendar-notice-date {
+  color: #c7d3e2 !important;
 }
 
 html[data-theme="dark"] .btn-secondary,

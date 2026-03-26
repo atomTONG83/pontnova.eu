@@ -745,6 +745,9 @@ const i18n = {
     chronology_modal_summary_range: '覆盖范围',
     chronology_modal_summary_dates: '日期节点',
     chronology_modal_summary_items: '资讯条目',
+    stream_watch_reason: '为什么留意',
+    stream_calendar_when: '安排时间',
+    stream_calendar_note: '提醒内容',
     card_priority: '优先阅读',
     card_latest: '最新信号',
     card_sources: '热源监测',
@@ -1350,6 +1353,9 @@ const i18n = {
     chronology_modal_summary_range: 'Coverage',
     chronology_modal_summary_dates: 'Dates',
     chronology_modal_summary_items: 'Items',
+    stream_watch_reason: 'Why Watch',
+    stream_calendar_when: 'Timing',
+    stream_calendar_note: 'Notice',
     card_priority: 'Priority Read',
     card_latest: 'Latest Signals',
     card_sources: 'Heat Sources',
@@ -5455,6 +5461,7 @@ function groupChronologyModalItems(items) {
 function showChronologyGroupModal(group) {
   const root = document.getElementById('modal-root');
   const items = group?.items || [];
+  const lane = group?.lane || '';
   if (!root || !items.length) return;
   const dateGroups = groupChronologyModalItems(items);
   const newestLabel = buildPrimaryDateLabel(items[0]);
@@ -5518,7 +5525,17 @@ function showChronologyGroupModal(group) {
       </div>
     `;
     const grid = el('div', 'chronology-modal-grid');
-    dateGroup.items.forEach((item, index) => grid.appendChild(renderNewsCard(item, group.key === 'today' && index < 2 ? 'must-read' : 'scan')));
+    dateGroup.items.forEach((item, index) => {
+      if (lane === 'watch') {
+        grid.appendChild(renderWatchSignalCard(item, { groupKey: group.key }));
+        return;
+      }
+      if (lane === 'calendar') {
+        grid.appendChild(renderCalendarNoticeCard(item, { groupKey: group.key }));
+        return;
+      }
+      grid.appendChild(renderNewsCard(item, group.key === 'today' && index < 2 ? 'must-read' : 'scan'));
+    });
     section.appendChild(grid);
     content.appendChild(section);
     sections.push(section);
@@ -5825,7 +5842,23 @@ function renderIntelStreamSections(items) {
     return grouped;
   }
 
-  function renderChronologyGroups(groups) {
+  function renderStreamLaneItem(item, lane, tier = 'scan', context = {}) {
+    if (lane === 'watch') {
+      return renderWatchSignalCard(item, context);
+    }
+    if (lane === 'calendar') {
+      return renderCalendarNoticeCard(item, context);
+    }
+    return renderNewsCard(item, tier);
+  }
+
+  function getPreviewLimitForLane(group, lane, total) {
+    if (lane === 'calendar') return group.key === 'today' ? Math.min(total, 6) : Math.min(total, 4);
+    if (lane === 'watch') return group.key === 'today' ? Math.min(total, 5) : Math.min(total, 4);
+    return group.key === 'today' ? total : 3;
+  }
+
+  function renderChronologyGroups(groups, lane) {
     const shell = el('div', 'intel-stream-shell chronology-stream');
     groups.forEach((group) => {
       const list = group.items || [];
@@ -5845,15 +5878,18 @@ function renderIntelStreamSections(items) {
           <div class="intel-stream-count">${String(list.length).padStart(2, '0')} ${t('stream_group_items')}</div>
         </div>
       `;
-      const grid = el('div', 'news-grid intelligence-stream chronology-grid');
-      const previewLimit = group.key === 'today' ? list.length : 3;
+      const grid = el('div', `news-grid intelligence-stream chronology-grid chronology-grid--${lane}`);
+      const previewLimit = getPreviewLimitForLane(group, lane, list.length);
       const previewItems = list.slice(0, previewLimit);
-      previewItems.forEach((item, index) => grid.appendChild(renderNewsCard(item, group.key === 'today' && index < 2 ? 'must-read' : 'scan')));
+      previewItems.forEach((item, index) => {
+        const tier = lane === 'core' && group.key === 'today' && index < 2 ? 'must-read' : 'scan';
+        grid.appendChild(renderStreamLaneItem(item, lane, tier, { groupKey: group.key }));
+      });
       block.appendChild(grid);
       if (group.key !== 'today' && list.length > previewLimit) {
         const actionRow = el('div', 'chronology-group-actions');
         const button = el('button', 'btn btn-secondary chronology-open-btn', `${t('stream_group_open_modal')} ${list.length} ${t('stream_group_items')}`);
-        button.addEventListener('click', () => showChronologyGroupModal(group));
+        button.addEventListener('click', () => showChronologyGroupModal({ ...group, lane }));
         actionRow.appendChild(button);
         block.appendChild(actionRow);
       }
@@ -5894,7 +5930,7 @@ function renderIntelStreamSections(items) {
       </div>
       <div class="section-meta">${meta.desc}</div>
     `;
-    laneWrap.appendChild(renderChronologyGroups(buildChronologyGroups(laneItems)));
+    laneWrap.appendChild(renderChronologyGroups(buildChronologyGroups(laneItems), lane));
     shell.appendChild(laneWrap);
   });
   return shell;
@@ -5981,6 +6017,81 @@ function renderNewsCard(item, tier = 'scan') {
     </div>
   `;
   card.addEventListener('click', () => showNewsDetail(item));
+  return card;
+}
+
+function renderWatchSignalCard(item, context = {}) {
+  const ipType = item.ip_type || 'general';
+  const category = item.category || 'media';
+  const date = buildPrimaryDateLabel(item);
+  const title = (state.lang === 'zh' && item.title_zh) ? item.title_zh : (item.title || item.title_zh || '—');
+  const whyWatch = buildSignalWhyImportant(item, 92);
+  const whatChanged = buildSignalWhatChanged(item, 86);
+  const card = el('article', 'stream-watch-card');
+  card.innerHTML = `
+    <div class="stream-watch-topline">
+      <div class="stream-watch-meta">
+        <span class="source-badge ${category}">${escapeHtml(compactSourceName(item.source_name || '') || '—')}</span>
+        <span class="ip-badge ${ipType}">${getIpTypeLabel(ipType)}</span>
+        ${renderGeoBadges(item, true, 1)}
+      </div>
+      <span class="news-card-date">${escapeHtml(date)}</span>
+    </div>
+    <div class="stream-watch-title">${escapeHtml(truncateText(title, context.groupKey === 'today' ? 90 : 78))}</div>
+    <div class="stream-watch-line">
+      <span class="stream-watch-label">${t('scheme_a_line_what')}</span>
+      <p>${escapeHtml(whatChanged || '—')}</p>
+    </div>
+    <div class="stream-watch-line reason">
+      <span class="stream-watch-label">${t('stream_watch_reason')}</span>
+      <p>${escapeHtml(whyWatch || '—')}</p>
+    </div>
+    <div class="stream-watch-footer">
+      <span>${escapeHtml(buildOriginalLinkDateMeta(item))}</span>
+      <button class="btn btn-secondary stream-watch-open" type="button">${t('detail_view_btn')}</button>
+    </div>
+  `;
+  card.addEventListener('click', () => showNewsDetail(item));
+  card.querySelector('.stream-watch-open')?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    showNewsDetail(item);
+  });
+  return card;
+}
+
+function renderCalendarNoticeCard(item, context = {}) {
+  const category = item.category || 'official';
+  const title = (state.lang === 'zh' && item.title_zh) ? item.title_zh : (item.title || item.title_zh || '—');
+  const notice = truncateText(item.ai_summary_zh || item.summary || buildFallbackBrief(item, 'summary'), context.groupKey === 'today' ? 110 : 92);
+  const card = el('article', 'calendar-notice-card');
+  card.innerHTML = `
+    <div class="calendar-notice-head">
+      <div class="calendar-notice-meta">
+        <span class="source-badge ${category}">${escapeHtml(compactSourceName(item.source_name || '') || '—')}</span>
+        ${renderGeoBadges(item, true, 1)}
+      </div>
+      <span class="calendar-notice-date">${escapeHtml(buildPrimaryDateLabel(item))}</span>
+    </div>
+    <div class="calendar-notice-title">${escapeHtml(truncateText(title, 92))}</div>
+    <div class="calendar-notice-line">
+      <span class="calendar-notice-label">${t('stream_calendar_when')}</span>
+      <p>${escapeHtml(buildOriginalLinkDateMeta(item))}</p>
+    </div>
+    <div class="calendar-notice-line">
+      <span class="calendar-notice-label">${t('stream_calendar_note')}</span>
+      <p>${escapeHtml(notice || '—')}</p>
+    </div>
+    <div class="calendar-notice-actions">
+      <button class="btn btn-secondary calendar-notice-open" type="button">${t('detail_view_btn')}</button>
+      <a href="${escapeHtml(item.url || '#')}" target="_blank" rel="noopener" class="read-more-link compact-pill">${t('detail_btn_short')}</a>
+    </div>
+  `;
+  card.addEventListener('click', () => showNewsDetail(item));
+  card.querySelector('.calendar-notice-open')?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    showNewsDetail(item);
+  });
+  card.querySelector('.read-more-link')?.addEventListener('click', (event) => event.stopPropagation());
   return card;
 }
 
