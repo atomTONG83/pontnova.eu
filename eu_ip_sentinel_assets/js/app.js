@@ -27,11 +27,32 @@ const STATIC_DEFAULT_FILES = {
 const DEFAULT_LANG = 'zh';
 const THEME_VALUES = ['light', 'dark'];
 const SCOPE_VALUES = ['eu', 'intl', 'uk', 'de', 'fr', 'benelux', 'scandinavia', 'all'];
+const EDITORIAL_LANE_VALUES = ['all', 'core', 'watch', 'calendar'];
 const getInitialTheme = () => 'dark';
 const getInitialScope = () => {
   const stored = localStorage.getItem('pontnova_scope');
   return SCOPE_VALUES.includes(stored) ? stored : 'eu';
 };
+const getDefaultEditorialLaneSelection = () => 'all';
+const getInitialEditorialLane = () => {
+  const stored = localStorage.getItem('pontnova_editorial_lane');
+  return EDITORIAL_LANE_VALUES.includes(stored) ? stored : getDefaultEditorialLaneSelection();
+};
+
+function releaseDefaultEditorialLaneForFocusedNews() {
+  if (state.filters.editorial_lane === getDefaultEditorialLaneSelection()) {
+    state.filters.editorial_lane = 'all';
+  }
+}
+
+function shouldReleaseDefaultEditorialLane(filter, value) {
+  if (state.filters.editorial_lane !== getDefaultEditorialLaneSelection()) return false;
+  if (filter === 'ip_type') return Boolean(value) && value !== 'all';
+  if (filter === 'category') return Boolean(value) && value !== 'all';
+  if (filter === 'scope') return Boolean(value) && value !== 'eu';
+  if (filter === 'has_ai') return !state.filters.has_ai;
+  return false;
+}
 
 const state = {
   lang: DEFAULT_LANG,
@@ -41,7 +62,7 @@ const state = {
   pendingTopicScrollId: '',
   filters: {
     ip_type: 'all',
-    editorial_lane: 'all',
+    editorial_lane: getInitialEditorialLane(),
     category: 'all',
     source: '',
     q: '',
@@ -3433,6 +3454,7 @@ function renderWarRoomSourceBelt(stats) {
     btn.addEventListener('click', () => {
       state.currentPage = 'news';
       state.focusViewExpanded = false;
+      releaseDefaultEditorialLaneForFocusedNews();
       state.filters.source = btn.dataset.sourceFilter;
       state.pagination.page = 1;
       renderApp();
@@ -3984,7 +4006,7 @@ function applyTopicPreset(topicId) {
 function isFocusedNewsMode() {
   return state.currentPage === 'news' && (
     state.filters.ip_type !== 'all' ||
-    state.filters.editorial_lane !== 'all' ||
+    state.filters.editorial_lane !== getDefaultEditorialLaneSelection() ||
     state.filters.category !== 'all' ||
     Boolean(state.filters.source) ||
     Boolean(state.filters.q) ||
@@ -4002,12 +4024,13 @@ function clearNewsFocusFilters() {
   state.pagination.page = 1;
   state.focusViewExpanded = false;
   state.filters.ip_type = 'all';
-  state.filters.editorial_lane = 'all';
+  state.filters.editorial_lane = getDefaultEditorialLaneSelection();
   state.filters.category = 'all';
   state.filters.source = '';
   state.filters.q = '';
   state.filters.has_ai = false;
   state.filters.scope = 'eu';
+  localStorage.setItem('pontnova_editorial_lane', state.filters.editorial_lane);
   localStorage.setItem('pontnova_scope', 'eu');
   renderApp();
 }
@@ -4021,7 +4044,7 @@ function getFilterSourceLabel(sourceId) {
 function getActiveFocusLabels() {
   const labels = [];
   if (state.filters.ip_type && state.filters.ip_type !== 'all') labels.push(getIpTypeLabel(state.filters.ip_type));
-  if (state.filters.editorial_lane && state.filters.editorial_lane !== 'all') labels.push(t(`filter_lane_${state.filters.editorial_lane}`));
+  if (state.filters.editorial_lane && state.filters.editorial_lane !== getDefaultEditorialLaneSelection()) labels.push(t(`filter_lane_${state.filters.editorial_lane}`));
   if (state.filters.category && state.filters.category !== 'all') labels.push(t(`filter_${state.filters.category}`));
   if (state.filters.scope && state.filters.scope !== 'eu') labels.push(resolveScopeLabel(state.filters.scope));
   if (state.filters.source) labels.push(getFilterSourceLabel(state.filters.source));
@@ -6566,6 +6589,7 @@ function attachEvents() {
       const ipType = btn.dataset.iptype;
       if (ipType) {
         state.focusViewExpanded = false;
+        releaseDefaultEditorialLaneForFocusedNews();
         state.filters.ip_type = ipType;
         navigate(page, ipType);
       } else {
@@ -6588,6 +6612,7 @@ function attachEvents() {
       state.searchDebounceTimer = setTimeout(() => {
         state.focusViewExpanded = false;
         state.filters.q = e.target.value.trim();
+        if (state.filters.q) releaseDefaultEditorialLaneForFocusedNews();
         state.pagination.page = 1;
         renderMainContent();
       }, 400);
@@ -6602,10 +6627,19 @@ function attachEvents() {
       state.pagination.page = 1;
       state.focusViewExpanded = false;
 
+      if (shouldReleaseDefaultEditorialLane(filter, value)) {
+        releaseDefaultEditorialLaneForFocusedNews();
+      }
+
       if (filter === 'has_ai') {
         // Toggle boolean
         state.filters.has_ai = !state.filters.has_ai;
         chip.classList.toggle('active', state.filters.has_ai);
+      } else if (filter === 'editorial_lane') {
+        state.filters[filter] = value;
+        localStorage.setItem('pontnova_editorial_lane', value);
+        $$(`[data-filter="editorial_lane"]`).forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
       } else if (filter === 'scope') {
         state.filters[filter] = value;
         localStorage.setItem('pontnova_scope', value);
