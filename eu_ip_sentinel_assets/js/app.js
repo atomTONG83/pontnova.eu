@@ -4933,18 +4933,29 @@ function decorateEuropeHeatMapMarkup(mapMarkup, hotspots, maxCount) {
 async function renderEuropeHeatSection(items) {
   const data = buildEuropeHeatData(items);
   const mapNodes = data.hotspots.slice(0, 7);
-  const calloutNodes = mapNodes.slice(0, 4);
+  const calloutNodes = mapNodes.slice(0, 3);
   const hotspotRows = data.hotspots.slice(0, 6);
   const maxCount = data.maxCount || 1;
+  const legendItems = state.lang === 'zh'
+    ? [
+        { tone: 'hot', label: '高度聚焦' },
+        { tone: 'warm', label: '持续升温' },
+        { tone: 'steady', label: '持续关注' },
+      ]
+    : [
+        { tone: 'hot', label: 'High pulse' },
+        { tone: 'warm', label: 'Rising' },
+        { tone: 'steady', label: 'Active' },
+      ];
   const baseMapMarkup = mapNodes.length ? await loadEuropeHeatBaseMapMarkup() : '';
   const mapSurfaceMarkup = baseMapMarkup
     ? decorateEuropeHeatMapMarkup(baseMapMarkup, mapNodes, maxCount)
     : `<image class="europe-heat-base-image" href="${EUROPE_HEAT_MAP_ASSET}" x="0" y="0" width="560" height="360" preserveAspectRatio="xMidYMid meet"></image>`;
   const calloutMarkup = calloutNodes.map((entry) => {
     const tone = getEuropeHeatTone(entry.count, maxCount);
-    const pillText = `${entry.label} · ${entry.count}`;
-    const pillWidth = Math.max(94, Math.min(168, Math.round(pillText.length * 7.1) + 24));
-    const pillHeight = 28;
+    const pillText = `${entry.label}`;
+    const pillWidth = Math.max(88, Math.min(152, Math.round(pillText.length * 7.05) + 22));
+    const pillHeight = 26;
     const anchor = entry.anchor === 'end' ? 'end' : 'start';
     const pillX = anchor === 'start' ? entry.lx : entry.lx - pillWidth;
     const textX = anchor === 'start' ? pillX + 14 : pillX + pillWidth - 14;
@@ -4999,11 +5010,19 @@ async function renderEuropeHeatSection(items) {
         ` : `<div class="mini-empty">${t('section_europe_heat_empty')}</div>`}
       </div>
       <div class="europe-heat-list-card">
+        <div class="europe-heat-legend">
+          ${legendItems.map((item) => `
+            <span class="europe-heat-legend-item ${item.tone}">
+              <span class="europe-heat-legend-dot"></span>
+              ${escapeHtml(item.label)}
+            </span>
+          `).join('')}
+        </div>
         <div class="europe-heat-list-title">${t('section_europe_heat_hotspots')}</div>
         ${hotspotRows.length ? hotspotRows.map((entry) => `
-          <div class="europe-heat-row">
+          <div class="europe-heat-row ${getEuropeHeatTone(entry.count, maxCount)}">
+            <span class="europe-heat-row-dot"></span>
             <span class="europe-heat-row-name">${escapeHtml(entry.label)}</span>
-            <div class="europe-heat-row-bar"><span style="width:${Math.max(14, Math.round((entry.count / maxCount) * 100))}%"></span></div>
             <strong>${entry.count}</strong>
           </div>
         `).join('') : `<div class="mini-empty">${t('section_europe_heat_empty')}</div>`}
