@@ -604,6 +604,14 @@ const i18n = {
     scheme_a_event_latest: '最近信号',
     scheme_a_event_open: '展开关联内容',
     scheme_a_event_empty: '当前窗口内还没有形成明显升温的同题事件。',
+    scheme_a_event_stage: '事件阶段',
+    scheme_a_event_mix: '来源分布',
+    scheme_a_event_watchpoint: '下一触发点',
+    scheme_a_event_range: '覆盖时间',
+    scheme_a_event_stage_emerging: '初始触发',
+    scheme_a_event_stage_heating: '快速升温',
+    scheme_a_event_stage_action: '进入处置',
+    scheme_a_event_stage_follow: '持续跟进',
     section_latest_dynamics: '最新动态',
     section_latest_dynamics_desc: '在进入完整情报流前，先快速扫一遍近48小时最值得优先关注的高信号变化。',
     section_latest_dynamics_empty: '近48小时暂无新的高信号动态。',
@@ -1204,6 +1212,14 @@ const i18n = {
     scheme_a_event_latest: 'Latest signal',
     scheme_a_event_open: 'Open linked coverage',
     scheme_a_event_empty: 'No clearly heating shared event is visible in the current window yet.',
+    scheme_a_event_stage: 'Event Stage',
+    scheme_a_event_mix: 'Source Mix',
+    scheme_a_event_watchpoint: 'Next Trigger',
+    scheme_a_event_range: 'Coverage Window',
+    scheme_a_event_stage_emerging: 'Early Trigger',
+    scheme_a_event_stage_heating: 'Heating Up',
+    scheme_a_event_stage_action: 'Action Phase',
+    scheme_a_event_stage_follow: 'Follow-through',
     section_latest_dynamics: 'Latest Signal Readout',
     section_latest_dynamics_desc: 'Scan the most actionable changes from the last 48 hours before moving into the full stream.',
     section_latest_dynamics_empty: 'No high-signal updates in the last 48 hours.',
@@ -4320,8 +4336,28 @@ function buildHeatingEventClusters(items, limit = 4) {
       const sourceCount = new Set(orderedItems.map((item) => item.source_id || item.source_name || item.url).filter(Boolean)).size;
       const sources = [...new Set(orderedItems.map((item) => compactSourceName(item.source_name || item.source_id || '')).filter(Boolean))];
       const latestAt = orderedItems.reduce((max, item) => Math.max(max, parseItemTimestamp(item)), 0);
+      const earliestAt = orderedItems.reduce((min, item) => {
+        const ts = parseItemTimestamp(item);
+        if (!ts) return min;
+        return min ? Math.min(min, ts) : ts;
+      }, 0);
       const coreCount = orderedItems.filter((item) => getEditorialLane(item) === 'core').length;
       const ipTypes = [...new Set(orderedItems.map((item) => item.ip_type || 'general').filter(Boolean))].slice(0, 3);
+      const categoryCounts = getClusterCategoryCounts(orderedItems);
+      const stage = getHeatingEventStage({
+        items: orderedItems,
+        latestAt,
+        earliestAt,
+        sourceCount,
+        coreCount,
+        itemCount: orderedItems.length,
+      });
+      const watchpoint = buildHeatingEventWatchpoint({
+        items: orderedItems,
+        representative,
+        sourceCount,
+        coreCount,
+      });
       return {
         key,
         items: orderedItems,
@@ -4329,9 +4365,13 @@ function buildHeatingEventClusters(items, limit = 4) {
         sourceCount,
         sources: sources.slice(0, 3),
         latestAt,
+        earliestAt,
         coreCount,
         itemCount: orderedItems.length,
         ipTypes,
+        categoryCounts,
+        stage,
+        watchpoint,
       };
     })
     .filter((cluster) => cluster.itemCount >= 2 && (cluster.sourceCount >= 2 || cluster.itemCount >= 3))
@@ -4344,6 +4384,100 @@ function buildHeatingEventClusters(items, limit = 4) {
       return right.latestAt - left.latestAt;
     })
     .slice(0, limit);
+}
+
+function getClusterCategoryCounts(items) {
+  const counts = { official: 0, media: 0, lawfirm: 0 };
+  (items || []).forEach((item) => {
+    const category = String(item?.category || '').toLowerCase();
+    if (counts[category] != null) counts[category] += 1;
+  });
+  return counts;
+}
+
+function getHeatingEventStage(cluster) {
+  const items = cluster?.items || [];
+  const docTypes = items.map((item) => String(item?.ai_document_type || '').toLowerCase());
+  const spanDays = cluster?.latestAt && cluster?.earliestAt
+    ? Math.max(0, Math.round((cluster.latestAt - cluster.earliestAt) / (24 * 60 * 60 * 1000)))
+    : 0;
+  const latestFreshHours = cluster?.latestAt
+    ? (Date.now() - cluster.latestAt) / (60 * 60 * 1000)
+    : 999;
+  const hasDecisionLike = docTypes.some((type) => ['judgment', 'appeal', 'order', 'enforcement_action'].includes(type));
+  const hasOfficialLike = docTypes.some((type) => ['official_news', 'policy_update', 'guidance', 'legislation'].includes(type));
+
+  if (hasDecisionLike && cluster?.coreCount >= 2) {
+    return {
+      key: 'action',
+      label: t('scheme_a_event_stage_action'),
+      desc: state.lang === 'zh'
+        ? '已经出现判决、执法或正式程序节点，事件进入可执行判断阶段。'
+        : 'A judgment, enforcement move or formal procedure milestone is already present, so the event has entered an actionable phase.',
+    };
+  }
+  if ((cluster?.itemCount || 0) >= 4 && (cluster?.sourceCount || 0) >= 3 && latestFreshHours <= 96) {
+    return {
+      key: 'heating',
+      label: t('scheme_a_event_stage_heating'),
+      desc: state.lang === 'zh'
+        ? '不同来源正在密集跟进，议题已经从单点更新变成连续升温。'
+        : 'Multiple sources are now following up in close succession, turning a single update into a sustained heating event.',
+    };
+  }
+  if (spanDays >= 5 && ((cluster?.itemCount || 0) >= 4 || hasOfficialLike)) {
+    return {
+      key: 'follow',
+      label: t('scheme_a_event_stage_follow'),
+      desc: state.lang === 'zh'
+        ? '事件已跨越多个时间节点，重点转向后续制度落地、回应与延伸影响。'
+        : 'The event is already spanning multiple time points, so the focus shifts to implementation, response and follow-through impact.',
+    };
+  }
+  return {
+    key: 'emerging',
+    label: t('scheme_a_event_stage_emerging'),
+    desc: state.lang === 'zh'
+      ? '当前仍以最初触发信号为主，正在等待更多官方或跨来源确认。'
+      : 'The cluster is still led by the initial trigger and is waiting for broader official or cross-source confirmation.',
+  };
+}
+
+function buildHeatingEventWatchpoint(cluster) {
+  const items = cluster?.items || [];
+  const docTypes = items.map((item) => String(item?.ai_document_type || '').toLowerCase());
+  if (docTypes.some((type) => ['judgment', 'appeal', 'order'].includes(type))) {
+    return state.lang === 'zh'
+      ? '优先盯后续上诉、执行、费用裁定和关联案件是否同步出现。'
+      : 'Watch first for appeals, enforcement, cost decisions and linked cases moving in parallel.';
+  }
+  if (docTypes.some((type) => ['official_news', 'policy_update', 'guidance', 'legislation'].includes(type))) {
+    return state.lang === 'zh'
+      ? '优先盯正式生效时间、实施细则、成员国或主管机构是否开始跟进。'
+      : 'Watch first for entry into force, implementing guidance and whether member states or authorities start to follow through.';
+  }
+  if (docTypes.some((type) => type === 'enforcement_action')) {
+    return state.lang === 'zh'
+      ? '优先盯执法范围是否扩大、处罚细节是否公开，以及平台或品牌方的回应。'
+      : 'Watch first for scope expansion, penalty detail and responses from platforms or affected brands.';
+  }
+  if ((cluster?.sourceCount || 0) >= 3) {
+    return state.lang === 'zh'
+      ? '优先盯是否出现官方文件或法院节点，把当前舆情/评论型升温转成硬信号。'
+      : 'Watch first for an official filing or court milestone that can convert the current commentary-driven heating into a hard signal.';
+  }
+  return state.lang === 'zh'
+    ? '优先盯是否出现更多跨来源跟进，确认这不是一次性孤立更新。'
+    : 'Watch first for broader cross-source follow-through to confirm that this is not a one-off isolated update.';
+}
+
+function buildHeatingEventRange(cluster) {
+  const latestLabel = cluster?.latestAt ? formatDate(cluster.latestAt ? new Date(cluster.latestAt).toISOString() : '') : '—';
+  const earliestLabel = cluster?.earliestAt ? formatDate(cluster.earliestAt ? new Date(cluster.earliestAt).toISOString() : '') : '—';
+  if (latestLabel !== '—' && earliestLabel !== '—' && latestLabel !== earliestLabel) {
+    return `${earliestLabel} → ${latestLabel}`;
+  }
+  return latestLabel !== '—' ? latestLabel : earliestLabel;
 }
 
 function buildSignalWhatChanged(item, maxLength = 92) {
@@ -4500,6 +4634,13 @@ function renderHeatingEventCard(cluster, rank) {
   const previewItems = (cluster?.items || []).slice(0, 3);
   const latestLabel = cluster?.latestAt ? formatDateTimeLabel(new Date(cluster.latestAt).toISOString()) : '—';
   const sourceLine = (cluster?.sources || []).join(' · ');
+  const categoryCounts = cluster?.categoryCounts || {};
+  const categoryPills = [
+    ['official', t('filter_official'), categoryCounts.official || 0],
+    ['media', t('filter_media'), categoryCounts.media || 0],
+    ['lawfirm', t('filter_lawfirm'), categoryCounts.lawfirm || 0],
+  ].filter(([, , count]) => count > 0);
+  const rangeLabel = buildHeatingEventRange(cluster);
   section.innerHTML = `
     <div class="scheme-a-event-topline">
       <div class="scheme-a-event-rank">${String(rank).padStart(2, '0')}</div>
@@ -4514,6 +4655,26 @@ function renderHeatingEventCard(cluster, rank) {
     <div class="scheme-a-event-meta-row">
       <span>${escapeHtml(sourceLine || '—')}</span>
       <span>${cluster?.ipTypes?.map((type) => getIpTypeLabel(type)).join(' · ') || getIpTypeLabel('general')}</span>
+    </div>
+    <div class="scheme-a-event-insight-grid">
+      <div class="scheme-a-event-insight-card">
+        <span class="scheme-a-event-insight-label">${t('scheme_a_event_stage')}</span>
+        <strong>${escapeHtml(cluster?.stage?.label || '—')}</strong>
+        <p>${escapeHtml(cluster?.stage?.desc || '—')}</p>
+      </div>
+      <div class="scheme-a-event-insight-card">
+        <span class="scheme-a-event-insight-label">${t('scheme_a_event_mix')}</span>
+        <div class="scheme-a-event-mix-pills">
+          ${categoryPills.length ? categoryPills.map(([cls, label, count]) => `
+            <span class="scheme-a-event-mix-pill ${cls}">${escapeHtml(label)} ${count}</span>
+          `).join('') : `<span class="scheme-a-event-mix-pill">${t('card_empty')}</span>`}
+        </div>
+        <p>${t('scheme_a_event_range')}: ${escapeHtml(rangeLabel || '—')}</p>
+      </div>
+    </div>
+    <div class="scheme-a-event-watchpoint">
+      <span class="scheme-a-event-insight-label">${t('scheme_a_event_watchpoint')}</span>
+      <p>${escapeHtml(cluster?.watchpoint || '—')}</p>
     </div>
     <div class="scheme-a-event-preview-list">
       ${previewItems.map((item, index) => `
