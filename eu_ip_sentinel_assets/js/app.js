@@ -4427,6 +4427,19 @@ function buildSignalNextWatch(item) {
   return `Watch next for official documents, full judgments or broader cross-source confirmation beyond ${source}.`;
 }
 
+function buildDetailNextWatchPoints(item) {
+  const points = [buildSignalNextWatch(item)];
+  if (item?.event_cluster_key) {
+    points.push(state.lang === 'zh'
+      ? '可结合这条资讯所属的同题关联内容一起看，判断该议题是否还在持续升温。'
+      : 'Read this signal alongside its linked event coverage to judge whether the issue is still heating up.');
+  }
+  return points
+    .map((point) => truncateText(point, 156))
+    .filter(Boolean)
+    .slice(0, 2);
+}
+
 function renderSchemeASignalCard(item, rank) {
   const category = item?.category || 'media';
   const ipType = item?.ip_type || 'general';
@@ -5763,13 +5776,9 @@ function renderNewsCard(item, tier = 'scan') {
   const aiDone = item.ai_status === 'done';
   const primaryTitle = item.title_zh || item.title || '—';
   const englishTitle = item.title && item.title !== primaryTitle ? item.title : '';
-  const synopsis = item.ai_summary_zh || item.summary || '';
-  const insight = item.ai_insight_zh || '';
-  const fallbackSummary = buildFallbackBrief(item, 'summary');
-  const fallbackInsight = buildFallbackBrief(item, 'signal');
-  const summaryPoints = resolvePointList(item.ai_core_points_zh, synopsis || fallbackSummary, 2, tier === 'must-read' ? 78 : 68);
-  const insightPoints = resolvePointList(item.ai_insight_points_zh, insight || fallbackInsight, 1, 72);
-  const primaryInsight = insightPoints[0] || truncateText(insight || fallbackInsight, 72) || '';
+  const whatChanged = buildSignalWhatChanged(item, tier === 'must-read' ? 82 : 68);
+  const whyImportant = buildSignalWhyImportant(item, tier === 'must-read' ? 86 : 72);
+  const nextWatch = truncateText(buildSignalNextWatch(item), tier === 'must-read' ? 86 : 72);
 
   const card = el('div', `news-card news-card--latest-style tier-${tier}${aiDone ? ' has-ai' : ''}`);
   card.dataset.type = ipType;
@@ -5785,12 +5794,20 @@ function renderNewsCard(item, tier = 'scan') {
     <div class="news-card-rubric">${escapeHtml(compactSourceName(item.source_name || ''))}</div>
     <div class="news-card-title is-compact">${escapeHtml(truncateText(primaryTitle, 72))}</div>
     ${englishTitle ? `<div class="news-card-title-sub news-card-title-en">${escapeHtml(truncateText(englishTitle, 118))}</div>` : ''}
-    <div class="news-card-points-compact latest-like">
-      ${(summaryPoints.length ? summaryPoints : [truncateText(synopsis || fallbackSummary, 68) || '—']).map((point) => `
-        <span class="news-card-point-inline">${escapeHtml(point)}</span>
-      `).join('')}
+    <div class="news-card-brief-stack latest-like">
+      <div class="news-card-brief-row">
+        <span class="news-card-brief-label">${t('scheme_a_line_what')}</span>
+        <span class="news-card-brief-copy">${escapeHtml(whatChanged || '—')}</span>
+      </div>
+      <div class="news-card-brief-row">
+        <span class="news-card-brief-label">${t('scheme_a_line_why')}</span>
+        <span class="news-card-brief-copy">${escapeHtml(whyImportant || '—')}</span>
+      </div>
+      <div class="news-card-brief-row">
+        <span class="news-card-brief-label">${t('scheme_a_line_next')}</span>
+        <span class="news-card-brief-copy">${escapeHtml(nextWatch || '—')}</span>
+      </div>
     </div>
-    <div class="news-card-insight-line news-card-insight-latest">${escapeHtml(primaryInsight || '—')}</div>
     <div class="news-card-footer compact latest-like">
       <div class="news-card-footer-meta">
         <span class="news-card-source-name">${escapeHtml(compactSourceName(item.source_name || '—'))}</span>
@@ -6815,6 +6832,7 @@ function showNewsDetail(item) {
   const fallbackInsight = buildFallbackBrief(item, 'signal');
   const summaryPoints = resolvePointList(item.ai_core_points_zh, item.ai_summary_zh || item.summary || fallbackSummary, 4, 180);
   const insightPoints = resolvePointList(item.ai_insight_points_zh, item.ai_insight_zh || fallbackInsight, 3, 170);
+  const nextWatchPoints = buildDetailNextWatchPoints(item);
 
   const overlay = el('div', 'modal-overlay');
   overlay.innerHTML = `
@@ -6829,7 +6847,7 @@ function showNewsDetail(item) {
             ${renderSignalTagPills(item, true)}
             ${aiDone ? '<span class="ai-badge ai-badge-sm">AI</span>' : ''}
           </div>
-          <div class="modal-header-caption">${t('section_priority')}</div>
+          <div class="modal-header-caption">${t('detail_view_btn')}</div>
         </div>
         <button class="modal-close" id="modal-close">✕</button>
       </div>
@@ -6841,12 +6859,16 @@ function showNewsDetail(item) {
           </div>
         </div>
         <div class="intel-block modal-intel-block">
-          <div class="intel-block-label">${t('block_core_points')}</div>
-          ${renderPointList(summaryPoints)}
+          <div class="intel-block-label">${t('scheme_a_line_what')}</div>
+          ${renderPointList(summaryPoints.length ? summaryPoints : [buildSignalWhatChanged(item, 180)])}
         </div>
         <div class="intel-block modal-intel-block insight">
-          <div class="intel-block-label">${t('block_insight')}</div>
-          ${renderPointList(insightPoints)}
+          <div class="intel-block-label">${t('scheme_a_line_why')}</div>
+          ${renderPointList(insightPoints.length ? insightPoints : [buildSignalWhyImportant(item, 170)])}
+        </div>
+        <div class="intel-block modal-intel-block">
+          <div class="intel-block-label">${t('scheme_a_line_next')}</div>
+          ${renderPointList(nextWatchPoints)}
         </div>
         <div class="intel-block modal-intel-block intel-link-block">
           <div class="intel-block-label">${t('block_original_link')}</div>
