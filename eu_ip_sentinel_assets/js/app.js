@@ -115,6 +115,15 @@ const EUROPE_HEAT_SHAPE_GROUPS = {
   benelux: ['be', 'nl', 'lu'],
   scandinavia: ['is', 'no', 'se', 'fi'],
 };
+const EUROPE_HEAT_GEO_LABELS = [
+  { id: 'ie', x: 170, y: 190, priority: 'essential' },
+  { id: 'uk', x: 203, y: 169, priority: 'essential' },
+  { id: 'es', x: 215, y: 294, priority: 'essential' },
+  { id: 'fr', x: 231, y: 249, priority: 'support' },
+  { id: 'de', x: 270, y: 206, priority: 'support' },
+  { id: 'it', x: 281, y: 286, priority: 'essential' },
+  { id: 'scandinavia', x: 316, y: 114, priority: 'essential' },
+];
 
 let europeHeatBaseMapPromise = null;
 
@@ -4951,6 +4960,11 @@ async function renderEuropeHeatSection(items) {
   const mapSurfaceMarkup = baseMapMarkup
     ? decorateEuropeHeatMapMarkup(baseMapMarkup, mapNodes, maxCount)
     : `<image class="europe-heat-base-image" href="${EUROPE_HEAT_MAP_ASSET}" x="0" y="0" width="560" height="360" preserveAspectRatio="xMidYMid meet"></image>`;
+  const geoLabelMarkup = EUROPE_HEAT_GEO_LABELS.map((entry) => `
+    <g class="europe-heat-geo-label ${entry.priority || 'support'}">
+      <text x="${entry.x}" y="${entry.y}" text-anchor="middle" dominant-baseline="middle">${escapeHtml(getEuropeHeatLabel(entry.id))}</text>
+    </g>
+  `).join('');
   const calloutMarkup = calloutNodes.map((entry) => {
     const tone = getEuropeHeatTone(entry.count, maxCount);
     const pillText = `${entry.label}`;
@@ -5002,6 +5016,9 @@ async function renderEuropeHeatSection(items) {
               </defs>
               <rect class="europe-heat-sea" x="10" y="10" width="540" height="340" rx="26" fill="url(#europeHeatSea)"></rect>
               ${mapSurfaceMarkup}
+              <g class="europe-heat-geo-labels">
+                ${geoLabelMarkup}
+              </g>
               <g class="europe-heat-callouts">
                 ${calloutMarkup}
               </g>

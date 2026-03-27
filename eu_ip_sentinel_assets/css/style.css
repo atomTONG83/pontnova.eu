@@ -2632,6 +2632,26 @@ body::before {
   letter-spacing: 0.02em;
 }
 
+.europe-heat-geo-labels {
+  pointer-events: none;
+}
+
+.europe-heat-geo-label text {
+  fill: rgba(55, 69, 80, 0.78);
+  font-size: 8.8px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  paint-order: stroke fill;
+  stroke: rgba(251, 247, 242, 0.94);
+  stroke-width: 3.8px;
+  stroke-linejoin: round;
+}
+
+.europe-heat-geo-label.support text {
+  fill: rgba(66, 80, 92, 0.62);
+  font-size: 8.1px;
+}
+
 .europe-heat-legend {
   display: flex;
   flex-wrap: wrap;
@@ -7344,6 +7364,15 @@ body::before {
     font-size: 9.6px;
   }
 
+  .europe-heat-geo-label.support {
+    display: none;
+  }
+
+  .europe-heat-geo-label text {
+    font-size: 8.2px;
+    stroke-width: 3.4px;
+  }
+
   .authority-strip-list {
     grid-template-columns: 1fr;
   }
@@ -7989,6 +8018,15 @@ html[data-theme="dark"] .europe-heat-callout-pill rect {
 
 html[data-theme="dark"] .europe-heat-callout-pill text {
   fill: #e6eef8;
+}
+
+html[data-theme="dark"] .europe-heat-geo-label text {
+  fill: rgba(228, 236, 245, 0.82);
+  stroke: rgba(10, 16, 24, 0.88);
+}
+
+html[data-theme="dark"] .europe-heat-geo-label.support text {
+  fill: rgba(200, 212, 226, 0.68);
 }
 
 html[data-theme="dark"] .europe-heat-legend-item {
