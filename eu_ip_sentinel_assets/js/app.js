@@ -4942,7 +4942,6 @@ function decorateEuropeHeatMapMarkup(mapMarkup, hotspots, maxCount) {
 async function renderEuropeHeatSection(items) {
   const data = buildEuropeHeatData(items);
   const mapNodes = data.hotspots.slice(0, 7);
-  const calloutNodes = mapNodes.slice(0, 3);
   const hotspotRows = data.hotspots.slice(0, 6);
   const maxCount = data.maxCount || 1;
   const legendItems = state.lang === 'zh'
@@ -4965,30 +4964,6 @@ async function renderEuropeHeatSection(items) {
       <text x="${entry.x}" y="${entry.y}" text-anchor="middle" dominant-baseline="middle">${escapeHtml(getEuropeHeatLabel(entry.id))}</text>
     </g>
   `).join('');
-  const calloutMarkup = calloutNodes.map((entry) => {
-    const tone = getEuropeHeatTone(entry.count, maxCount);
-    const pillText = `${entry.label}`;
-    const pillWidth = Math.max(88, Math.min(152, Math.round(pillText.length * 7.05) + 22));
-    const pillHeight = 26;
-    const anchor = entry.anchor === 'end' ? 'end' : 'start';
-    const pillX = anchor === 'start' ? entry.lx : entry.lx - pillWidth;
-    const textX = anchor === 'start' ? pillX + 14 : pillX + pillWidth - 14;
-    const lineEndX = anchor === 'start' ? pillX : pillX + pillWidth;
-    const lineEndY = entry.ly;
-    const midX = anchor === 'start' ? lineEndX - 18 : lineEndX + 18;
-    const controlX = entry.x + (midX - entry.x) * 0.48;
-    const controlY = entry.y + (lineEndY - entry.y) * 0.38;
-    return `
-      <g class="europe-heat-callout ${tone}">
-        <path class="europe-heat-callout-line" d="M${entry.x} ${entry.y} Q${controlX.toFixed(1)} ${controlY.toFixed(1)} ${midX} ${lineEndY} L${lineEndX} ${lineEndY}"></path>
-        <circle class="europe-heat-callout-anchor" cx="${entry.x}" cy="${entry.y}" r="3.5"></circle>
-        <g class="europe-heat-callout-pill" transform="translate(${pillX}, ${lineEndY - pillHeight / 2})">
-          <rect width="${pillWidth}" height="${pillHeight}" rx="14"></rect>
-          <text x="${textX - pillX}" y="18" text-anchor="${anchor}">${escapeHtml(pillText)}</text>
-        </g>
-      </g>
-    `;
-  }).join('');
   const section = el('section', 'europe-heat-section');
   section.innerHTML = `
     <div class="section-heading-row">
@@ -5018,9 +4993,6 @@ async function renderEuropeHeatSection(items) {
               ${mapSurfaceMarkup}
               <g class="europe-heat-geo-labels">
                 ${geoLabelMarkup}
-              </g>
-              <g class="europe-heat-callouts">
-                ${calloutMarkup}
               </g>
             </svg>
           </div>

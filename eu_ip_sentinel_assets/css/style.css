@@ -2589,49 +2589,6 @@ body::before {
   fill: rgba(193, 145, 76, 0.94);
 }
 
-.europe-heat-callout-line {
-  fill: none;
-  stroke: rgba(52, 102, 111, 0.28);
-  stroke-width: 1.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.europe-heat-callout.hot .europe-heat-callout-line {
-  stroke: rgba(184, 88, 61, 0.4);
-}
-
-.europe-heat-callout.warm .europe-heat-callout-line {
-  stroke: rgba(193, 145, 76, 0.42);
-}
-
-.europe-heat-callout-anchor {
-  fill: rgba(255, 255, 255, 0.98);
-  stroke: rgba(67, 87, 96, 0.32);
-  stroke-width: 1.4;
-}
-
-.europe-heat-callout-pill rect {
-  fill: rgba(255, 255, 255, 0.76);
-  stroke: rgba(76, 96, 105, 0.08);
-  stroke-width: 1;
-}
-
-.europe-heat-callout.hot .europe-heat-callout-pill rect {
-  fill: rgba(255, 246, 241, 0.92);
-}
-
-.europe-heat-callout.warm .europe-heat-callout-pill rect {
-  fill: rgba(255, 249, 238, 0.92);
-}
-
-.europe-heat-callout-pill text {
-  fill: #213042;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
 .europe-heat-geo-labels {
   pointer-events: none;
 }
@@ -7360,10 +7317,6 @@ body::before {
     min-height: 0;
   }
 
-  .europe-heat-callout-pill text {
-    font-size: 9.6px;
-  }
-
   .europe-heat-geo-label.support {
     display: none;
   }
@@ -7992,32 +7945,6 @@ html[data-theme="dark"] .europe-heat-node.hot .europe-heat-node-core {
 
 html[data-theme="dark"] .europe-heat-node.warm .europe-heat-node-core {
   fill: rgba(210, 168, 92, 0.95);
-}
-
-html[data-theme="dark"] .europe-heat-callout-line {
-  stroke: rgba(186, 199, 212, 0.22);
-}
-
-html[data-theme="dark"] .europe-heat-callout.hot .europe-heat-callout-line {
-  stroke: rgba(216, 116, 91, 0.4);
-}
-
-html[data-theme="dark"] .europe-heat-callout.warm .europe-heat-callout-line {
-  stroke: rgba(210, 168, 92, 0.38);
-}
-
-html[data-theme="dark"] .europe-heat-callout-anchor {
-  fill: rgba(12, 18, 28, 0.92);
-  stroke: rgba(186, 199, 212, 0.28);
-}
-
-html[data-theme="dark"] .europe-heat-callout-pill rect {
-  fill: rgba(18, 26, 38, 0.76);
-  stroke: rgba(148, 163, 184, 0.12);
-}
-
-html[data-theme="dark"] .europe-heat-callout-pill text {
-  fill: #e6eef8;
 }
 
 html[data-theme="dark"] .europe-heat-geo-label text {
