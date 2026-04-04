@@ -113,7 +113,7 @@ const EUROPE_HEAT_MAP_ASSET = 'eu_ip_sentinel_assets/assets/europe-heat-base.svg
 const EUROPE_HEAT_SHAPE_GROUPS = {
   uk: ['gb'],
   benelux: ['be', 'nl', 'lu'],
-  scandinavia: ['is', 'no', 'se', 'fi'],
+  scandinavia: ['is', 'no', 'se', 'fi', 'dk'],
 };
 const EUROPE_HEAT_TARGET_MATCHES = {
   uk: ['uk'],
@@ -122,11 +122,12 @@ const EUROPE_HEAT_TARGET_MATCHES = {
   be: ['be', 'benelux'],
   nl: ['nl', 'benelux'],
   lu: ['lu', 'benelux'],
-  scandinavia: ['scandinavia', 'is', 'no', 'se', 'fi'],
+  scandinavia: ['scandinavia', 'is', 'no', 'se', 'fi', 'dk'],
   is: ['is', 'scandinavia'],
   no: ['no', 'scandinavia'],
   se: ['se', 'scandinavia'],
   fi: ['fi', 'scandinavia'],
+  dk: ['dk', 'scandinavia'],
 };
 const EUROPE_HEAT_GEO_LABELS = [
   { id: 'ie', x: 170, y: 190, priority: 'essential' },
@@ -135,7 +136,6 @@ const EUROPE_HEAT_GEO_LABELS = [
   { id: 'fr', x: 231, y: 249, priority: 'support' },
   { id: 'de', x: 270, y: 206, priority: 'support' },
   { id: 'it', x: 281, y: 286, priority: 'essential' },
-  { id: 'scandinavia', x: 316, y: 114, priority: 'essential' },
 ];
 
 let europeHeatBaseMapPromise = null;
@@ -649,6 +649,7 @@ const i18n = {
     section_europe_heat_hotspots: '热点国家/地区',
     section_europe_heat_empty: '当前筛选下暂无可标注的地区热度。',
     section_europe_heat_click_hint: '点击地图国家或右侧热点，可直接查看该国/地区的近期资讯。',
+    section_europe_heat_hover_count: '条资讯',
     section_europe_heat_country_feed: '该国/地区资讯',
     section_europe_heat_country_desc: '基于当前筛选流展示该国/地区的近期资讯，便于快速判断相关动态。',
     section_europe_heat_country_empty: '当前筛选下，这个国家或地区暂时没有可展示的资讯。',
@@ -1246,6 +1247,7 @@ const i18n = {
     section_europe_heat_hotspots: 'Top hotspots',
     section_europe_heat_empty: 'No clear geographic hotspot is visible under the current filters yet.',
     section_europe_heat_click_hint: 'Click a country on the map or a hotspot on the right to open the related feed.',
+    section_europe_heat_hover_count: 'items',
     section_europe_heat_country_feed: 'Country / Region Feed',
     section_europe_heat_country_desc: 'Recent items for this country or region under the current stream filters.',
     section_europe_heat_country_empty: 'There are no display-ready items for this country or region under the current filters yet.',
@@ -4880,6 +4882,13 @@ function getEuropeHeatShortLabel(id) {
   return labels[id] || id.toUpperCase();
 }
 
+function getEuropeHeatMapLabel(entry) {
+  if (!entry) return '—';
+  if (state.lang === 'en' && entry.label_en) return entry.label_en;
+  if (state.lang === 'zh' && entry.label_zh) return entry.label_zh;
+  return getEuropeHeatLabel(entry.id);
+}
+
 function normalizeGeoHeatTags(rawTags) {
   const tags = new Set();
   const values = Array.isArray(rawTags) ? rawTags : (rawTags ? [rawTags] : []);
@@ -5161,6 +5170,14 @@ function decorateEuropeHeatMapMarkup(mapMarkup, hotspots, maxCount) {
   });
 }
 
+function formatEuropeHeatTooltipCount(total) {
+  const count = Number(total) || 0;
+  if (!count) return '';
+  return state.lang === 'zh'
+    ? `${count}${t('section_europe_heat_hover_count')}`
+    : `${count} ${t('section_europe_heat_hover_count')}`;
+}
+
 function showEuropeHeatCountryModal(targetId, items) {
   const target = getEuropeHeatTargetMeta(targetId);
   if (!target) return;
@@ -5258,7 +5275,7 @@ async function renderEuropeHeatSection(items) {
     : `<image class="europe-heat-base-image" href="${EUROPE_HEAT_MAP_ASSET}" x="0" y="0" width="560" height="360" preserveAspectRatio="xMidYMid meet"></image>`;
   const geoLabelMarkup = EUROPE_HEAT_GEO_LABELS.map((entry) => `
     <g class="europe-heat-geo-label ${entry.priority || 'support'}">
-      <text x="${entry.x}" y="${entry.y}" text-anchor="middle" dominant-baseline="middle">${escapeHtml(getEuropeHeatLabel(entry.id))}</text>
+      <text x="${entry.x}" y="${entry.y}" text-anchor="middle" dominant-baseline="middle">${escapeHtml(getEuropeHeatMapLabel(entry))}</text>
     </g>
   `).join('');
   const section = el('section', 'europe-heat-section');
@@ -5280,6 +5297,7 @@ async function renderEuropeHeatSection(items) {
         <div class="europe-heat-tip">${t('section_europe_heat_click_hint')}</div>
         ${mapNodes.length ? `
           <div class="europe-heat-visual">
+            <div class="europe-heat-hover-tooltip" hidden></div>
             <svg class="europe-heat-svg" viewBox="0 0 560 360" role="img" aria-label="${escapeHtml(t('section_europe_heat'))}">
               <defs>
                 <linearGradient id="europeHeatSea" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -5317,6 +5335,50 @@ async function renderEuropeHeatSection(items) {
       </div>
     </div>
   `;
+  const hoverCountCache = new Map();
+  const getHoverCount = (targetId) => {
+    if (!hoverCountCache.has(targetId)) {
+      hoverCountCache.set(targetId, getEuropeHeatItemsForTarget(items, targetId).total);
+    }
+    return hoverCountCache.get(targetId) || 0;
+  };
+  const mapVisual = section.querySelector('.europe-heat-visual');
+  const hoverTooltip = mapVisual?.querySelector('.europe-heat-hover-tooltip');
+  const hideHoverTooltip = () => {
+    if (!hoverTooltip) return;
+    hoverTooltip.hidden = true;
+    hoverTooltip.innerHTML = '';
+  };
+  const placeHoverTooltip = (clientX, clientY) => {
+    if (!mapVisual || !hoverTooltip) return;
+    const visualRect = mapVisual.getBoundingClientRect();
+    const tooltipRect = hoverTooltip.getBoundingClientRect();
+    const maxLeft = Math.max(visualRect.width - tooltipRect.width - 10, 10);
+    const maxTop = Math.max(visualRect.height - tooltipRect.height - 10, 10);
+    const left = Math.min(Math.max(clientX - visualRect.left + 14, 10), maxLeft);
+    const top = Math.min(Math.max(clientY - visualRect.top - tooltipRect.height - 16, 10), maxTop);
+    hoverTooltip.style.left = `${left}px`;
+    hoverTooltip.style.top = `${top}px`;
+  };
+  const showHoverTooltip = (targetId, clientX, clientY, fallbackNode = null) => {
+    if (!hoverTooltip || !mapVisual) return;
+    const label = getEuropeHeatTargetLabel(targetId);
+    const countText = formatEuropeHeatTooltipCount(getHoverCount(targetId));
+    hoverTooltip.innerHTML = `
+      <strong>${escapeHtml(label)}</strong>
+      ${countText ? `<span>${escapeHtml(countText)}</span>` : ''}
+    `;
+    hoverTooltip.hidden = false;
+    if (typeof clientX === 'number' && typeof clientY === 'number') {
+      placeHoverTooltip(clientX, clientY);
+      return;
+    }
+    const nodeRect = fallbackNode?.getBoundingClientRect?.();
+    const visualRect = mapVisual.getBoundingClientRect();
+    const anchorX = nodeRect ? nodeRect.left + (nodeRect.width / 2) : visualRect.left + (visualRect.width / 2);
+    const anchorY = nodeRect ? nodeRect.top : visualRect.top + 36;
+    placeHoverTooltip(anchorX, anchorY);
+  };
   section.querySelectorAll('[data-heat-target]').forEach((node) => {
     const targetId = node.dataset.heatTarget || '';
     const openCountryModal = () => showEuropeHeatCountryModal(targetId, items);
@@ -5330,6 +5392,19 @@ async function renderEuropeHeatSection(items) {
       });
     }
   });
+  section.querySelectorAll('.europe-base-map .europe-heat-country[data-heat-target]').forEach((node) => {
+    const targetId = node.dataset.heatTarget || '';
+    node.addEventListener('mouseenter', (event) => {
+      showHoverTooltip(targetId, event.clientX, event.clientY, node);
+    });
+    node.addEventListener('mousemove', (event) => {
+      showHoverTooltip(targetId, event.clientX, event.clientY, node);
+    });
+    node.addEventListener('mouseleave', hideHoverTooltip);
+    node.addEventListener('focus', () => showHoverTooltip(targetId, null, null, node));
+    node.addEventListener('blur', hideHoverTooltip);
+  });
+  mapVisual?.addEventListener('mouseleave', hideHoverTooltip);
   return section;
 }
 
