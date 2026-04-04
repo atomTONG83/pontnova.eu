@@ -2682,6 +2682,36 @@ body::before {
   color: rgba(231, 224, 214, 0.9);
 }
 
+.europe-heat-hover-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.europe-heat-hover-flag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 7px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+
+.europe-heat-hover-flag.active {
+  background: rgba(227, 176, 104, 0.2);
+  border-color: rgba(233, 192, 131, 0.32);
+  color: rgba(255, 234, 200, 0.98);
+}
+
+.europe-heat-hover-flag.inactive {
+  background: rgba(109, 129, 146, 0.16);
+  border-color: rgba(179, 194, 208, 0.16);
+  color: rgba(213, 221, 228, 0.86);
+}
+
 .europe-heat-legend {
   display: flex;
   flex-wrap: wrap;

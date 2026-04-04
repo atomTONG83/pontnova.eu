@@ -137,6 +137,19 @@ const EUROPE_HEAT_GEO_LABELS = [
   { id: 'de', x: 270, y: 206, priority: 'support' },
   { id: 'it', x: 281, y: 286, priority: 'essential' },
 ];
+const EUROPE_HEAT_EU_MEMBER_CODES = new Set([
+  'at', 'be', 'bg', 'hr', 'cy', 'cz', 'dk', 'ee', 'fi', 'fr', 'de', 'gr', 'hu',
+  'ie', 'it', 'lv', 'lt', 'lu', 'mt', 'nl', 'pl', 'pt', 'ro', 'sk', 'si', 'es', 'se',
+]);
+const EUROPE_HEAT_EPC_MEMBER_CODES = new Set([
+  'al', 'at', 'be', 'bg', 'hr', 'cy', 'cz', 'dk', 'ee', 'fi', 'fr', 'de', 'gr', 'hu',
+  'is', 'ie', 'it', 'lv', 'li', 'lt', 'lu', 'mt', 'mc', 'me', 'mk', 'nl', 'no', 'pl',
+  'pt', 'ro', 'sm', 'rs', 'sk', 'si', 'es', 'se', 'ch', 'tr', 'uk',
+]);
+const EUROPE_HEAT_UPC_MEMBER_CODES = new Set([
+  'at', 'be', 'bg', 'dk', 'ee', 'fi', 'fr', 'de', 'it', 'lv', 'lt', 'lu', 'mt', 'nl',
+  'pt', 'ro', 'si', 'se',
+]);
 
 let europeHeatBaseMapPromise = null;
 let regionDisplayNamesZh = null;
@@ -653,6 +666,12 @@ const i18n = {
     section_europe_heat_country_feed: '该国/地区资讯',
     section_europe_heat_country_desc: '基于当前筛选流展示该国/地区的近期资讯，便于快速判断相关动态。',
     section_europe_heat_country_empty: '当前筛选下，这个国家或地区暂时没有可展示的资讯。',
+    section_europe_heat_member_eu: 'EU成员',
+    section_europe_heat_non_member_eu: '非EU',
+    section_europe_heat_member_epc: 'EPC成员',
+    section_europe_heat_non_member_epc: '非EPC',
+    section_europe_heat_member_upc: 'UPC成员',
+    section_europe_heat_non_member_upc: '非UPC',
     section_europe_heat_primary_feed: '该国主线资讯',
     section_europe_heat_related_feed: '涉及该国的相关资讯',
     section_europe_heat_upc_overall: 'UPC整体',
@@ -1251,6 +1270,12 @@ const i18n = {
     section_europe_heat_country_feed: 'Country / Region Feed',
     section_europe_heat_country_desc: 'Recent items for this country or region under the current stream filters.',
     section_europe_heat_country_empty: 'There are no display-ready items for this country or region under the current filters yet.',
+    section_europe_heat_member_eu: 'EU member',
+    section_europe_heat_non_member_eu: 'Not in EU',
+    section_europe_heat_member_epc: 'EPC member',
+    section_europe_heat_non_member_epc: 'Not in EPC',
+    section_europe_heat_member_upc: 'UPC member',
+    section_europe_heat_non_member_upc: 'Not in UPC',
     section_europe_heat_primary_feed: 'Primary forum feed',
     section_europe_heat_related_feed: 'Related mentions',
     section_europe_heat_upc_overall: 'UPC-wide',
@@ -5178,6 +5203,39 @@ function formatEuropeHeatTooltipCount(total) {
     : `${count} ${t('section_europe_heat_hover_count')}`;
 }
 
+function normalizeEuropeHeatMembershipCode(targetId) {
+  const normalized = String(targetId || '').trim().toLowerCase();
+  if (normalized === 'gb') return 'uk';
+  return normalized;
+}
+
+function getEuropeHeatMembershipFlags(targetId) {
+  const code = normalizeEuropeHeatMembershipCode(targetId);
+  return [
+    {
+      id: 'eu',
+      active: EUROPE_HEAT_EU_MEMBER_CODES.has(code),
+      label: EUROPE_HEAT_EU_MEMBER_CODES.has(code)
+        ? t('section_europe_heat_member_eu')
+        : t('section_europe_heat_non_member_eu'),
+    },
+    {
+      id: 'epc',
+      active: EUROPE_HEAT_EPC_MEMBER_CODES.has(code),
+      label: EUROPE_HEAT_EPC_MEMBER_CODES.has(code)
+        ? t('section_europe_heat_member_epc')
+        : t('section_europe_heat_non_member_epc'),
+    },
+    {
+      id: 'upc',
+      active: EUROPE_HEAT_UPC_MEMBER_CODES.has(code),
+      label: EUROPE_HEAT_UPC_MEMBER_CODES.has(code)
+        ? t('section_europe_heat_member_upc')
+        : t('section_europe_heat_non_member_upc'),
+    },
+  ];
+}
+
 function showEuropeHeatCountryModal(targetId, items) {
   const target = getEuropeHeatTargetMeta(targetId);
   if (!target) return;
@@ -5364,9 +5422,17 @@ async function renderEuropeHeatSection(items) {
     if (!hoverTooltip || !mapVisual) return;
     const label = getEuropeHeatTargetLabel(targetId);
     const countText = formatEuropeHeatTooltipCount(getHoverCount(targetId));
+    const membershipFlags = getEuropeHeatMembershipFlags(targetId);
     hoverTooltip.innerHTML = `
       <strong>${escapeHtml(label)}</strong>
       ${countText ? `<span>${escapeHtml(countText)}</span>` : ''}
+      <div class="europe-heat-hover-flags">
+        ${membershipFlags.map((flag) => `
+          <span class="europe-heat-hover-flag ${flag.active ? 'active' : 'inactive'} ${flag.id}">
+            ${escapeHtml(flag.label)}
+          </span>
+        `).join('')}
+      </div>
     `;
     hoverTooltip.hidden = false;
     if (typeof clientX === 'number' && typeof clientY === 'number') {
