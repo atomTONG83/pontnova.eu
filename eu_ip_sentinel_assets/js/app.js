@@ -5212,28 +5212,10 @@ function normalizeEuropeHeatMembershipCode(targetId) {
 function getEuropeHeatMembershipFlags(targetId) {
   const code = normalizeEuropeHeatMembershipCode(targetId);
   return [
-    {
-      id: 'eu',
-      active: EUROPE_HEAT_EU_MEMBER_CODES.has(code),
-      label: EUROPE_HEAT_EU_MEMBER_CODES.has(code)
-        ? t('section_europe_heat_member_eu')
-        : t('section_europe_heat_non_member_eu'),
-    },
-    {
-      id: 'epc',
-      active: EUROPE_HEAT_EPC_MEMBER_CODES.has(code),
-      label: EUROPE_HEAT_EPC_MEMBER_CODES.has(code)
-        ? t('section_europe_heat_member_epc')
-        : t('section_europe_heat_non_member_epc'),
-    },
-    {
-      id: 'upc',
-      active: EUROPE_HEAT_UPC_MEMBER_CODES.has(code),
-      label: EUROPE_HEAT_UPC_MEMBER_CODES.has(code)
-        ? t('section_europe_heat_member_upc')
-        : t('section_europe_heat_non_member_upc'),
-    },
-  ];
+    EUROPE_HEAT_EU_MEMBER_CODES.has(code) ? { id: 'eu', label: 'EU' } : null,
+    EUROPE_HEAT_UPC_MEMBER_CODES.has(code) ? { id: 'upc', label: 'UPC' } : null,
+    EUROPE_HEAT_EPC_MEMBER_CODES.has(code) ? { id: 'epc', label: 'EPC' } : null,
+  ].filter(Boolean);
 }
 
 function showEuropeHeatCountryModal(targetId, items) {
@@ -5426,13 +5408,15 @@ async function renderEuropeHeatSection(items) {
     hoverTooltip.innerHTML = `
       <strong>${escapeHtml(label)}</strong>
       ${countText ? `<span>${escapeHtml(countText)}</span>` : ''}
-      <div class="europe-heat-hover-flags">
-        ${membershipFlags.map((flag) => `
-          <span class="europe-heat-hover-flag ${flag.active ? 'active' : 'inactive'} ${flag.id}">
-            ${escapeHtml(flag.label)}
-          </span>
-        `).join('')}
-      </div>
+      ${membershipFlags.length ? `
+        <div class="europe-heat-hover-flags">
+          ${membershipFlags.map((flag) => `
+            <span class="europe-heat-hover-flag active ${flag.id}">
+              ${escapeHtml(flag.label)}
+            </span>
+          `).join('')}
+        </div>
+      ` : ''}
     `;
     hoverTooltip.hidden = false;
     if (typeof clientX === 'number' && typeof clientY === 'number') {
