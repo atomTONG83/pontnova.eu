@@ -652,6 +652,10 @@ const i18n = {
     section_europe_heat_country_feed: '该国/地区资讯',
     section_europe_heat_country_desc: '基于当前筛选流展示该国/地区的近期资讯，便于快速判断相关动态。',
     section_europe_heat_country_empty: '当前筛选下，这个国家或地区暂时没有可展示的资讯。',
+    section_europe_heat_primary_feed: '该国主线资讯',
+    section_europe_heat_related_feed: '涉及该国的相关资讯',
+    section_europe_heat_upc_overall: 'UPC整体',
+    section_europe_heat_upc_overall_desc: '涉及 UPC 制度、规则、任命、统计等系统级动态，不强行归入单一国家。',
     label_today_scraped: '今日新抓',
     today_published_state_captured: '今日新抓',
     section_latest_dynamics: '最新动态',
@@ -1245,6 +1249,10 @@ const i18n = {
     section_europe_heat_country_feed: 'Country / Region Feed',
     section_europe_heat_country_desc: 'Recent items for this country or region under the current stream filters.',
     section_europe_heat_country_empty: 'There are no display-ready items for this country or region under the current filters yet.',
+    section_europe_heat_primary_feed: 'Primary forum feed',
+    section_europe_heat_related_feed: 'Related mentions',
+    section_europe_heat_upc_overall: 'UPC-wide',
+    section_europe_heat_upc_overall_desc: 'System-level UPC items such as rules, appointments, and statistics are grouped here instead of being forced into one country.',
     label_today_scraped: 'Captured today',
     today_published_state_captured: 'Captured today',
     section_latest_dynamics: 'Latest Signal Readout',
@@ -4878,24 +4886,21 @@ function normalizeGeoHeatTags(rawTags) {
   values.forEach((value) => {
     const key = String(value || '').trim().toLowerCase();
     if (!key) return;
-    if (['nl', 'be', 'lu'].includes(key)) {
-      tags.add('benelux');
-      return;
-    }
-    if (['se', 'no', 'fi'].includes(key)) {
-      tags.add('scandinavia');
+    if (key === 'gb') {
+      tags.add('uk');
       return;
     }
     tags.add(key);
   });
-  if (tags.has('benelux')) ['nl', 'be', 'lu'].forEach((key) => tags.delete(key));
-  if (tags.has('scandinavia')) ['se', 'no', 'fi'].forEach((key) => tags.delete(key));
+  if (['be', 'nl', 'lu'].some((key) => tags.has(key))) tags.delete('benelux');
+  if (['is', 'no', 'se', 'fi', 'dk'].some((key) => tags.has(key))) tags.delete('scandinavia');
   return [...tags];
 }
 
 function getEuropeHeatTargetLabel(targetId) {
   const key = String(targetId || '').trim().toLowerCase();
   if (!key) return '—';
+  if (key === 'upc_overall') return t('section_europe_heat_upc_overall');
   if (['uk', 'benelux', 'scandinavia', 'eu'].includes(key)) return getEuropeHeatLabel(key);
   if (key === 'gb') return state.lang === 'zh' ? '英国' : 'United Kingdom';
   return getIntlRegionDisplayName(key) || getEuropeHeatLabel(key);
@@ -4904,6 +4909,13 @@ function getEuropeHeatTargetLabel(targetId) {
 function getEuropeHeatTargetMeta(targetId) {
   const key = String(targetId || '').trim().toLowerCase();
   if (!key) return null;
+  if (key === 'upc_overall') {
+    return {
+      id: key,
+      label: getEuropeHeatTargetLabel(key),
+      matchTags: [key],
+    };
+  }
   return {
     id: key,
     label: getEuropeHeatTargetLabel(key),
@@ -4911,17 +4923,152 @@ function getEuropeHeatTargetMeta(targetId) {
   };
 }
 
+function parseStringArray(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.map((entry) => String(entry || '').trim()).filter(Boolean);
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.map((entry) => String(entry || '').trim()).filter(Boolean);
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function getEuropeHeatTargetKeySet(targetId) {
+  const target = getEuropeHeatTargetMeta(targetId);
+  return new Set(target?.matchTags || []);
+}
+
+function targetsEquivalent(a, b) {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const aSet = getEuropeHeatTargetKeySet(a);
+  const bSet = getEuropeHeatTargetKeySet(b);
+  for (const key of aSet) {
+    if (bSet.has(key)) return true;
+  }
+  return false;
+}
+
+function matchesEuropeHeatTarget(tag, targetId) {
+  const normalizedTag = String(tag || '').trim().toLowerCase();
+  if (!normalizedTag) return false;
+  return getEuropeHeatTargetKeySet(targetId).has(normalizedTag);
+}
+
+function getEuropeHeatBaseText(item) {
+  return [
+    item?.title || '',
+    item?.summary || '',
+    item?.content || '',
+    item?.ai_summary_zh || '',
+  ].join(' ').toLowerCase();
+}
+
+function isUpcItem(item) {
+  const institutions = parseStringArray(item?.ai_institutions_list || item?.ai_institutions).map((entry) => entry.toLowerCase());
+  if (institutions.includes('upc')) return true;
+  const sourceId = String(item?.source_id || '').trim().toLowerCase();
+  if (sourceId === 'upc') return true;
+  const text = getEuropeHeatBaseText(item);
+  return /\bunified patent court\b|\bupc\b|local division|court of appeal|central division|regional division/.test(text);
+}
+
+function getUpcForumPrimaryTarget(item) {
+  if (!isUpcItem(item)) return '';
+  const text = getEuropeHeatBaseText(item);
+  const forumRules = [
+    { target: 'lu', patterns: [/\bcourt of appeal\b/, /\bluxembourg\b/] },
+    { target: 'fr', patterns: [/paris local division/, /\bparis ld\b/, /central division[^.]{0,30}\bparis\b/, /\bparis\b[^.]{0,30}local division/] },
+    { target: 'de', patterns: [/d[üu]sseldorf local division/, /\bd[üu]sseldorf ld\b/, /mannheim local division/, /\bmannheim ld\b/, /munich local division/, /\bmunich ld\b/, /hamburg local division/, /\bhamburg ld\b/, /central division[^.]{0,30}\bmunich\b/] },
+    { target: 'nl', patterns: [/the hague local division/, /\bhague local division\b/, /\bthe hague ld\b/, /\bhague ld\b/] },
+    { target: 'it', patterns: [/milan local division/, /\bmilan ld\b/, /central division[^.]{0,30}\bmilan\b/] },
+    { target: 'be', patterns: [/brussels local division/, /\bbrussels ld\b/] },
+    { target: 'dk', patterns: [/copenhagen local division/, /\bcopenhagen ld\b/] },
+    { target: 'fi', patterns: [/helsinki local division/, /\bhelsinki ld\b/] },
+    { target: 'at', patterns: [/vienna local division/, /\bvienna ld\b/] },
+    { target: 'pt', patterns: [/lisbon local division/, /\blisbon ld\b/] },
+    { target: 'scandinavia', patterns: [/nordic[-\s]baltic regional division/, /nordic baltic regional division/] },
+  ];
+  for (const rule of forumRules) {
+    if (rule.patterns.some((pattern) => pattern.test(text))) return rule.target;
+  }
+  return '';
+}
+
+function isUpcOverallItem(item, forumPrimary = '') {
+  if (!isUpcItem(item) || forumPrimary) return false;
+  const text = getEuropeHeatBaseText(item);
+  const sourceId = String(item?.source_id || '').trim().toLowerCase();
+  if (sourceId === 'upc' && !/local division|court of appeal|central division|regional division/.test(text)) return true;
+  return /monthly statistics|statistics publication|presidium|judicial compositions|oath taking|appointed judges|rules of procedure|court fees|registry|case management|cms|mediation|arbitration|committee|annual report|representatives/.test(text);
+}
+
+function getEuropeHeatItemRouting(item) {
+  const tags = normalizeGeoHeatTags(item?.geo_tags_list || []);
+  const specificTags = tags.filter((tag) => !['eu', 'intl'].includes(tag));
+  const primaryScope = String(item?.primary_scope || item?.ai_primary_scope || '').trim().toLowerCase();
+  if (isUpcItem(item)) {
+    const forumPrimary = getUpcForumPrimaryTarget(item);
+    const upcOverall = isUpcOverallItem(item, forumPrimary);
+    const primaryTargets = forumPrimary ? [forumPrimary] : [];
+    const relatedTargets = specificTags.filter((tag) => !primaryTargets.some((primary) => targetsEquivalent(primary, tag)));
+    return {
+      upc: true,
+      upcOverall,
+      primaryTargets,
+      relatedTargets,
+      displayTargets: upcOverall ? [] : (primaryTargets.length ? primaryTargets : relatedTargets),
+      tags,
+    };
+  }
+  const primaryTargets = [];
+  if (primaryScope && !['eu', 'intl'].includes(primaryScope)) {
+    primaryTargets.push(primaryScope);
+  } else if (specificTags.length === 1) {
+    primaryTargets.push(specificTags[0]);
+  }
+  const relatedTargets = specificTags.filter((tag) => !primaryTargets.some((primary) => targetsEquivalent(primary, tag)));
+  return {
+    upc: false,
+    upcOverall: false,
+    primaryTargets,
+    relatedTargets,
+    displayTargets: specificTags,
+    tags,
+  };
+}
+
 function getEuropeHeatItemsForTarget(items, targetId) {
   const target = getEuropeHeatTargetMeta(targetId);
-  if (!target) return [];
-  return sortBySignalPriority((items || [])
-    .filter(isRelevantDisplayItem)
-    .filter((item) => {
-      const tags = new Set((Array.isArray(item?.geo_tags_list) ? item.geo_tags_list : [])
-        .map((tag) => String(tag || '').trim().toLowerCase())
-        .filter(Boolean));
-      return target.matchTags.some((tag) => tags.has(tag));
-    }), 'stream');
+  if (!target) return { primaryItems: [], relatedItems: [], total: 0 };
+  const primaryItems = [];
+  const relatedItems = [];
+  (items || []).filter(isRelevantDisplayItem).forEach((item) => {
+    const routing = getEuropeHeatItemRouting(item);
+    if (target.id === 'upc_overall') {
+      if (routing.upcOverall) primaryItems.push(item);
+      return;
+    }
+    const primaryMatch = routing.primaryTargets.some((entry) => matchesEuropeHeatTarget(entry, target.id));
+    const relatedMatch = routing.relatedTargets.some((entry) => matchesEuropeHeatTarget(entry, target.id));
+    const displayMatch = routing.displayTargets.some((entry) => matchesEuropeHeatTarget(entry, target.id));
+    if (primaryMatch) {
+      primaryItems.push(item);
+    } else if (relatedMatch || displayMatch) {
+      relatedItems.push(item);
+    }
+  });
+  const dedupedRelated = relatedItems.filter((item) => !primaryItems.some((primary) => primary.id === item.id));
+  const sortItems = (list) => sortBySignalPriority(list, 'stream');
+  return {
+    primaryItems: sortItems(primaryItems),
+    relatedItems: sortItems(dedupedRelated),
+    total: primaryItems.length + dedupedRelated.length,
+  };
 }
 
 function buildEuropeHeatData(items) {
@@ -4935,19 +5082,22 @@ function buildEuropeHeatData(items) {
   });
   if (recentItems.length < 18) recentItems = ordered.slice(0, Math.min(ordered.length, 90));
 
-  const pointMap = new Map(EUROPE_HEAT_POINTS.map((entry) => [entry.id, entry]));
   const counts = new Map();
   let europeWideCount = 0;
+  let upcOverallCount = 0;
 
   recentItems.forEach((item) => {
-    const tags = normalizeGeoHeatTags(item?.geo_tags_list || []);
+    const routing = getEuropeHeatItemRouting(item);
+    const tags = routing.tags || normalizeGeoHeatTags(item?.geo_tags_list || []);
     const seen = new Set();
-    tags.forEach((tag) => {
-      if (tag === 'eu') {
-        europeWideCount += 1;
-        return;
-      }
-      if (tag === 'intl' || !pointMap.has(tag) || seen.has(tag)) return;
+    if (tags.includes('eu')) europeWideCount += 1;
+    if (routing.upcOverall) {
+      upcOverallCount += 1;
+      return;
+    }
+    const heatTargets = routing.upc ? routing.primaryTargets : routing.displayTargets;
+    heatTargets.forEach((tag) => {
+      if (!tag || ['eu', 'intl'].includes(tag) || seen.has(tag)) return;
       seen.add(tag);
       counts.set(tag, (counts.get(tag) || 0) + 1);
     });
@@ -4955,16 +5105,16 @@ function buildEuropeHeatData(items) {
 
   const hotspots = [...counts.entries()]
     .map(([id, count]) => ({
-      ...pointMap.get(id),
       id,
       count,
-      label: getEuropeHeatLabel(id),
+      label: getEuropeHeatTargetLabel(id),
       shortLabel: getEuropeHeatShortLabel(id),
     }))
     .sort((a, b) => b.count - a.count);
 
   return {
     europeWideCount,
+    upcOverallCount,
     hotspots,
     maxCount: hotspots[0]?.count || 1,
   };
@@ -5015,8 +5165,9 @@ function showEuropeHeatCountryModal(targetId, items) {
   const target = getEuropeHeatTargetMeta(targetId);
   if (!target) return;
   const root = document.getElementById('modal-root');
-  const matchedItems = getEuropeHeatItemsForTarget(items, target.id);
-  const previewItems = matchedItems.slice(0, 8);
+  const matched = getEuropeHeatItemsForTarget(items, target.id);
+  const primaryItems = matched.primaryItems.slice(0, 6);
+  const relatedItems = matched.relatedItems.slice(0, 6);
 
   const overlay = el('div', 'modal-overlay');
   overlay.innerHTML = `
@@ -5025,10 +5176,10 @@ function showEuropeHeatCountryModal(targetId, items) {
         <div class="modal-header-copy">
           <div class="modal-header-tags">
             <span class="ip-badge general">${escapeHtml(target.label)}</span>
-            <span class="hero-chip"><strong>${t('label_showing')}</strong>${matchedItems.length}</span>
+            <span class="hero-chip"><strong>${t('label_showing')}</strong>${matched.total}</span>
             <span class="section-search-pill">${t('section_europe_heat_recent')}</span>
           </div>
-          <div class="modal-header-caption">${t('section_europe_heat_country_desc')}</div>
+          <div class="modal-header-caption">${target.id === 'upc_overall' ? t('section_europe_heat_upc_overall_desc') : t('section_europe_heat_country_desc')}</div>
         </div>
         <button class="modal-close" id="modal-close">✕</button>
       </div>
@@ -5037,9 +5188,22 @@ function showEuropeHeatCountryModal(targetId, items) {
           <div class="intel-block-label">${t('section_europe_heat_country_feed')}</div>
           <div class="europe-heat-country-summary">
             <strong>${escapeHtml(target.label)}</strong>
-            <span>${t('section_europe_heat_country_desc')}</span>
+            <span>${target.id === 'upc_overall' ? t('section_europe_heat_upc_overall_desc') : t('section_europe_heat_country_desc')}</span>
           </div>
-          ${previewItems.length ? `<div class="europe-heat-country-grid"></div>` : `<div class="mini-empty">${t('section_europe_heat_country_empty')}</div>`}
+          ${matched.total ? `
+            ${primaryItems.length ? `
+              <div class="europe-heat-country-block">
+                <div class="intel-block-label">${escapeHtml(target.id === 'upc_overall' ? t('section_europe_heat_country_feed') : t('section_europe_heat_primary_feed'))}</div>
+                <div class="europe-heat-country-grid europe-heat-country-grid-primary"></div>
+              </div>
+            ` : ''}
+            ${relatedItems.length ? `
+              <div class="europe-heat-country-block">
+                <div class="intel-block-label">${t('section_europe_heat_related_feed')}</div>
+                <div class="europe-heat-country-grid europe-heat-country-grid-related"></div>
+              </div>
+            ` : ''}
+          ` : `<div class="mini-empty">${t('section_europe_heat_country_empty')}</div>`}
         </div>
       </div>
       <div class="modal-footer">
@@ -5049,16 +5213,20 @@ function showEuropeHeatCountryModal(targetId, items) {
     </div>
   `;
 
-  const grid = overlay.querySelector('.europe-heat-country-grid');
-  if (grid) {
-    previewItems.forEach((item, index) => {
+  [
+    ['.europe-heat-country-grid-primary', primaryItems],
+    ['.europe-heat-country-grid-related', relatedItems],
+  ].forEach(([selector, list]) => {
+    const grid = overlay.querySelector(selector);
+    if (!grid) return;
+    list.forEach((item, index) => {
       const card = renderNewsCard(item, index < 2 ? 'must-read' : 'scan');
       card.querySelectorAll('a').forEach((link) => {
         link.addEventListener('click', (event) => event.stopPropagation());
       });
       grid.appendChild(card);
     });
-  }
+  });
 
   overlay.addEventListener('click', (event) => {
     if (event.target === overlay) overlay.remove();
@@ -5107,6 +5275,7 @@ async function renderEuropeHeatSection(items) {
         <div class="europe-heat-meta-row">
           <span class="section-search-pill">${t('section_europe_heat_recent')}</span>
           ${data.europeWideCount ? `<span class="hero-chip"><strong>${t('section_europe_heat_wide')}</strong>${data.europeWideCount}</span>` : ''}
+          ${data.upcOverallCount ? `<button type="button" class="hero-chip europe-heat-upc-chip" data-heat-target="upc_overall"><strong>${t('section_europe_heat_upc_overall')}</strong>${data.upcOverallCount}</button>` : ''}
         </div>
         <div class="europe-heat-tip">${t('section_europe_heat_click_hint')}</div>
         ${mapNodes.length ? `
