@@ -2517,6 +2517,19 @@ body::before {
   z-index: 1;
 }
 
+.europe-heat-upc-chip {
+  cursor: pointer;
+  font: inherit;
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.europe-heat-upc-chip:hover,
+.europe-heat-upc-chip:focus-visible {
+  background: rgba(31, 42, 55, 0.06);
+  outline: none;
+  transform: translateY(-1px);
+}
+
 .europe-heat-visual {
   position: relative;
   z-index: 1;
@@ -2763,6 +2776,10 @@ body::before {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
+}
+
+.europe-heat-country-block + .europe-heat-country-block {
+  margin-top: 18px;
 }
 
 .hero-main,
@@ -8041,6 +8058,11 @@ html[data-theme="dark"] .europe-heat-legend-item {
 html[data-theme="dark"] .europe-heat-row:hover,
 html[data-theme="dark"] .europe-heat-row:focus-visible {
   background: rgba(148, 163, 184, 0.08);
+}
+
+html[data-theme="dark"] .europe-heat-upc-chip:hover,
+html[data-theme="dark"] .europe-heat-upc-chip:focus-visible {
+  background: rgba(148, 163, 184, 0.1);
 }
 
 html[data-theme="dark"] .europe-heat-country-summary {
