@@ -2508,6 +2508,15 @@ body::before {
   z-index: 1;
 }
 
+.europe-heat-tip {
+  color: #6f7f8d;
+  font-size: 12.4px;
+  line-height: 1.55;
+  margin-bottom: 12px;
+  position: relative;
+  z-index: 1;
+}
+
 .europe-heat-visual {
   position: relative;
   z-index: 1;
@@ -2538,7 +2547,22 @@ body::before {
 }
 
 .europe-base-map .europe-heat-country {
-  transition: fill 180ms ease, opacity 180ms ease;
+  transition: fill 180ms ease, opacity 180ms ease, filter 180ms ease, transform 180ms ease;
+}
+
+.europe-base-map .europe-heat-country[data-heat-target] {
+  cursor: pointer;
+}
+
+.europe-base-map .europe-heat-country[data-heat-target]:hover,
+.europe-base-map .europe-heat-country[data-heat-target]:focus-visible {
+  filter: saturate(1.05) brightness(0.98);
+}
+
+.europe-base-map .europe-heat-country[data-heat-target]:focus-visible {
+  outline: none;
+  stroke-width: 1.45;
+  vector-effect: non-scaling-stroke;
 }
 
 .europe-base-map .europe-heat-country.base {
@@ -2685,13 +2709,27 @@ body::before {
   grid-template-columns: auto minmax(96px, 1fr) auto;
   align-items: center;
   gap: 10px;
+  width: 100%;
   padding: 10px 0;
+  border: 0;
+  background: transparent;
   border-top: 1px solid rgba(31, 42, 55, 0.07);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease;
 }
 
 .europe-heat-row:first-of-type {
   border-top: 0;
   padding-top: 2px;
+}
+
+.europe-heat-row:hover,
+.europe-heat-row:focus-visible {
+  background: rgba(31, 42, 55, 0.04);
+  outline: none;
+  transform: translateX(2px);
 }
 
 .europe-heat-row-name {
@@ -2703,6 +2741,28 @@ body::before {
 .europe-heat-row strong {
   color: #1f2a37;
   font-size: 13px;
+}
+
+.europe-heat-country-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: baseline;
+  margin-bottom: 16px;
+  color: #6f7f8d;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.europe-heat-country-summary strong {
+  color: #1f2a37;
+  font-size: 15px;
+}
+
+.europe-heat-country-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .hero-main,
@@ -7192,6 +7252,7 @@ body::before {
   .priority-overview-grid,
   .priority-meta-grid,
   .latest-dynamics-list,
+  .europe-heat-country-grid,
   .today-published-list,
   .briefing-report-grid,
   .briefing-report-blocks,
@@ -7890,6 +7951,7 @@ html[data-theme="dark"] .hero-meta-line span,
 html[data-theme="dark"] .hero-refresh span,
 html[data-theme="dark"] .hero-note-copy,
 html[data-theme="dark"] .hero-note-foot,
+html[data-theme="dark"] .europe-heat-tip,
 html[data-theme="dark"] .europe-heat-row-name,
 html[data-theme="dark"] .command-stat-card .stat-card-label,
 html[data-theme="dark"] .command-stat-card .stat-card-sub,
@@ -7974,6 +8036,19 @@ html[data-theme="dark"] .europe-heat-geo-label.support text {
 html[data-theme="dark"] .europe-heat-legend-item {
   background: rgba(148, 163, 184, 0.08);
   color: #c4d2e3;
+}
+
+html[data-theme="dark"] .europe-heat-row:hover,
+html[data-theme="dark"] .europe-heat-row:focus-visible {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+html[data-theme="dark"] .europe-heat-country-summary {
+  color: #b6c3d4;
+}
+
+html[data-theme="dark"] .europe-heat-country-summary strong {
+  color: #e7edf6;
 }
 
 html[data-theme="dark"] .europe-heat-row-bar {

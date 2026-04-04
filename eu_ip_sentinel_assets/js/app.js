@@ -115,6 +115,19 @@ const EUROPE_HEAT_SHAPE_GROUPS = {
   benelux: ['be', 'nl', 'lu'],
   scandinavia: ['is', 'no', 'se', 'fi'],
 };
+const EUROPE_HEAT_TARGET_MATCHES = {
+  uk: ['uk'],
+  gb: ['uk'],
+  benelux: ['benelux', 'be', 'nl', 'lu'],
+  be: ['be', 'benelux'],
+  nl: ['nl', 'benelux'],
+  lu: ['lu', 'benelux'],
+  scandinavia: ['scandinavia', 'is', 'no', 'se', 'fi'],
+  is: ['is', 'scandinavia'],
+  no: ['no', 'scandinavia'],
+  se: ['se', 'scandinavia'],
+  fi: ['fi', 'scandinavia'],
+};
 const EUROPE_HEAT_GEO_LABELS = [
   { id: 'ie', x: 170, y: 190, priority: 'essential' },
   { id: 'uk', x: 203, y: 169, priority: 'essential' },
@@ -126,6 +139,8 @@ const EUROPE_HEAT_GEO_LABELS = [
 ];
 
 let europeHeatBaseMapPromise = null;
+let regionDisplayNamesZh = null;
+let regionDisplayNamesEn = null;
 
 localStorage.setItem('pontnova_lang', DEFAULT_LANG);
 
@@ -633,6 +648,10 @@ const i18n = {
     section_europe_heat_wide: '欧洲范围',
     section_europe_heat_hotspots: '热点国家/地区',
     section_europe_heat_empty: '当前筛选下暂无可标注的地区热度。',
+    section_europe_heat_click_hint: '点击地图国家或右侧热点，可直接查看该国/地区的近期资讯。',
+    section_europe_heat_country_feed: '该国/地区资讯',
+    section_europe_heat_country_desc: '基于当前筛选流展示该国/地区的近期资讯，便于快速判断相关动态。',
+    section_europe_heat_country_empty: '当前筛选下，这个国家或地区暂时没有可展示的资讯。',
     label_today_scraped: '今日新抓',
     today_published_state_captured: '今日新抓',
     section_latest_dynamics: '最新动态',
@@ -1222,6 +1241,10 @@ const i18n = {
     section_europe_heat_wide: 'Europe-wide',
     section_europe_heat_hotspots: 'Top hotspots',
     section_europe_heat_empty: 'No clear geographic hotspot is visible under the current filters yet.',
+    section_europe_heat_click_hint: 'Click a country on the map or a hotspot on the right to open the related feed.',
+    section_europe_heat_country_feed: 'Country / Region Feed',
+    section_europe_heat_country_desc: 'Recent items for this country or region under the current stream filters.',
+    section_europe_heat_country_empty: 'There are no display-ready items for this country or region under the current filters yet.',
     label_today_scraped: 'Captured today',
     today_published_state_captured: 'Captured today',
     section_latest_dynamics: 'Latest Signal Readout',
@@ -4802,8 +4825,24 @@ function getEuropeHeatLabel(id) {
     al: { zh: '阿尔巴尼亚', en: 'Albania' },
   };
   const entry = labels[id];
-  if (!entry) return id ? id.toUpperCase() : '—';
+  if (!entry) {
+    const regionName = getIntlRegionDisplayName(id);
+    return regionName || (id ? id.toUpperCase() : '—');
+  }
   return state.lang === 'zh' ? entry.zh : entry.en;
+}
+
+function getIntlRegionDisplayName(code) {
+  const normalized = String(code || '').trim().toUpperCase();
+  if (normalized.length !== 2) return '';
+  try {
+    const displayNames = state.lang === 'zh'
+      ? (regionDisplayNamesZh ||= new Intl.DisplayNames(['zh-Hans'], { type: 'region' }))
+      : (regionDisplayNamesEn ||= new Intl.DisplayNames(['en'], { type: 'region' }));
+    return displayNames.of(normalized) || '';
+  } catch {
+    return '';
+  }
 }
 
 function getEuropeHeatShortLabel(id) {
@@ -4852,6 +4891,37 @@ function normalizeGeoHeatTags(rawTags) {
   if (tags.has('benelux')) ['nl', 'be', 'lu'].forEach((key) => tags.delete(key));
   if (tags.has('scandinavia')) ['se', 'no', 'fi'].forEach((key) => tags.delete(key));
   return [...tags];
+}
+
+function getEuropeHeatTargetLabel(targetId) {
+  const key = String(targetId || '').trim().toLowerCase();
+  if (!key) return '—';
+  if (['uk', 'benelux', 'scandinavia', 'eu'].includes(key)) return getEuropeHeatLabel(key);
+  if (key === 'gb') return state.lang === 'zh' ? '英国' : 'United Kingdom';
+  return getIntlRegionDisplayName(key) || getEuropeHeatLabel(key);
+}
+
+function getEuropeHeatTargetMeta(targetId) {
+  const key = String(targetId || '').trim().toLowerCase();
+  if (!key) return null;
+  return {
+    id: key,
+    label: getEuropeHeatTargetLabel(key),
+    matchTags: EUROPE_HEAT_TARGET_MATCHES[key] || [key],
+  };
+}
+
+function getEuropeHeatItemsForTarget(items, targetId) {
+  const target = getEuropeHeatTargetMeta(targetId);
+  if (!target) return [];
+  return sortBySignalPriority((items || [])
+    .filter(isRelevantDisplayItem)
+    .filter((item) => {
+      const tags = new Set((Array.isArray(item?.geo_tags_list) ? item.geo_tags_list : [])
+        .map((tag) => String(tag || '').trim().toLowerCase())
+        .filter(Boolean));
+      return target.matchTags.some((tag) => tags.has(tag));
+    }), 'stream');
 }
 
 function buildEuropeHeatData(items) {
@@ -4934,9 +5004,68 @@ function decorateEuropeHeatMapMarkup(mapMarkup, hotspots, maxCount) {
     getEuropeHeatShapeIds(entry.id).forEach((iso) => toneByIso.set(iso, tone));
   });
   return mapMarkup.replace(/<path id="country-([a-z]+)"([^>]*)\/>/gi, (full, iso, rest) => {
-    const tone = toneByIso.get(String(iso).toLowerCase()) || 'base';
-    return `<path id="country-${String(iso).toLowerCase()}" class="europe-heat-country ${tone}"${rest}></path>`;
+    const normalizedIso = String(iso).toLowerCase();
+    const tone = toneByIso.get(normalizedIso) || 'base';
+    const label = escapeHtml(getEuropeHeatTargetLabel(normalizedIso));
+    return `<path id="country-${normalizedIso}" class="europe-heat-country ${tone}" data-heat-target="${normalizedIso}" role="button" tabindex="0" aria-label="${label}"${rest}></path>`;
   });
+}
+
+function showEuropeHeatCountryModal(targetId, items) {
+  const target = getEuropeHeatTargetMeta(targetId);
+  if (!target) return;
+  const root = document.getElementById('modal-root');
+  const matchedItems = getEuropeHeatItemsForTarget(items, target.id);
+  const previewItems = matchedItems.slice(0, 8);
+
+  const overlay = el('div', 'modal-overlay');
+  overlay.innerHTML = `
+    <div class="modal modal-wide europe-heat-modal">
+      <div class="modal-header">
+        <div class="modal-header-copy">
+          <div class="modal-header-tags">
+            <span class="ip-badge general">${escapeHtml(target.label)}</span>
+            <span class="hero-chip"><strong>${t('label_showing')}</strong>${matchedItems.length}</span>
+            <span class="section-search-pill">${t('section_europe_heat_recent')}</span>
+          </div>
+          <div class="modal-header-caption">${t('section_europe_heat_country_desc')}</div>
+        </div>
+        <button class="modal-close" id="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="intel-block modal-intel-block">
+          <div class="intel-block-label">${t('section_europe_heat_country_feed')}</div>
+          <div class="europe-heat-country-summary">
+            <strong>${escapeHtml(target.label)}</strong>
+            <span>${t('section_europe_heat_country_desc')}</span>
+          </div>
+          ${previewItems.length ? `<div class="europe-heat-country-grid"></div>` : `<div class="mini-empty">${t('section_europe_heat_country_empty')}</div>`}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="modal-close-btn">${t('btn_close')}</button>
+        <span class="modal-status-hint">${t('section_europe_heat_recent')}</span>
+      </div>
+    </div>
+  `;
+
+  const grid = overlay.querySelector('.europe-heat-country-grid');
+  if (grid) {
+    previewItems.forEach((item, index) => {
+      const card = renderNewsCard(item, index < 2 ? 'must-read' : 'scan');
+      card.querySelectorAll('a').forEach((link) => {
+        link.addEventListener('click', (event) => event.stopPropagation());
+      });
+      grid.appendChild(card);
+    });
+  }
+
+  overlay.addEventListener('click', (event) => {
+    if (event.target === overlay) overlay.remove();
+  });
+  overlay.querySelector('#modal-close')?.addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#modal-close-btn')?.addEventListener('click', () => overlay.remove());
+  root.appendChild(overlay);
 }
 
 async function renderEuropeHeatSection(items) {
@@ -4979,6 +5108,7 @@ async function renderEuropeHeatSection(items) {
           <span class="section-search-pill">${t('section_europe_heat_recent')}</span>
           ${data.europeWideCount ? `<span class="hero-chip"><strong>${t('section_europe_heat_wide')}</strong>${data.europeWideCount}</span>` : ''}
         </div>
+        <div class="europe-heat-tip">${t('section_europe_heat_click_hint')}</div>
         ${mapNodes.length ? `
           <div class="europe-heat-visual">
             <svg class="europe-heat-svg" viewBox="0 0 560 360" role="img" aria-label="${escapeHtml(t('section_europe_heat'))}">
@@ -5009,15 +5139,28 @@ async function renderEuropeHeatSection(items) {
         </div>
         <div class="europe-heat-list-title">${t('section_europe_heat_hotspots')}</div>
         ${hotspotRows.length ? hotspotRows.map((entry) => `
-          <div class="europe-heat-row ${getEuropeHeatTone(entry.count, maxCount)}">
+          <button type="button" class="europe-heat-row ${getEuropeHeatTone(entry.count, maxCount)}" data-heat-target="${escapeHtml(entry.id)}" aria-label="${escapeHtml(entry.label)}">
             <span class="europe-heat-row-dot"></span>
             <span class="europe-heat-row-name">${escapeHtml(entry.label)}</span>
             <strong>${entry.count}</strong>
-          </div>
+          </button>
         `).join('') : `<div class="mini-empty">${t('section_europe_heat_empty')}</div>`}
       </div>
     </div>
   `;
+  section.querySelectorAll('[data-heat-target]').forEach((node) => {
+    const targetId = node.dataset.heatTarget || '';
+    const openCountryModal = () => showEuropeHeatCountryModal(targetId, items);
+    node.addEventListener('click', openCountryModal);
+    if (node.tagName !== 'BUTTON') {
+      node.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openCountryModal();
+        }
+      });
+    }
+  });
   return section;
 }
 
