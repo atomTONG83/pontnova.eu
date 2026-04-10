@@ -805,10 +805,13 @@ const i18n = {
     stream_group_yesterday: '昨天',
     stream_group_this_week: '本周较早',
     stream_group_this_month: '本月较早',
+    stream_group_older: '更早',
     stream_group_undated: '待补日期',
     stream_group_items: '条',
     stream_group_expand: '展开其余',
     stream_group_collapse: '收起本组',
+    stream_group_expand_older: '展开更早资讯',
+    stream_group_collapse_older: '收起更早资讯',
     stream_group_browser_hint: '左右滑动浏览本组档案',
     stream_group_open_modal: '查看本组全部',
     chronology_modal_timeline_label: '时间轴',
@@ -1406,10 +1409,13 @@ const i18n = {
     stream_group_yesterday: 'Yesterday',
     stream_group_this_week: 'Earlier This Week',
     stream_group_this_month: 'Earlier This Month',
+    stream_group_older: 'Earlier',
     stream_group_undated: 'Undated',
     stream_group_items: 'items',
     stream_group_expand: 'Show remaining',
     stream_group_collapse: 'Collapse group',
+    stream_group_expand_older: 'Show earlier coverage',
+    stream_group_collapse_older: 'Collapse earlier coverage',
     stream_group_browser_hint: 'Swipe to browse this archive lane',
     stream_group_open_modal: 'Open full group',
     chronology_modal_timeline_label: 'Timeline',
@@ -2510,6 +2516,7 @@ async function renderNewsPage(container) {
 
   try {
     const sepTimelineMode = isSepTimelineMode();
+    const focusedMode = isFocusedNewsMode();
     const sepTimelineLimit = 48;
     const sepTimelineWindowLimit = 72;
     const now = new Date();
@@ -2520,8 +2527,10 @@ async function renderNewsPage(container) {
     const todayEnd = `${yyyy}-${mm}-${dd} 23:59:59`;
     // Build query params
     const params = new URLSearchParams({
-      page: sepTimelineMode ? 1 : state.pagination.page,
-      limit: sepTimelineMode ? sepTimelineLimit : state.pagination.limit,
+      page: (sepTimelineMode || focusedMode) ? 1 : state.pagination.page,
+      limit: sepTimelineMode
+        ? sepTimelineLimit
+        : (focusedMode ? Math.max(state.pagination.limit * 4, 80) : state.pagination.limit),
     });
     params.set('relevant_only', 'true');
     if (state.filters.ip_type && state.filters.ip_type !== 'all') params.set('ip_type', state.filters.ip_type);
@@ -2560,9 +2569,9 @@ async function renderNewsPage(container) {
     state.sources = sourcesData?.sources || [];
     state.pagination.total = data.total;
     state.pagination.pages = sepTimelineMode ? 1 : data.pages;
-    if (sepTimelineMode) state.pagination.page = 1;
+    if (sepTimelineMode || focusedMode) state.pagination.page = 1;
 
-    let mergedItems = [...(data.items || [])];
+    let mergedItems = dedupeNewsItems(data.items || []);
     if (sepTimelineMode && data.pages > 1) {
       let probePage = 2;
       while (probePage <= Math.min(data.pages, 12)) {
@@ -2575,7 +2584,7 @@ async function renderNewsPage(container) {
         probeParams.set('page', String(probePage));
         try {
           const extra = await apiFetch(`/news?${probeParams}`);
-          mergedItems = mergedItems.concat(extra.items || []);
+          mergedItems = dedupeNewsItems(mergedItems.concat(extra.items || []));
         } catch (error) {
           console.warn('SEP timeline probe stopped early', probePage, error);
           break;
@@ -2583,18 +2592,21 @@ async function renderNewsPage(container) {
         probePage += 1;
       }
     }
-    if (!sepTimelineMode && state.pagination.page === 1 && data.pages > 1) {
+    if (!sepTimelineMode && data.pages > 1) {
       let probePage = 2;
-      while (probePage <= Math.min(data.pages, 10)) {
-        const featuredCount = mergedItems.filter(isPresentationItem).length;
-        const streamCount = mergedItems.filter(isStreamItem).length;
-        const chronologyGroups = countChronologyGroups(mergedItems.filter(isRelevantDisplayItem));
-        if (featuredCount >= 5 && streamCount >= state.pagination.limit && chronologyGroups >= 4) break;
+      const maxProbePage = focusedMode ? Math.min(data.pages, 30) : Math.min(data.pages, 10);
+      while (probePage <= maxProbePage) {
+        if (!focusedMode) {
+          const featuredCount = mergedItems.filter(isPresentationItem).length;
+          const streamCount = mergedItems.filter(isStreamItem).length;
+          const chronologyGroups = countChronologyGroups(mergedItems.filter(isRelevantDisplayItem));
+          if (featuredCount >= 5 && streamCount >= state.pagination.limit && chronologyGroups >= 5) break;
+        }
         const probeParams = new URLSearchParams(params);
         probeParams.set('page', String(probePage));
         try {
           const extra = await apiFetch(`/news?${probeParams}`);
-          mergedItems = mergedItems.concat(extra.items || []);
+          mergedItems = dedupeNewsItems(mergedItems.concat(extra.items || []));
         } catch (error) {
           console.warn('Chronology probe stopped early', probePage, error);
           break;
@@ -2603,15 +2615,14 @@ async function renderNewsPage(container) {
       }
     }
 
-    mergedItems = mergedItems.filter(isRelevantDisplayItem);
+    mergedItems = dedupeNewsItems(mergedItems).filter(isRelevantDisplayItem);
     const displayTotal = data.total;
     const featuredItems = sortBySignalPriority(mergedItems.filter(isPresentationItem), 'brief');
     const streamItems = mergedItems.filter(isStreamItem);
     const visibleItems = sepTimelineMode
-      ? selectChronologyWindow(streamItems.length ? streamItems : mergedItems, sepTimelineWindowLimit, 1)
-      : selectChronologyWindow(streamItems.length ? streamItems : mergedItems, state.pagination.limit, state.pagination.page);
+      ? selectChronologyWindow(streamItems.length ? streamItems : mergedItems, sepTimelineWindowLimit, { showAll: true })
+      : selectChronologyWindow(streamItems.length ? streamItems : mergedItems, state.pagination.limit, { showAll: focusedMode });
     const boardItems = featuredItems.length ? featuredItems : visibleItems;
-    const focusedMode = isFocusedNewsMode();
 
     container.innerHTML = '';
     if (focusedMode) {
@@ -2636,11 +2647,6 @@ async function renderNewsPage(container) {
       container.appendChild(renderFocusedSepTimeline(visibleItems, displayTotal));
     } else {
       container.appendChild(renderIntelStreamSections(visibleItems));
-    }
-
-    // Pagination
-    if (data.pages > 1 && isFocusedNewsMode() && !sepTimelineMode) {
-      container.appendChild(renderPagination(data.page, data.pages, data.total));
     }
 
     if (focusedMode && state.focusViewExpanded) {
@@ -5719,10 +5725,47 @@ function sortByChronology(items) {
   return [...(items || [])].sort((a, b) => parseItemTimestamp(b) - parseItemTimestamp(a));
 }
 
-function selectChronologyWindow(items, limit, page = 1) {
-  const ordered = sortByChronology(items);
-  if (page !== 1 || ordered.length <= limit) {
-    return ordered.slice(0, limit);
+function normalizeNewsIdentityUrl(rawUrl) {
+  const value = String(rawUrl || '').trim();
+  if (!value) return '';
+  try {
+    const parsed = new URL(value, window.location.origin);
+    parsed.hash = '';
+    ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'mc_cid', 'mc_eid'].forEach((key) => parsed.searchParams.delete(key));
+    return parsed.toString();
+  } catch {
+    return value.replace(/#.*$/, '');
+  }
+}
+
+function getNewsIdentityKey(item) {
+  const stableId = String(item?.id || '').trim();
+  if (stableId) return `id:${stableId}`;
+  const normalizedUrl = normalizeNewsIdentityUrl(item?.url || '');
+  if (normalizedUrl) return `url:${normalizedUrl}`;
+  const source = String(item?.source_id || item?.source_name || '').trim().toLowerCase();
+  const title = String(item?.title || item?.title_zh || '').trim().toLowerCase();
+  const timestamp = String(item?.published_at || item?.scraped_at || '').trim();
+  return `fallback:${source}|${title}|${timestamp}`;
+}
+
+function dedupeNewsItems(items) {
+  const seen = new Set();
+  const unique = [];
+  (items || []).forEach((item) => {
+    const key = getNewsIdentityKey(item);
+    if (seen.has(key)) return;
+    seen.add(key);
+    unique.push(item);
+  });
+  return unique;
+}
+
+function selectChronologyWindow(items, limit, options = {}) {
+  const { showAll = false } = options;
+  const ordered = dedupeNewsItems(sortByChronology(items));
+  if (showAll || ordered.length <= limit) {
+    return ordered;
   }
 
   const maxItems = Math.max(limit * 6, 120);
@@ -5754,7 +5797,7 @@ function selectChronologyWindow(items, limit, page = 1) {
     if (calendarBoost.length) selected.push(...calendarBoost);
   }
 
-  return sortByChronology(selected);
+  return dedupeNewsItems(sortByChronology(selected));
 }
 
 function countChronologyGroups(items) {
@@ -5769,10 +5812,12 @@ function buildChronologySummary(items) {
     ['yesterday', t('stream_group_yesterday')],
     ['this-week', t('stream_group_this_week')],
     ['this-month', t('stream_group_this_month')],
+    ['older', t('stream_group_older')],
   ];
   const counts = new Map(buckets.map(([key]) => [key, 0]));
   (items || []).forEach((item) => {
-    const key = getChronologyGroupMeta(item).key;
+    const meta = getChronologyGroupMeta(item);
+    const key = String(meta.key || '').startsWith('month-') ? 'older' : meta.key;
     if (counts.has(key)) counts.set(key, counts.get(key) + 1);
   });
   return buckets
@@ -6146,120 +6191,105 @@ function getIntelTier(item) {
 }
 
 function renderIntelStreamSections(items) {
-  if (!items.length) {
+  const uniqueItems = dedupeNewsItems(items).filter(isRelevantDisplayItem);
+  if (!uniqueItems.length) {
     const wrap = el('div', 'intel-stream-shell');
     wrap.appendChild(renderEmptyState());
     return wrap;
   }
 
-  function getEditorialLaneMeta(lane) {
-    const fallback = {
-      kicker: t('lane_watch_kicker'),
-      title: t('lane_watch_title'),
-      desc: t('lane_watch_desc'),
-    };
-    const map = {
-      core: {
-        kicker: t('lane_core_kicker'),
-        title: t('lane_core_title'),
-        desc: t('lane_core_desc'),
-      },
-      watch: fallback,
-      calendar: {
-        kicker: t('lane_calendar_kicker'),
-        title: t('lane_calendar_title'),
-        desc: t('lane_calendar_desc'),
-      },
-    };
-    return map[lane] || fallback;
-  }
+  function buildStreamChronologyGroups(streamItems) {
+    const standardGroups = new Map();
+    const olderGroups = [];
+    const olderMap = new Map();
 
-  function buildChronologyGroups(itemsForLane) {
-    const grouped = [];
-    const groupMap = new Map();
-    sortByChronology(itemsForLane).forEach((item) => {
+    sortByChronology(streamItems).forEach((item) => {
       const meta = getChronologyGroupMeta(item);
-      if (!groupMap.has(meta.key)) {
-        const payload = { ...meta, items: [] };
-        groupMap.set(meta.key, payload);
-        grouped.push(payload);
+      if (String(meta.key || '').startsWith('month-')) {
+        if (!olderMap.has(meta.key)) {
+          const payload = { ...meta, items: [] };
+          olderMap.set(meta.key, payload);
+          olderGroups.push(payload);
+        }
+        olderMap.get(meta.key).items.push(item);
+        return;
       }
-      groupMap.get(meta.key).items.push(item);
+      if (!standardGroups.has(meta.key)) {
+        standardGroups.set(meta.key, { ...meta, items: [] });
+      }
+      standardGroups.get(meta.key).items.push(item);
     });
-    return grouped;
+
+    const orderedGroups = ['today', 'yesterday', 'this-week', 'this-month']
+      .map((key) => standardGroups.get(key))
+      .filter((group) => group?.items?.length);
+
+    if (olderGroups.length) {
+      orderedGroups.push({
+        key: 'older',
+        label: t('stream_group_older'),
+        accent: 'slate',
+        items: olderGroups.flatMap((group) => group.items),
+        subgroups: olderGroups,
+      });
+    }
+
+    const undated = standardGroups.get('undated');
+    if (undated?.items?.length) orderedGroups.push(undated);
+    return orderedGroups;
   }
 
-  function renderChronologyGroups(groups) {
-    const shell = el('div', 'intel-stream-shell chronology-stream');
-    groups.forEach((group) => {
-      const list = group.items || [];
-      if (!list.length) return;
-      const newestLabel = buildPrimaryDateLabel(list[0]);
-      const oldestLabel = buildPrimaryDateLabel(list[list.length - 1]);
-      const rangeLabel = newestLabel && oldestLabel && newestLabel !== oldestLabel
-        ? `${newestLabel} → ${oldestLabel}`
-        : (newestLabel || '—');
-      const block = el('section', `intel-stream-section chronology-group ${group.key}`);
-      block.innerHTML = `
-        <div class="intel-stream-head chronology-head">
-          <div>
-            <div class="intel-stream-kicker ${group.accent}">${group.label}</div>
-            <div class="intel-stream-desc">${rangeLabel}</div>
-          </div>
-          <div class="intel-stream-count">${String(list.length).padStart(2, '0')} ${t('stream_group_items')}</div>
-        </div>
-      `;
-      const grid = el('div', 'news-grid intelligence-stream chronology-grid');
-      const previewLimit = group.key === 'today' ? list.length : 3;
-      const previewItems = list.slice(0, previewLimit);
-      previewItems.forEach((item, index) => grid.appendChild(renderNewsCard(item, group.key === 'today' && index < 2 ? 'must-read' : 'scan')));
-      block.appendChild(grid);
-      if (group.key !== 'today' && list.length > previewLimit) {
-        const actionRow = el('div', 'chronology-group-actions');
-        const button = el('button', 'btn btn-secondary chronology-open-btn', `${t('stream_group_open_modal')} ${list.length} ${t('stream_group_items')}`);
-        button.addEventListener('click', () => showChronologyGroupModal(group));
-        actionRow.appendChild(button);
-        block.appendChild(actionRow);
-      }
-      shell.appendChild(block);
-    });
-    return shell;
-  }
-
-  const laneBuckets = new Map([
-    ['core', []],
-    ['watch', []],
-    ['calendar', []],
-  ]);
-  sortByChronology(items).forEach((item) => {
-    const lane = getEditorialLane(item);
-    if (!laneBuckets.has(lane)) laneBuckets.set(lane, []);
-    laneBuckets.get(lane).push(item);
-  });
-
-  const shell = el('div', 'intel-stream-shell');
-  laneBuckets.forEach((laneItems, lane) => {
-    if (!laneItems.length) return;
-    const meta = getEditorialLaneMeta(lane);
-    const laneWrap = el('section', `editorial-lane-section editorial-lane-${lane}`);
-    laneWrap.style.display = 'grid';
-    laneWrap.style.gap = '14px';
-    const sourceCount = new Set(laneItems.map((item) => item.source_id).filter(Boolean)).size;
-    laneWrap.innerHTML = `
-      <div class="section-heading-row editorial-lane-heading">
+  const shell = el('div', 'intel-stream-shell chronology-stream');
+  buildStreamChronologyGroups(uniqueItems).forEach((group) => {
+    const list = group.items || [];
+    if (!list.length) return;
+    const newestLabel = buildPrimaryDateLabel(list[0]);
+    const oldestLabel = buildPrimaryDateLabel(list[list.length - 1]);
+    const rangeLabel = newestLabel && oldestLabel && newestLabel !== oldestLabel
+      ? `${newestLabel} → ${oldestLabel}`
+      : (newestLabel || '—');
+    const block = el('section', `intel-stream-section chronology-group ${group.key}`);
+    block.innerHTML = `
+      <div class="intel-stream-head chronology-head">
         <div>
-          <div class="section-kicker">${meta.kicker}</div>
-          <h2 class="section-title">${meta.title}</h2>
+          <div class="intel-stream-kicker ${group.accent}">${group.label}</div>
+          <div class="intel-stream-desc">${rangeLabel}</div>
         </div>
-        <div class="section-search-meta">
-          <span class="section-search-pill">${laneItems.length} ${t('stream_group_items')}</span>
-          <span class="section-search-pill">${sourceCount} ${t('focus_mode_sources')}</span>
-        </div>
+        <div class="intel-stream-count">${String(list.length).padStart(2, '0')} ${t('stream_group_items')}</div>
       </div>
-      <div class="section-meta">${meta.desc}</div>
     `;
-    laneWrap.appendChild(renderChronologyGroups(buildChronologyGroups(laneItems)));
-    shell.appendChild(laneWrap);
+
+    if (group.key === 'older' && Array.isArray(group.subgroups) && group.subgroups.length) {
+      const details = el('details', 'report-detail-more chronology-older-details');
+      details.innerHTML = `
+        <summary class="report-detail-summary chronology-older-summary">
+          <span class="report-detail-summary-closed">${t('stream_group_expand_older')} ${list.length} ${t('stream_group_items')}</span>
+          <span class="report-detail-summary-open">${t('stream_group_collapse_older')}</span>
+        </summary>
+      `;
+      const olderBody = el('div', 'chronology-older-body');
+      group.subgroups.forEach((subgroup) => {
+        const subgroupWrap = el('section', 'chronology-subgroup');
+        subgroupWrap.innerHTML = `
+          <div class="chronology-modal-section-head chronology-subgroup-head">
+            <div class="chronology-modal-section-date">${escapeHtml(subgroup.label)}</div>
+            <div class="chronology-modal-section-count">${subgroup.items.length} ${t('stream_group_items')}</div>
+          </div>
+        `;
+        const grid = el('div', 'news-grid intelligence-stream chronology-grid chronology-older-grid');
+        subgroup.items.forEach((item) => grid.appendChild(renderNewsCard(item, 'scan')));
+        subgroupWrap.appendChild(grid);
+        olderBody.appendChild(subgroupWrap);
+      });
+      details.appendChild(olderBody);
+      block.appendChild(details);
+    } else {
+      const grid = el('div', 'news-grid intelligence-stream chronology-grid');
+      list.forEach((item, index) => grid.appendChild(renderNewsCard(item, group.key === 'today' && index < 2 ? 'must-read' : 'scan')));
+      block.appendChild(grid);
+    }
+
+    shell.appendChild(block);
   });
   return shell;
 }

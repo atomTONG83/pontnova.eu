@@ -6839,6 +6839,35 @@ body::before {
   margin-top: 14px;
 }
 
+.chronology-older-details {
+  margin-top: 14px;
+}
+
+.chronology-older-summary {
+  width: 100%;
+}
+
+.chronology-older-body {
+  display: grid;
+  gap: 18px;
+  margin-top: 14px;
+}
+
+.chronology-subgroup + .chronology-subgroup {
+  margin-top: 4px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(120, 98, 60, 0.08);
+}
+
+.chronology-subgroup-head {
+  position: static;
+  margin-bottom: 14px;
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
 .chronology-open-btn {
   border-radius: 999px;
 }
