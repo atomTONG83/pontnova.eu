@@ -1604,7 +1604,7 @@ const i18n = {
   },
 };
 
-const t = (key) => (i18n[state.lang][key] || key);
+const t = (key) => (Object.prototype.hasOwnProperty.call(i18n[state.lang], key) ? i18n[state.lang][key] : key);
 
 function applyTheme(theme = state.theme) {
   const resolved = 'dark';
