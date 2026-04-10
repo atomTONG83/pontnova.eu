@@ -3762,10 +3762,19 @@ function renderAudioBriefHistory(historyItems = []) {
   return section;
 }
 
-function renderCommanderReports(dailyReport, weeklyReport, dailyAudioBrief = null, dailyAudioHistory = []) {
+function renderHomeAudioBriefSection(dailyAudioBrief) {
+  if (!dailyAudioBrief) return null;
+  const section = el('section', 'briefing-report-section briefing-report-section--audio-home');
+  const grid = el('div', 'briefing-report-grid briefing-report-grid--single');
+  grid.appendChild(renderAudioBriefCard(dailyAudioBrief));
+  section.appendChild(grid);
+  return section;
+}
+
+function renderCommanderReports(dailyReport, weeklyReport, dailyAudioBrief = null, dailyAudioHistory = [], includeAudio = true) {
   const section = el('section', 'briefing-report-section');
   const isReportsPage = state.currentPage === 'reports';
-  const availableReports = [dailyReport, weeklyReport, dailyAudioBrief].filter(Boolean);
+  const availableReports = [dailyReport, weeklyReport, includeAudio ? dailyAudioBrief : null].filter(Boolean);
   const totalReportItems = [dailyReport, weeklyReport].filter(Boolean).reduce((sum, report) => sum + Number(report?.report_item_count || report?.item_count || 0), 0);
   const dailyCount = Number(dailyReport?.report_item_count || dailyReport?.item_count || 0);
   const weeklyCount = Number(weeklyReport?.report_item_count || weeklyReport?.item_count || 0);
@@ -3794,13 +3803,13 @@ function renderCommanderReports(dailyReport, weeklyReport, dailyAudioBrief = nul
       <span class="briefing-report-section-chip">${totalReportItems} ${t('section_reports_summary_items')}</span>
       <span class="briefing-report-section-chip daily">${escapeHtml(dailySummaryLabel)}</span>
       <span class="briefing-report-section-chip weekly">${escapeHtml(weeklySummaryLabel)}</span>
-      ${dailyAudioBrief ? `<span class="briefing-report-section-chip audio">${escapeHtml(audioSummaryLabel)}</span>` : ''}
+      ${includeAudio && dailyAudioBrief ? `<span class="briefing-report-section-chip audio">${escapeHtml(audioSummaryLabel)}</span>` : ''}
     </div>
   `;
   const grid = el('div', 'briefing-report-grid');
   grid.appendChild(renderBriefingReportCard(dailyReport, 'daily'));
   grid.appendChild(renderBriefingReportCard(weeklyReport, 'weekly'));
-  if (dailyAudioBrief) grid.appendChild(renderAudioBriefCard(dailyAudioBrief));
+  if (includeAudio && dailyAudioBrief) grid.appendChild(renderAudioBriefCard(dailyAudioBrief));
   section.appendChild(grid);
   if (isReportsPage) {
     const historySection = renderAudioBriefHistory(dailyAudioHistory);
@@ -4452,9 +4461,11 @@ function renderExpandedOverviewHeader() {
 
 async function appendGlobalDashboardSections(container, statsData, overviewData, dataTotal, boardItems, todayPublishedItems, dailyReport, weeklyReport, topics, pulseItems = []) {
   container.appendChild(renderWarRoomHero(statsData, overviewData, dataTotal));
+  const audioSection = renderHomeAudioBriefSection(state.dailyAudioBrief);
+  if (audioSection) container.appendChild(audioSection);
   container.appendChild(await renderEuropeHeatSection(pulseItems));
   container.appendChild(renderTodayPublishedSection(todayPublishedItems, statsData));
-  container.appendChild(renderCommanderReports(dailyReport, weeklyReport, state.dailyAudioBrief, state.dailyAudioHistory));
+  container.appendChild(renderCommanderReports(dailyReport, weeklyReport, state.dailyAudioBrief, state.dailyAudioHistory, false));
   container.appendChild(renderTopicTheater(topics || []));
 }
 

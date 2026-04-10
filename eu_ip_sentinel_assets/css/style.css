@@ -3487,6 +3487,10 @@ body::before {
   gap: 18px;
 }
 
+.briefing-report-grid--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .briefing-report-section-summary {
   display: flex;
   align-items: center;
