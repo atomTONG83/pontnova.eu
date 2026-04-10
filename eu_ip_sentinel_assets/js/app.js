@@ -3612,8 +3612,10 @@ function getAudioBriefCopy() {
       voice: '人声',
       generatedAt: '生成时间',
       points: '重点动态',
-      transcript: '查看文字稿',
-      transcriptClose: '收起文字稿',
+      details: '展开今日要点',
+      detailsClose: '收起今日要点',
+      transcript: '完整口播稿',
+      sourceLink: '原始链接',
       download: '下载音频',
       empty: '今日语音日报尚未生成',
       scriptOnly: '当前仅生成脚本版，等待音频合成。',
@@ -3634,8 +3636,10 @@ function getAudioBriefCopy() {
     voice: 'Voice',
     generatedAt: 'Generated',
     points: 'Highlights',
-    transcript: 'Open Transcript',
-    transcriptClose: 'Hide Transcript',
+    details: 'Open Details',
+    detailsClose: 'Hide Details',
+    transcript: 'Full Script',
+    sourceLink: 'Original Link',
     download: 'Download Audio',
     empty: 'No audio brief has been generated yet.',
     scriptOnly: 'Script is ready; audio synthesis is still pending.',
@@ -3671,19 +3675,15 @@ function renderAudioBriefCard(brief) {
   const isAudioReady = Boolean(brief.audio_available && brief.audio_url);
   const summary = String(brief.summary_zh || brief.headline_zh || copy.latestDesc || '').trim();
   const compactSummary = summary.length > 138 ? `${summary.slice(0, 138).trim()}...` : summary;
-  const badges = [
-    `${copy.duration}: ${formatAudioBriefDuration(brief.estimated_duration_seconds || 0)}`,
-    brief.voice_name ? `${copy.voice}: ${brief.voice_name}` : '',
-    `${copy.points}: ${segments.length || 0}`,
-  ].filter(Boolean);
   const transcriptBody = transcriptLines.map((line) => `<p>${escapeHtml(line)}</p>`).join('');
   const segmentMarkup = segments.slice(0, 4).map((segment) => `
     <article class="audio-brief-segment-item">
       <div class="audio-brief-segment-rank">${escapeHtml(segment.sequence_label_zh || String(segment.rank || ''))}</div>
       <div class="audio-brief-segment-copy">
         <div class="audio-brief-segment-title">${escapeHtml(segment.title_zh || segment.title || '—')}</div>
-        <div class="audio-brief-segment-line"><strong>发生了什么：</strong>${escapeHtml(segment.what_happened_zh || '—')}</div>
-        <div class="audio-brief-segment-line"><strong>为什么重要：</strong>${escapeHtml(segment.why_it_matters_zh || '—')}</div>
+        <div class="audio-brief-segment-line">${escapeHtml(segment.what_happened_zh || '—')}</div>
+        <div class="audio-brief-segment-line audio-brief-segment-line--insight">${escapeHtml(segment.why_it_matters_zh || '—')}</div>
+        ${segment.url ? `<div class="audio-brief-segment-actions"><a class="btn btn-secondary btn-sm audio-brief-segment-link" href="${escapeHtml(segment.url)}" target="_blank" rel="noopener">${copy.sourceLink}</a></div>` : ''}
       </div>
     </article>
   `).join('');
@@ -3698,32 +3698,35 @@ function renderAudioBriefCard(brief) {
       <span class="report-signal-pill ${isAudioReady ? 'positive' : 'neutral'}">${isAudioReady ? copy.ready : copy.scriptOnly}</span>
     </div>
     <h3 class="briefing-report-title">${copy.title}</h3>
-    <div class="briefing-report-flavor">${escapeHtml(brief.headline_zh || copy.latestDesc)}</div>
     <p class="briefing-report-summary">${escapeHtml(compactSummary)}</p>
-    <div class="audio-brief-meta-row">
-      ${badges.map((badge) => `<span class="audio-brief-meta-pill">${escapeHtml(badge)}</span>`).join('')}
-      <span class="audio-brief-meta-pill">${copy.generatedAt}: ${escapeHtml(formatDateTimeLabel(brief.generated_at || ''))}</span>
-    </div>
     <div class="audio-brief-player-shell">
       ${isAudioReady
         ? `
           <audio class="audio-brief-player" controls preload="none" src="${escapeHtml(brief.audio_url)}"></audio>
-          <div class="audio-brief-actions">
-            <a class="btn btn-secondary btn-sm" href="${escapeHtml(brief.audio_url)}" target="_blank" rel="noopener">${copy.audioOpen}</a>
-            <a class="btn btn-secondary btn-sm" href="${escapeHtml(brief.audio_url)}" download>${copy.download}</a>
-          </div>
         `
         : `<div class="audio-brief-status">${escapeHtml(brief.tts_reason || copy.scriptOnly)}</div>`
       }
     </div>
-    ${segmentMarkup ? `<div class="audio-brief-segment-list">${segmentMarkup}</div>` : ''}
-    ${transcriptBody ? `
+    ${(segmentMarkup || transcriptBody) ? `
       <details class="audio-brief-transcript">
         <summary class="audio-brief-transcript-summary">
-          <span class="audio-brief-transcript-closed">${copy.transcript}</span>
-          <span class="audio-brief-transcript-open">${copy.transcriptClose}</span>
+          <span class="audio-brief-transcript-closed">${copy.details}</span>
+          <span class="audio-brief-transcript-open">${copy.detailsClose}</span>
         </summary>
-        <div class="audio-brief-transcript-body">${transcriptBody}</div>
+        <div class="audio-brief-meta-row">
+          <span class="audio-brief-meta-pill">${copy.duration}: ${escapeHtml(formatAudioBriefDuration(brief.estimated_duration_seconds || 0))}</span>
+          ${brief.voice_name ? `<span class="audio-brief-meta-pill">${copy.voice}: ${escapeHtml(brief.voice_name)}</span>` : ''}
+          <span class="audio-brief-meta-pill">${copy.points}: ${escapeHtml(String(segments.length || 0))}</span>
+          <span class="audio-brief-meta-pill">${copy.generatedAt}: ${escapeHtml(formatDateTimeLabel(brief.generated_at || ''))}</span>
+          ${isAudioReady ? `<a class="btn btn-secondary btn-sm" href="${escapeHtml(brief.audio_url)}" download>${copy.download}</a>` : ''}
+        </div>
+        ${segmentMarkup ? `<div class="audio-brief-segment-list">${segmentMarkup}</div>` : ''}
+        ${transcriptBody ? `
+          <div class="audio-brief-transcript-body-shell">
+            <div class="audio-brief-transcript-label">${copy.transcript}</div>
+            <div class="audio-brief-transcript-body">${transcriptBody}</div>
+          </div>
+        ` : ''}
       </details>
     ` : ''}
   `;
