@@ -3673,8 +3673,6 @@ function renderAudioBriefCard(brief) {
   const segments = Array.isArray(brief.segments) ? brief.segments : [];
   const transcriptLines = Array.isArray(brief.transcript_lines_zh) ? brief.transcript_lines_zh : [];
   const isAudioReady = Boolean(brief.audio_available && brief.audio_url);
-  const summary = String(brief.summary_zh || brief.headline_zh || copy.latestDesc || '').trim();
-  const compactSummary = summary.length > 138 ? `${summary.slice(0, 138).trim()}...` : summary;
   const transcriptBody = transcriptLines.map((line) => `<p>${escapeHtml(line)}</p>`).join('');
   const segmentMarkup = segments.slice(0, 4).map((segment) => `
     <article class="audio-brief-segment-item">
@@ -3689,16 +3687,7 @@ function renderAudioBriefCard(brief) {
   `).join('');
 
   card.innerHTML = `
-    <div class="intel-panel-head">
-      <div class="intel-panel-kicker">${copy.kicker}</div>
-      <span class="intel-panel-count">${String(segments.length || 0).padStart(2, '0')}</span>
-    </div>
-    <div class="briefing-report-topline">
-      <span class="source-badge official">${copy.current}</span>
-      <span class="report-signal-pill ${isAudioReady ? 'positive' : 'neutral'}">${isAudioReady ? copy.ready : copy.scriptOnly}</span>
-    </div>
     <h3 class="briefing-report-title">${copy.title}</h3>
-    <p class="briefing-report-summary">${escapeHtml(compactSummary)}</p>
     <div class="audio-brief-player-shell">
       ${isAudioReady
         ? `
@@ -3714,6 +3703,8 @@ function renderAudioBriefCard(brief) {
           <span class="audio-brief-transcript-open">${copy.detailsClose}</span>
         </summary>
         <div class="audio-brief-meta-row">
+          <span class="audio-brief-meta-pill">${copy.current}</span>
+          <span class="audio-brief-meta-pill">${isAudioReady ? copy.ready : copy.scriptOnly}</span>
           <span class="audio-brief-meta-pill">${copy.duration}: ${escapeHtml(formatAudioBriefDuration(brief.estimated_duration_seconds || 0))}</span>
           ${brief.voice_name ? `<span class="audio-brief-meta-pill">${copy.voice}: ${escapeHtml(brief.voice_name)}</span>` : ''}
           <span class="audio-brief-meta-pill">${copy.points}: ${escapeHtml(String(segments.length || 0))}</span>
