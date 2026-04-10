@@ -75,6 +75,8 @@ const state = {
   intelOverview: null,
   dailyReport: null,
   weeklyReport: null,
+  dailyAudioBrief: null,
+  dailyAudioHistory: [],
   topicBriefs: [],
   currentTopicId: '',
   currentTopicBrief: null,
@@ -349,6 +351,8 @@ async function staticApiFetch(path, options = {}) {
   if (rawPath === '/intel-overview') return cloneData(snapshot.intel_overview);
   if (rawPath === '/reports/daily') return cloneData(snapshot.daily_report);
   if (rawPath === '/reports/weekly') return cloneData(snapshot.weekly_report);
+  if (rawPath === '/reports/daily/audio/latest') return cloneData(snapshot.daily_audio_latest);
+  if (rawPath === '/reports/daily/audio/history') return cloneData({ items: [], total: 0 });
   if (rawPath === '/reports/archive') return cloneData(snapshot.archive || { groups: { daily: [], weekly: [] }, items: [], total: 0 });
   if (rawPath === '/sources') return cloneData(snapshot.sources_payload);
   if (rawPath === '/topic-briefs') return cloneData(snapshot.topic_briefs_payload);
@@ -2186,7 +2190,12 @@ function scrollToReportsSection(anchor) {
 
 function scrollToReportCard(reportType) {
   updateReportsNavState('current');
-  const target = document.getElementById(reportType === 'weekly' ? 'report-card-weekly' : 'report-card-daily');
+  const targetId = reportType === 'weekly'
+    ? 'report-card-weekly'
+    : reportType === 'audio'
+      ? 'report-card-audio'
+      : 'report-card-daily';
+  const target = document.getElementById(targetId);
   if (!target) {
     scrollToReportsSection('current');
     return;
@@ -2542,12 +2551,13 @@ async function renderNewsPage(container) {
     todayParams.set('date_from', todayStart);
     todayParams.set('date_to', todayEnd);
 
-    const [data, statsData, overviewData, dailyReport, weeklyReport, topicBriefs, sourcesData, todayPublishedData] = await Promise.all([
+    const [data, statsData, overviewData, dailyReport, weeklyReport, dailyAudioBrief, topicBriefs, sourcesData, todayPublishedData] = await Promise.all([
       apiFetch(`/news?${params}`),
       apiFetch('/stats'),
       apiFetch('/intel-overview').catch(() => null),
       apiFetch('/reports/daily').catch(() => null),
       apiFetch('/reports/weekly').catch(() => null),
+      apiFetch('/reports/daily/audio/latest').catch(() => null),
       apiFetch('/topic-briefs').catch(() => ({ topics: [] })),
       apiFetch('/sources').catch(() => ({ sources: [] })),
       apiFetch(`/news?${todayParams}`).catch(() => ({ items: [], total: 0 })),
@@ -2558,6 +2568,8 @@ async function renderNewsPage(container) {
     state.intelOverview = overviewData;
     state.dailyReport = dailyReport;
     state.weeklyReport = weeklyReport;
+    state.dailyAudioBrief = dailyAudioBrief;
+    state.dailyAudioHistory = [];
     state.topicBriefs = topicBriefs?.topics || [];
     state.sources = sourcesData?.sources || [];
     state.pagination.total = data.total;
@@ -2674,10 +2686,11 @@ async function renderNewsPage(container) {
 async function renderReportsPage(container) {
   container.innerHTML = renderSkeletons(4);
   try {
-    const [statsData, dailyReport, weeklyReport, topicBriefs, archiveData] = await Promise.all([
+    const [statsData, dailyReport, weeklyReport, dailyAudioBrief, topicBriefs, archiveData] = await Promise.all([
       apiFetch('/stats'),
       apiFetch('/reports/daily').catch(() => null),
       apiFetch('/reports/weekly').catch(() => null),
+      apiFetch('/reports/daily/audio/latest').catch(() => null),
       apiFetch('/topic-briefs').catch(() => ({ topics: [] })),
       apiFetch('/reports/archive').catch(() => ({ groups: { daily: [], weekly: [] } })),
     ]);
@@ -2685,11 +2698,13 @@ async function renderReportsPage(container) {
     state.lastStatsToken = getStatsRefreshToken(statsData);
     state.dailyReport = dailyReport;
     state.weeklyReport = weeklyReport;
+    state.dailyAudioBrief = dailyAudioBrief;
+    state.dailyAudioHistory = [];
     state.topicBriefs = topicBriefs?.topics || [];
 
     container.innerHTML = '';
-    container.appendChild(renderReportsCenterHero(dailyReport, weeklyReport, topicBriefs?.topics || [], statsData, archiveData));
-    container.appendChild(renderCommanderReports(dailyReport, weeklyReport));
+    container.appendChild(renderReportsCenterHero(dailyReport, weeklyReport, dailyAudioBrief, topicBriefs?.topics || [], statsData, archiveData));
+    container.appendChild(renderCommanderReports(dailyReport, weeklyReport, dailyAudioBrief, []));
     container.appendChild(renderRecentReportsTimeline(archiveData));
     container.appendChild(renderActionAndTopics(dailyReport, weeklyReport, topicBriefs?.topics || []));
     container.appendChild(renderReportsArchive(archiveData));
@@ -3584,15 +3599,186 @@ function renderWarRoomBoard(stats, overview, items) {
   return board;
 }
 
-function renderCommanderReports(dailyReport, weeklyReport) {
+function getAudioBriefCopy() {
+  if (state.lang === 'zh') {
+    return {
+      title: '每日语音日报',
+      kicker: '语音快报',
+      current: '当日播报',
+      history: '历史语音',
+      historyDesc: '后台保留最近生成的语音日报，便于回听和校对。',
+      latestDesc: '用 60-120 秒快速回顾过去 24 小时欧洲 IP 重点动态。',
+      duration: '时长',
+      voice: '人声',
+      generatedAt: '生成时间',
+      points: '重点动态',
+      transcript: '查看文字稿',
+      transcriptClose: '收起文字稿',
+      download: '下载音频',
+      empty: '今日语音日报尚未生成',
+      scriptOnly: '当前仅生成脚本版，等待音频合成。',
+      ready: '可播放',
+      latestOnly: '网站仅展示当日最新语音',
+      historyEmpty: '暂无可回听的历史语音日报。',
+      audioOpen: '收听语音',
+    };
+  }
+  return {
+    title: 'Daily Audio Brief',
+    kicker: 'Audio Brief',
+    current: 'Today',
+    history: 'Audio History',
+    historyDesc: 'The backend keeps recent daily audio briefs for replay and QA.',
+    latestDesc: 'A 60-120 second spoken recap of the past 24 hours in European IP.',
+    duration: 'Duration',
+    voice: 'Voice',
+    generatedAt: 'Generated',
+    points: 'Highlights',
+    transcript: 'Open Transcript',
+    transcriptClose: 'Hide Transcript',
+    download: 'Download Audio',
+    empty: 'No audio brief has been generated yet.',
+    scriptOnly: 'Script is ready; audio synthesis is still pending.',
+    ready: 'Playable',
+    latestOnly: 'The public site only keeps the latest daily audio brief.',
+    historyEmpty: 'No historical audio briefs available yet.',
+    audioOpen: 'Listen',
+  };
+}
+
+function formatAudioBriefDuration(seconds) {
+  const total = Math.max(0, Number(seconds || 0));
+  const minutes = Math.floor(total / 60);
+  const remainder = total % 60;
+  if (state.lang === 'zh') {
+    return minutes ? `${minutes}分${String(remainder).padStart(2, '0')}秒` : `${remainder}秒`;
+  }
+  return minutes ? `${minutes}m ${String(remainder).padStart(2, '0')}s` : `${remainder}s`;
+}
+
+function renderAudioBriefCard(brief) {
+  const copy = getAudioBriefCopy();
+  const card = el('article', 'briefing-report-card briefing-report-card--audio');
+  if (state.currentPage !== 'reports') card.classList.add('briefing-report-card--home');
+  if (state.currentPage === 'reports') card.id = 'report-card-audio';
+  if (!brief) {
+    card.innerHTML = `<div class="mini-empty">${copy.empty}</div>`;
+    return card;
+  }
+
+  const segments = Array.isArray(brief.segments) ? brief.segments : [];
+  const transcriptLines = Array.isArray(brief.transcript_lines_zh) ? brief.transcript_lines_zh : [];
+  const isAudioReady = Boolean(brief.audio_available && brief.audio_url);
+  const summary = String(brief.summary_zh || brief.headline_zh || copy.latestDesc || '').trim();
+  const compactSummary = summary.length > 138 ? `${summary.slice(0, 138).trim()}...` : summary;
+  const badges = [
+    `${copy.duration}: ${formatAudioBriefDuration(brief.estimated_duration_seconds || 0)}`,
+    brief.voice_name ? `${copy.voice}: ${brief.voice_name}` : '',
+    `${copy.points}: ${segments.length || 0}`,
+  ].filter(Boolean);
+  const transcriptBody = transcriptLines.map((line) => `<p>${escapeHtml(line)}</p>`).join('');
+  const segmentMarkup = segments.slice(0, 4).map((segment) => `
+    <article class="audio-brief-segment-item">
+      <div class="audio-brief-segment-rank">${escapeHtml(segment.sequence_label_zh || String(segment.rank || ''))}</div>
+      <div class="audio-brief-segment-copy">
+        <div class="audio-brief-segment-title">${escapeHtml(segment.title_zh || segment.title || '—')}</div>
+        <div class="audio-brief-segment-line"><strong>发生了什么：</strong>${escapeHtml(segment.what_happened_zh || '—')}</div>
+        <div class="audio-brief-segment-line"><strong>为什么重要：</strong>${escapeHtml(segment.why_it_matters_zh || '—')}</div>
+      </div>
+    </article>
+  `).join('');
+
+  card.innerHTML = `
+    <div class="intel-panel-head">
+      <div class="intel-panel-kicker">${copy.kicker}</div>
+      <span class="intel-panel-count">${String(segments.length || 0).padStart(2, '0')}</span>
+    </div>
+    <div class="briefing-report-topline">
+      <span class="source-badge official">${copy.current}</span>
+      <span class="report-signal-pill ${isAudioReady ? 'positive' : 'neutral'}">${isAudioReady ? copy.ready : copy.scriptOnly}</span>
+    </div>
+    <h3 class="briefing-report-title">${copy.title}</h3>
+    <div class="briefing-report-flavor">${escapeHtml(brief.headline_zh || copy.latestDesc)}</div>
+    <p class="briefing-report-summary">${escapeHtml(compactSummary)}</p>
+    <div class="audio-brief-meta-row">
+      ${badges.map((badge) => `<span class="audio-brief-meta-pill">${escapeHtml(badge)}</span>`).join('')}
+      <span class="audio-brief-meta-pill">${copy.generatedAt}: ${escapeHtml(formatDateTimeLabel(brief.generated_at || ''))}</span>
+    </div>
+    <div class="audio-brief-player-shell">
+      ${isAudioReady
+        ? `
+          <audio class="audio-brief-player" controls preload="none" src="${escapeHtml(brief.audio_url)}"></audio>
+          <div class="audio-brief-actions">
+            <a class="btn btn-secondary btn-sm" href="${escapeHtml(brief.audio_url)}" target="_blank" rel="noopener">${copy.audioOpen}</a>
+            <a class="btn btn-secondary btn-sm" href="${escapeHtml(brief.audio_url)}" download>${copy.download}</a>
+          </div>
+        `
+        : `<div class="audio-brief-status">${escapeHtml(brief.tts_reason || copy.scriptOnly)}</div>`
+      }
+    </div>
+    ${segmentMarkup ? `<div class="audio-brief-segment-list">${segmentMarkup}</div>` : ''}
+    ${transcriptBody ? `
+      <details class="audio-brief-transcript">
+        <summary class="audio-brief-transcript-summary">
+          <span class="audio-brief-transcript-closed">${copy.transcript}</span>
+          <span class="audio-brief-transcript-open">${copy.transcriptClose}</span>
+        </summary>
+        <div class="audio-brief-transcript-body">${transcriptBody}</div>
+      </details>
+    ` : ''}
+  `;
+  return card;
+}
+
+function renderAudioBriefHistory(historyItems = []) {
+  const copy = getAudioBriefCopy();
+  const items = (historyItems || []).filter(Boolean).slice(1, 8);
+  if (!items.length) return null;
+
+  const section = el('section', 'reports-audio-history-shell');
+  section.innerHTML = `
+    <div class="section-heading-row">
+      <div>
+        <div class="section-kicker">${copy.kicker}</div>
+        <h2 class="section-title">${copy.history}</h2>
+      </div>
+      <div class="section-meta">${copy.historyDesc}</div>
+    </div>
+    <div class="reports-audio-history-list">
+      ${items.map((item) => `
+        <article class="reports-audio-history-item">
+          <div class="reports-audio-history-head">
+            <div class="reports-audio-history-title">${escapeHtml(item.brief_date || '—')}</div>
+            <div class="reports-audio-history-meta">
+              <span>${escapeHtml(formatAudioBriefDuration(item.estimated_duration_seconds || item.duration_seconds || 0))}</span>
+              ${item.voice_name ? `<span>${escapeHtml(item.voice_name)}</span>` : ''}
+              <span>${escapeHtml(formatDateTimeLabel(item.generated_at || ''))}</span>
+            </div>
+          </div>
+          ${item.audio_available && item.audio_url ? `
+            <div class="reports-audio-history-actions">
+              <audio class="audio-brief-player audio-brief-player--compact" controls preload="none" src="${escapeHtml(item.audio_url)}"></audio>
+              <a class="btn btn-secondary btn-sm" href="${escapeHtml(item.audio_url)}" download>${copy.download}</a>
+            </div>
+          ` : `<div class="audio-brief-status">${escapeHtml(item.error_msg || item.tts_reason || copy.scriptOnly)}</div>`}
+        </article>
+      `).join('')}
+    </div>
+  `;
+  return section;
+}
+
+function renderCommanderReports(dailyReport, weeklyReport, dailyAudioBrief = null, dailyAudioHistory = []) {
   const section = el('section', 'briefing-report-section');
   const isReportsPage = state.currentPage === 'reports';
-  const availableReports = [dailyReport, weeklyReport].filter(Boolean);
-  const totalReportItems = availableReports.reduce((sum, report) => sum + Number(report?.report_item_count || report?.item_count || 0), 0);
+  const availableReports = [dailyReport, weeklyReport, dailyAudioBrief].filter(Boolean);
+  const totalReportItems = [dailyReport, weeklyReport].filter(Boolean).reduce((sum, report) => sum + Number(report?.report_item_count || report?.item_count || 0), 0);
   const dailyCount = Number(dailyReport?.report_item_count || dailyReport?.item_count || 0);
   const weeklyCount = Number(weeklyReport?.report_item_count || weeklyReport?.item_count || 0);
+  const audioCount = Number(dailyAudioBrief?.segments?.length || 0);
   const dailySummaryLabel = state.lang === 'zh' ? `日报 ${dailyCount}` : `Daily ${dailyCount}`;
   const weeklySummaryLabel = state.lang === 'zh' ? `周报 ${weeklyCount}` : `Weekly ${weeklyCount}`;
+  const audioSummaryLabel = state.lang === 'zh' ? `语音 ${audioCount}` : `Audio ${audioCount}`;
   if (isReportsPage) {
     section.id = 'reports-current-section';
     section.classList.add('reports-current-shell');
@@ -3614,27 +3800,35 @@ function renderCommanderReports(dailyReport, weeklyReport) {
       <span class="briefing-report-section-chip">${totalReportItems} ${t('section_reports_summary_items')}</span>
       <span class="briefing-report-section-chip daily">${escapeHtml(dailySummaryLabel)}</span>
       <span class="briefing-report-section-chip weekly">${escapeHtml(weeklySummaryLabel)}</span>
+      ${dailyAudioBrief ? `<span class="briefing-report-section-chip audio">${escapeHtml(audioSummaryLabel)}</span>` : ''}
     </div>
   `;
   const grid = el('div', 'briefing-report-grid');
   grid.appendChild(renderBriefingReportCard(dailyReport, 'daily'));
   grid.appendChild(renderBriefingReportCard(weeklyReport, 'weekly'));
+  if (dailyAudioBrief) grid.appendChild(renderAudioBriefCard(dailyAudioBrief));
   section.appendChild(grid);
+  if (isReportsPage) {
+    const historySection = renderAudioBriefHistory(dailyAudioHistory);
+    if (historySection) section.appendChild(historySection);
+  }
   section.querySelector('[data-open-page="reports"]')?.addEventListener('click', () => navigate('reports'));
   return section;
 }
 
-function renderReportsCenterHero(dailyReport, weeklyReport, topics, stats, archive) {
+function renderReportsCenterHero(dailyReport, weeklyReport, dailyAudioBrief, topics, stats, archive) {
   const primary = dailyReport || weeklyReport || {};
   const archiveRuns = buildArchiveRunGroups([...(archive?.groups?.daily || []), ...(archive?.groups?.weekly || [])]);
-  const currentCount = [dailyReport, weeklyReport].filter(Boolean).length;
+  const currentCount = [dailyReport, weeklyReport, dailyAudioBrief].filter(Boolean).length;
   const recentCount = Math.min(8, archiveRuns.length);
   const archiveCount = archiveRuns.length;
   const dailyCount = Number(dailyReport?.report_item_count || dailyReport?.item_count || 0);
   const weeklyCount = Number(weeklyReport?.report_item_count || weeklyReport?.item_count || 0);
+  const audioCount = Number(dailyAudioBrief?.segments?.length || 0);
   const totalReportItems = dailyCount + weeklyCount;
   const dailySummaryLabel = state.lang === 'zh' ? `日报 ${dailyCount}` : `Daily ${dailyCount}`;
   const weeklySummaryLabel = state.lang === 'zh' ? `周报 ${weeklyCount}` : `Weekly ${weeklyCount}`;
+  const audioSummaryLabel = state.lang === 'zh' ? `语音 ${audioCount}` : `Audio ${audioCount}`;
   const shell = el('section', 'reports-center-hero');
   shell.innerHTML = `
     <div class="section-heading-row">
@@ -3649,6 +3843,7 @@ function renderReportsCenterHero(dailyReport, weeklyReport, topics, stats, archi
       <span class="briefing-report-section-chip">${totalReportItems} ${t('section_reports_summary_items')}</span>
       <span class="briefing-report-section-chip daily">${escapeHtml(dailySummaryLabel)}</span>
       <span class="briefing-report-section-chip weekly">${escapeHtml(weeklySummaryLabel)}</span>
+      ${dailyAudioBrief ? `<span class="briefing-report-section-chip audio">${escapeHtml(audioSummaryLabel)}</span>` : ''}
     </div>
   `;
   const actionRow = el('div', 'reports-center-actions');
@@ -3658,6 +3853,7 @@ function renderReportsCenterHero(dailyReport, weeklyReport, topics, stats, archi
       <div class="reports-center-action-group">
         ${dailyReport ? `<button class="btn btn-secondary reports-center-action-btn" data-open-report-card="daily">${t('reports_center_open_daily')}<span class="reports-center-action-count">${dailyCount}</span></button>` : ''}
         ${weeklyReport ? `<button class="btn btn-secondary reports-center-action-btn" data-open-report-card="weekly">${t('reports_center_open_weekly')}<span class="reports-center-action-count">${weeklyCount}</span></button>` : ''}
+        ${dailyAudioBrief ? `<button class="btn btn-secondary reports-center-action-btn" data-open-report-card="audio">${getAudioBriefCopy().audioOpen}<span class="reports-center-action-count">${audioCount}</span></button>` : ''}
       </div>
     </div>
   `;
@@ -4264,7 +4460,7 @@ async function appendGlobalDashboardSections(container, statsData, overviewData,
   container.appendChild(renderWarRoomHero(statsData, overviewData, dataTotal));
   container.appendChild(await renderEuropeHeatSection(pulseItems));
   container.appendChild(renderTodayPublishedSection(todayPublishedItems, statsData));
-  container.appendChild(renderCommanderReports(dailyReport, weeklyReport));
+  container.appendChild(renderCommanderReports(dailyReport, weeklyReport, state.dailyAudioBrief, state.dailyAudioHistory));
   container.appendChild(renderTopicTheater(topics || []));
 }
 
