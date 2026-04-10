@@ -6259,34 +6259,19 @@ function renderIntelStreamSections(items) {
       </div>
     `;
 
-    if (group.key === 'older' && Array.isArray(group.subgroups) && group.subgroups.length) {
-      const details = el('details', 'report-detail-more chronology-older-details');
-      details.innerHTML = `
-        <summary class="report-detail-summary chronology-older-summary">
-          <span class="report-detail-summary-closed">${t('stream_group_expand_older')} ${list.length} ${t('stream_group_items')}</span>
-          <span class="report-detail-summary-open">${t('stream_group_collapse_older')}</span>
-        </summary>
-      `;
-      const olderBody = el('div', 'chronology-older-body');
-      group.subgroups.forEach((subgroup) => {
-        const subgroupWrap = el('section', 'chronology-subgroup');
-        subgroupWrap.innerHTML = `
-          <div class="chronology-modal-section-head chronology-subgroup-head">
-            <div class="chronology-modal-section-date">${escapeHtml(subgroup.label)}</div>
-            <div class="chronology-modal-section-count">${subgroup.items.length} ${t('stream_group_items')}</div>
-          </div>
-        `;
-        const grid = el('div', 'news-grid intelligence-stream chronology-grid chronology-older-grid');
-        subgroup.items.forEach((item) => grid.appendChild(renderNewsCard(item, 'scan')));
-        subgroupWrap.appendChild(grid);
-        olderBody.appendChild(subgroupWrap);
-      });
-      details.appendChild(olderBody);
-      block.appendChild(details);
-    } else {
-      const grid = el('div', 'news-grid intelligence-stream chronology-grid');
-      list.forEach((item, index) => grid.appendChild(renderNewsCard(item, group.key === 'today' && index < 2 ? 'must-read' : 'scan')));
-      block.appendChild(grid);
+    const grid = el('div', 'news-grid intelligence-stream chronology-grid');
+    const previewLimit = group.key === 'older' ? Math.min(list.length, 3) : list.length;
+    list.slice(0, previewLimit).forEach((item, index) => {
+      grid.appendChild(renderNewsCard(item, group.key === 'today' && index < 2 ? 'must-read' : 'scan'));
+    });
+    block.appendChild(grid);
+
+    if (group.key === 'older' && list.length > previewLimit) {
+      const actionRow = el('div', 'chronology-group-actions');
+      const button = el('button', 'btn btn-secondary chronology-open-btn', `${t('stream_group_open_modal')} ${list.length} ${t('stream_group_items')}`);
+      button.addEventListener('click', () => showChronologyGroupModal(group));
+      actionRow.appendChild(button);
+      block.appendChild(actionRow);
     }
 
     shell.appendChild(block);
