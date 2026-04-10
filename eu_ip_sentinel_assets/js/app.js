@@ -1424,7 +1424,7 @@ const i18n = {
     card_empty: 'No signals available yet',
     report_daily: 'Daily Watch',
     report_weekly: 'Weekly Watch',
-    topbar_sub_news: 'Start with the overview, published-today list, current briefs, and topic coverage before moving into the intel stream.',
+    topbar_sub_news: '',
     topbar_sub_reports: 'Start with the two current briefs and 20 traceable items, then move through recent runs and archive history.',
     topbar_sub_sources: 'Inspect which sources are truly active in the current window, and how strong their relevance and body coverage are.',
     topbar_sub_stats: 'Monitor scraping, quality passes, AI runs, and source alerts in one place.',
@@ -2338,19 +2338,19 @@ function renderTopbar() {
           ? t('topbar_sub_about')
           : state.currentPage === 'settings'
             ? t('topbar_sub_settings')
-            : t('hero_desc');
+    : t('hero_desc');
   const pageSubtitle = truncateText(pageSubtitleRaw, 68);
-  const lastRefresh = formatDateTimeLabel(state.stats?.last_analyze_time || state.stats?.last_scrape_time || '');
-  const nextWindowRaw = state.stats?.next_scrape || '—';
-  const nextWindow = nextWindowRaw === '—' ? '—' : nextWindowRaw.split(' ').slice(1).join(' ');
   return el('div', 'topbar', `
     <div class="topbar-title">
-      ${state.currentPage === 'news' ? t('hero_kicker') : ''}
       ${state.currentPage === 'reports' ? t('nav_reports') : ''}
       ${state.currentPage === 'sources' ? t('nav_sources') : ''}
       ${state.currentPage === 'about' ? t('about_title') : ''}
       ${state.currentPage === 'topic' ? topicLabel : ''}
-      <span>${state.currentPage === 'topic' ? topicSub : pageSubtitle}</span>
+      ${state.currentPage === 'topic'
+        ? `<span>${topicSub}</span>`
+        : pageSubtitle
+          ? `<span>${pageSubtitle}</span>`
+          : ''}
     </div>
     <div class="search-wrapper" id="search-wrapper"
          style="${state.currentPage !== 'news' ? 'display:none' : ''}">
@@ -2362,20 +2362,6 @@ function renderTopbar() {
       </div>
     </div>
     <div class="topbar-actions">
-      <div class="topbar-status-group" title="${t('topbar_status_hint')}" aria-label="${t('topbar_status_hint')}">
-        <span class="topbar-status-chip topbar-status-live">
-          <span class="topbar-status-dot"></span>
-          <span>${t('topbar_auto_live')}</span>
-        </span>
-        <span class="topbar-status-chip">
-          <strong>${t('hero_refresh')}</strong>
-          <span>${lastRefresh}</span>
-        </span>
-        <span class="topbar-status-chip">
-          <strong>${t('label_next_window')}</strong>
-          <span>${nextWindow}</span>
-        </span>
-      </div>
       <span class="topbar-ai-badge" title="${t('topbar_ai_badge_hint')}" aria-label="${t('topbar_ai_badge_hint')}">
         <span class="topbar-ai-label">${t('topbar_ai_powered')}</span>
         <span class="topbar-ai-sub">${t('topbar_ai_powered_en')}</span>
@@ -3499,13 +3485,12 @@ function renderFocusedSepTimeline(items, total = 0) {
 function renderWarRoomHero(stats, overview, total) {
   const aiDone = stats.ai_analyzed ?? 0;
   const aiRatio = stats.total_items ? Math.round((aiDone / stats.total_items) * 100) : 0;
-  const lastRefresh = formatDateTimeLabel(stats.last_scrape_time || stats.last_analyze_time || '');
   const overviewTitle = overview?.headline_zh || t('hero_title');
   const overviewSubtitle = overview?.headline_en || '';
   const overviewSummary = overview?.summary_zh || t('hero_desc');
   const watchPoints = (overview?.watchlist || overview?.top_signals || []).slice(0, 2);
   const overviewWindow = formatCollectionWindow(overview || stats);
-  const workflowVersion = stats.workflow_version || 'editorial_v2';
+  const workflowVersion = getWorkflowVersionLabel(stats.workflow_version);
   const metrics = [
     { value: (stats.total_items || 0).toLocaleString(), label: t('stat_total'), sub: `${stats.today_items || 0} ${t('stat_today')}` },
     { value: String(overview?.item_count || 0), label: t('hero_overview_samples'), sub: t('label_brief_summary') },
@@ -3516,13 +3501,6 @@ function renderWarRoomHero(stats, overview, total) {
   const wrap = el('section', 'hero-shell hero-shell--overview-only');
   wrap.innerHTML = `
     <div class="hero-main">
-      <div class="hero-topline">
-        <div class="hero-kicker">${t('hero_kicker')}</div>
-        <div class="hero-refresh">
-          <span>${t('hero_refresh')}</span>
-          <strong>${lastRefresh}</strong>
-        </div>
-      </div>
       <div class="hero-grid">
         <div class="hero-copy">
           <h1 class="hero-title">${escapeHtml(overviewTitle)}</h1>
@@ -7068,7 +7046,7 @@ async function renderAboutPage(container) {
             <span class="hero-chip"><strong>${t('label_next_window')}</strong>${stats.next_scrape || '—'}</span>
             <span class="hero-chip"><strong>${t('hero_overview_sources')}</strong>${stats.total_sources || 0}</span>
             <span class="hero-chip"><strong>AI</strong>${health.ai_model || '—'}</span>
-            <span class="hero-chip"><strong>Flow</strong>${stats.workflow_version || '—'}</span>
+            <span class="hero-chip"><strong>Version</strong>${getWorkflowVersionLabel(stats.workflow_version)}</span>
             <span class="hero-chip"><strong>${t('sources_summary_window')}</strong>${formatCollectionWindow(stats)}</span>
             <span class="hero-chip"><strong>${t('hero_refresh')}</strong>${formatDateTimeLabel(stats.last_analyze_time || stats.last_scrape_time || '')}</span>
           </div>
@@ -7655,6 +7633,16 @@ function formatDateTimeLabel(dateStr) {
   } catch {
     return dateStr || '—';
   }
+}
+
+function getWorkflowVersionLabel(rawVersion) {
+  const value = String(rawVersion || '').trim();
+  if (!value) return 'V2';
+  const normalized = value.toLowerCase();
+  if (normalized === 'editorial_v2' || normalized === 'v2.0' || normalized === 'v2' || value === '2.0.0') {
+    return 'V2';
+  }
+  return value;
 }
 
 function formatCollectionWindow(payload) {
