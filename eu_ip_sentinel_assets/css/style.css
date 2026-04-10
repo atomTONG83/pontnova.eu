@@ -3650,7 +3650,7 @@ body::before {
 
 .audio-brief-player-shell {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .audio-brief-player {
@@ -3721,6 +3721,21 @@ body::before {
   line-height: 1.65;
 }
 
+.audio-brief-segment-line--insight {
+  color: var(--color-text-3);
+}
+
+.audio-brief-segment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.audio-brief-segment-link {
+  text-decoration: none;
+}
+
 .audio-brief-transcript {
   border-top: 1px solid rgba(34, 51, 68, 0.08);
   padding-top: 12px;
@@ -3760,6 +3775,18 @@ body::before {
   color: var(--color-text-2);
   font-size: 13px;
   line-height: 1.7;
+}
+
+.audio-brief-transcript-body-shell {
+  display: grid;
+  gap: 10px;
+}
+
+.audio-brief-transcript-label {
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
 }
 
 .audio-brief-transcript-body p {
