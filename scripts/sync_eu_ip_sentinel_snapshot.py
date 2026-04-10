@@ -18,12 +18,15 @@ from pathlib import Path
 
 
 API_BASE = "http://127.0.0.1:8013/api"
+APP_BASE = "http://127.0.0.1:8013"
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / "eu_ip_sentinel_assets" / "data"
 LEGACY_OUTPUT_PATH = OUTPUT_DIR / "snapshot.json"
 INDEX_OUTPUT_PATH = OUTPUT_DIR / "snapshot.index.json"
 NEWS_INDEX_OUTPUT_PATH = OUTPUT_DIR / "news.index.json"
 TOPIC_DETAILS_DIR = OUTPUT_DIR / "topic-details"
+AUDIO_BRIEF_DIR = OUTPUT_DIR / "audio-briefs"
+AUDIO_BRIEF_OUTPUT_NAME = "daily-latest.mp3"
 NEWS_LANES = ("core", "watch", "calendar", "pending")
 
 NEWS_INDEX_FIELDS = (
@@ -98,6 +101,12 @@ def fetch_optional_json(path: str, fallback):
         return fetch_json(path)
     except Exception:
         return fallback
+
+
+def download_binary(url: str, output_path: Path) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with urllib.request.urlopen(url, timeout=60) as response:
+        output_path.write_bytes(response.read())
 
 
 def fetch_all_news():
@@ -180,6 +189,7 @@ def write_json(path: Path, payload) -> None:
 
 def main() -> int:
     stats = fetch_json("/stats")
+    daily_audio_latest = fetch_optional_json("/reports/daily/audio/latest", None)
     topic_briefs_payload = fetch_optional_json("/topic-briefs", {"topics": []})
     topic_details = {}
     topic_detail_files = {}
@@ -196,6 +206,18 @@ def main() -> int:
     news_items = build_news_index(fetch_all_news())
     generated_at = time.strftime("%Y-%m-%d %H:%M:%S")
     news_lane_payloads = build_news_lane_payloads(news_items, generated_at)
+    audio_public_path = f"{OUTPUT_DIR.parent.name}/{OUTPUT_DIR.name}/audio-briefs/{AUDIO_BRIEF_OUTPUT_NAME}"
+    audio_output_path = AUDIO_BRIEF_DIR / AUDIO_BRIEF_OUTPUT_NAME
+    if daily_audio_latest and daily_audio_latest.get("audio_available") and daily_audio_latest.get("audio_url"):
+        source_audio_url = urllib.parse.urljoin(f"{APP_BASE}/", str(daily_audio_latest.get("audio_url", "")).lstrip("/"))
+        download_binary(source_audio_url, audio_output_path)
+        daily_audio_latest = {
+            **daily_audio_latest,
+            "audio_url": audio_public_path,
+        }
+    else:
+        if audio_output_path.exists():
+            audio_output_path.unlink()
     news_lane_files = {
         lane: f"news.{lane}.json"
         for lane in NEWS_LANES
@@ -217,6 +239,7 @@ def main() -> int:
         "intel_overview": fetch_optional_json("/intel-overview", None),
         "daily_report": fetch_optional_json("/reports/daily", None),
         "weekly_report": fetch_optional_json("/reports/weekly", None),
+        "daily_audio_latest": daily_audio_latest,
         "sources_payload": fetch_optional_json("/sources", {"sources": [], "total": 0}),
         "topic_briefs_payload": topic_briefs_payload,
         "archive": {"groups": {"daily": [], "weekly": []}, "items": [], "total": 0},
