@@ -6259,14 +6259,16 @@ function renderIntelStreamSections(items) {
       </div>
     `;
 
+    const modalPreviewGroups = new Set(['yesterday', 'this-week', 'this-month', 'older']);
+    const shouldUseModalPreview = modalPreviewGroups.has(group.key);
     const grid = el('div', 'news-grid intelligence-stream chronology-grid');
-    const previewLimit = group.key === 'older' ? Math.min(list.length, 3) : list.length;
+    const previewLimit = shouldUseModalPreview ? Math.min(list.length, 3) : list.length;
     list.slice(0, previewLimit).forEach((item, index) => {
       grid.appendChild(renderNewsCard(item, group.key === 'today' && index < 2 ? 'must-read' : 'scan'));
     });
     block.appendChild(grid);
 
-    if (group.key === 'older' && list.length > previewLimit) {
+    if (shouldUseModalPreview && list.length > previewLimit) {
       const actionRow = el('div', 'chronology-group-actions');
       const button = el('button', 'btn btn-secondary chronology-open-btn', `${t('stream_group_open_modal')} ${list.length} ${t('stream_group_items')}`);
       button.addEventListener('click', () => showChronologyGroupModal(group));
