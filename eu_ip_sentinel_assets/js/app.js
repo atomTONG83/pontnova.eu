@@ -2527,10 +2527,10 @@ async function renderNewsPage(container) {
     const todayEnd = `${yyyy}-${mm}-${dd} 23:59:59`;
     // Build query params
     const params = new URLSearchParams({
-      page: (sepTimelineMode || focusedMode) ? 1 : state.pagination.page,
+      page: 1,
       limit: sepTimelineMode
         ? sepTimelineLimit
-        : (focusedMode ? Math.max(state.pagination.limit * 4, 80) : state.pagination.limit),
+        : Math.max(state.pagination.limit * 4, 80),
     });
     params.set('relevant_only', 'true');
     if (state.filters.ip_type && state.filters.ip_type !== 'all') params.set('ip_type', state.filters.ip_type);
@@ -2594,14 +2594,8 @@ async function renderNewsPage(container) {
     }
     if (!sepTimelineMode && data.pages > 1) {
       let probePage = 2;
-      const maxProbePage = focusedMode ? Math.min(data.pages, 30) : Math.min(data.pages, 10);
+      const maxProbePage = Math.min(data.pages, 30);
       while (probePage <= maxProbePage) {
-        if (!focusedMode) {
-          const featuredCount = mergedItems.filter(isPresentationItem).length;
-          const streamCount = mergedItems.filter(isStreamItem).length;
-          const chronologyGroups = countChronologyGroups(mergedItems.filter(isRelevantDisplayItem));
-          if (featuredCount >= 5 && streamCount >= state.pagination.limit && chronologyGroups >= 5) break;
-        }
         const probeParams = new URLSearchParams(params);
         probeParams.set('page', String(probePage));
         try {
