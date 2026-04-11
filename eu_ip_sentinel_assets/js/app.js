@@ -3652,6 +3652,7 @@ function renderAudioBriefCard(brief) {
   const segments = Array.isArray(brief.segments) ? brief.segments : [];
   const transcriptLines = Array.isArray(brief.transcript_lines_zh) ? brief.transcript_lines_zh : [];
   const isAudioReady = Boolean(brief.audio_available && brief.audio_url);
+  const briefDateLabel = formatDateLabel(brief.brief_date || brief.generated_at || '');
   const transcriptBody = transcriptLines.map((line) => `<p>${escapeHtml(line)}</p>`).join('');
   const segmentMarkup = segments.slice(0, 4).map((segment) => `
     <article class="audio-brief-segment-item">
@@ -3666,7 +3667,10 @@ function renderAudioBriefCard(brief) {
   `).join('');
 
   card.innerHTML = `
-    <h3 class="briefing-report-title">${copy.title}</h3>
+    <div class="audio-brief-head">
+      <h3 class="briefing-report-title">${copy.title}</h3>
+      ${briefDateLabel && briefDateLabel !== '—' ? `<span class="audio-brief-date">${escapeHtml(briefDateLabel)}</span>` : ''}
+    </div>
     <div class="audio-brief-player-shell">
       ${isAudioReady
         ? `
