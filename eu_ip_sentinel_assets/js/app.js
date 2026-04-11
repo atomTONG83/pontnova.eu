@@ -2619,9 +2619,10 @@ async function renderNewsPage(container) {
     const displayTotal = data.total;
     const featuredItems = sortBySignalPriority(mergedItems.filter(isPresentationItem), 'brief');
     const streamItems = mergedItems.filter(isStreamItem);
+    const streamSourceItems = streamItems.length ? streamItems : mergedItems;
     const visibleItems = sepTimelineMode
-      ? selectChronologyWindow(streamItems.length ? streamItems : mergedItems, sepTimelineWindowLimit, { showAll: true })
-      : selectChronologyWindow(streamItems.length ? streamItems : mergedItems, state.pagination.limit, { showAll: focusedMode });
+      ? selectChronologyWindow(streamSourceItems, sepTimelineWindowLimit, { showAll: true })
+      : selectChronologyWindow(streamSourceItems, state.pagination.limit, { showAll: focusedMode });
     const boardItems = featuredItems.length ? featuredItems : visibleItems;
 
     container.innerHTML = '';
@@ -2638,15 +2639,15 @@ async function renderNewsPage(container) {
         dailyReport,
         weeklyReport,
         topicBriefs?.topics || [],
-        streamItems.length ? streamItems : mergedItems
+        streamSourceItems
       );
     }
-    container.appendChild(renderStreamHeader(displayTotal, streamItems.length ? streamItems : mergedItems));
+    container.appendChild(renderStreamHeader(displayTotal, streamSourceItems));
 
     if (sepTimelineMode) {
       container.appendChild(renderFocusedSepTimeline(visibleItems, displayTotal));
     } else {
-      container.appendChild(renderIntelStreamSections(visibleItems));
+      container.appendChild(renderIntelStreamSections(streamSourceItems));
     }
 
     if (focusedMode && state.focusViewExpanded) {
