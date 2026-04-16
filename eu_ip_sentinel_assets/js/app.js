@@ -4279,7 +4279,7 @@ function applyTopicPreset(topicId) {
       state.filters.ip_type = 'patent';
       break;
     case 'sep_frand':
-      state.filters.q = 'FRAND';
+      state.filters.q = '';
       state.filters.ip_type = 'sep';
       break;
     case 'euipo':
