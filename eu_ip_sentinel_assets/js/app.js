@@ -12,8 +12,10 @@
 const API = '/api';
 const STATIC_MODE = true;
 const STATIC_DATA_ROOT = 'eu_ip_sentinel_assets/data';
+const STATIC_MANIFEST_URL = `${STATIC_DATA_ROOT}/snapshot.manifest.json`;
 const STATIC_SNAPSHOT_URL = `${STATIC_DATA_ROOT}/snapshot.index.json`;
 const LEGACY_STATIC_SNAPSHOT_URL = `${STATIC_DATA_ROOT}/snapshot.json`;
+const STATIC_REFRESH_INTERVAL_MS = 120000;
 const STATIC_DEFAULT_FILES = {
   news_index: 'news.index.json',
   news_lane_files: {
@@ -85,6 +87,8 @@ const state = {
   scraping: false,
   searchDebounceTimer: null,
   lastStatsToken: '',
+  publicSnapshotMeta: null,
+  lastStaticSnapshotToken: '',
 };
 
 const EUROPE_HEAT_POINTS = [
@@ -165,6 +169,77 @@ let staticNewsIndexUrl = '';
 const staticNewsLanePromises = new Map();
 const staticTopicDetailPromises = new Map();
 
+function buildStaticCacheBustedUrl(url, cacheToken = '') {
+  if (!url) return url;
+  const token = cacheToken || String(Date.now());
+  return `${url}${url.includes('?') ? '&' : '?'}v=${encodeURIComponent(token)}`;
+}
+
+function resetStaticSnapshotCache() {
+  staticSnapshotPromise = null;
+  staticNewsIndexPromise = null;
+  staticNewsIndexUrl = '';
+  staticNewsLanePromises.clear();
+  staticTopicDetailPromises.clear();
+}
+
+function parseSnapshotDate(rawValue = '') {
+  const normalized = String(rawValue || '').trim();
+  if (!normalized) return null;
+  const date = new Date(normalized.includes('T') ? normalized : normalized.replace(' ', 'T'));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getPublicSnapshotLabel() {
+  return state.lang === 'zh' ? '网站快照' : 'Public Snapshot';
+}
+
+function buildPublicSnapshotMeta(snapshot = null, manifest = null) {
+  return {
+    generated_at: String(snapshot?.generated_at || manifest?.generated_at || ''),
+    audio_generated_at: String(snapshot?.daily_audio_latest?.generated_at || ''),
+    version_tag: String(manifest?.version_tag || snapshot?._manifest?.version_tag || ''),
+  };
+}
+
+function getPublicSnapshotFreshness(meta = state.publicSnapshotMeta) {
+  const snapshotMeta = meta || {};
+  const generatedAt = String(snapshotMeta.generated_at || '');
+  const audioGeneratedAt = String(snapshotMeta.audio_generated_at || '');
+  const generatedDate = parseSnapshotDate(generatedAt);
+  let statusKey = 'unknown';
+  if (generatedDate) {
+    const ageHours = Math.max(0, (Date.now() - generatedDate.getTime()) / 3600000);
+    if (ageHours <= 4) statusKey = 'live';
+    else if (ageHours <= 12) statusKey = 'fresh';
+    else if (ageHours <= 24) statusKey = 'watch';
+    else statusKey = 'stale';
+  }
+  const labelMap = {
+    live: { zh: '刚更新', en: 'Just updated' },
+    fresh: { zh: '较新', en: 'Fresh' },
+    watch: { zh: '需留意', en: 'Watch' },
+    stale: { zh: '偏旧', en: 'Stale' },
+    unknown: { zh: '未同步', en: 'Unknown' },
+  };
+  return {
+    generatedAt,
+    generatedAtLabel: formatDateTimeLabel(generatedAt),
+    audioGeneratedAt,
+    audioGeneratedAtLabel: formatDateTimeLabel(audioGeneratedAt),
+    statusKey,
+    statusLabelZh: labelMap[statusKey].zh,
+    statusLabelEn: labelMap[statusKey].en,
+    token: [generatedAt, audioGeneratedAt, String(snapshotMeta.version_tag || '')].join('|'),
+  };
+}
+
+function getPublicSnapshotStatusText() {
+  const freshness = getPublicSnapshotFreshness();
+  const statusLabel = state.lang === 'zh' ? freshness.statusLabelZh : freshness.statusLabelEn;
+  return freshness.generatedAtLabel ? `${freshness.generatedAtLabel} · ${statusLabel}` : statusLabel;
+}
+
 function cloneData(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
 }
@@ -183,16 +258,18 @@ function resolveStaticFileUrl(path = '') {
   return `${STATIC_DATA_ROOT}/${normalized}`;
 }
 
-async function fetchStaticJson(url) {
-  const res = await fetch(url, { cache: 'no-store' });
+async function fetchStaticJson(url, options = {}) {
+  const requestUrl = options.cacheBust ? buildStaticCacheBustedUrl(url, options.cacheToken) : url;
+  const res = await fetch(requestUrl, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Static snapshot error: ${res.status} ${res.statusText}`);
   return res.json();
 }
 
-function decorateStaticSnapshot(snapshot) {
+function decorateStaticSnapshot(snapshot, manifest = null) {
   const staticFiles = snapshot?.static_files || {};
-  return {
+  const decorated = {
     ...snapshot,
+    _manifest: manifest || null,
     _staticFiles: {
       news_index: resolveStaticFileUrl(staticFiles.news_index || STATIC_DEFAULT_FILES.news_index),
       news_lane_files: Object.fromEntries(
@@ -203,15 +280,31 @@ function decorateStaticSnapshot(snapshot) {
       topic_detail_files: staticFiles.topic_detail_files || {},
     },
   };
+  state.publicSnapshotMeta = buildPublicSnapshotMeta(decorated, manifest);
+  state.lastStaticSnapshotToken = getPublicSnapshotFreshness(state.publicSnapshotMeta).token;
+  return decorated;
 }
 
 async function loadStaticSnapshot() {
   if (!staticSnapshotPromise) {
     staticSnapshotPromise = (async () => {
+      const cacheToken = String(Date.now());
       try {
-        return decorateStaticSnapshot(await fetchStaticJson(STATIC_SNAPSHOT_URL));
+        const manifest = await fetchStaticJson(STATIC_MANIFEST_URL, { cacheBust: true, cacheToken });
+        const snapshotPath = manifest?.files?.snapshot_index || '';
+        if (snapshotPath) {
+          return decorateStaticSnapshot(
+            await fetchStaticJson(resolveStaticFileUrl(snapshotPath)),
+            manifest,
+          );
+        }
+      } catch (error) {
+        console.warn('Static manifest load failed, falling back to legacy snapshot', error);
+      }
+      try {
+        return decorateStaticSnapshot(await fetchStaticJson(STATIC_SNAPSHOT_URL, { cacheBust: true, cacheToken }));
       } catch {
-        return decorateStaticSnapshot(await fetchStaticJson(LEGACY_STATIC_SNAPSHOT_URL));
+        return decorateStaticSnapshot(await fetchStaticJson(LEGACY_STATIC_SNAPSHOT_URL, { cacheBust: true, cacheToken }));
       }
     })();
   }
@@ -2464,6 +2557,7 @@ function renderFilterBar() {
 
 function renderStatusBar() {
   const stats = state.stats;
+  const publicSnapshot = getPublicSnapshotFreshness();
   return el('div', 'statusbar', `
     <div class="statusbar-item">
       <div class="status-dot ${state.scraping ? 'syncing' : 'active'}"></div>
@@ -2475,6 +2569,11 @@ function renderStatusBar() {
       </div>
       <div class="statusbar-item">
         ${t('label_next_window')}: ${stats.next_scrape || '—'}
+      </div>
+    ` : ''}
+    ${publicSnapshot.generatedAtLabel ? `
+      <div class="statusbar-item">
+        ${getPublicSnapshotLabel()}: ${escapeHtml(getPublicSnapshotStatusText())}
       </div>
     ` : ''}
     <div class="statusbar-item" style="margin-left:auto">
@@ -3486,6 +3585,7 @@ function renderFocusedSepTimeline(items, total = 0) {
 function renderWarRoomHero(stats, overview, total) {
   const aiDone = stats.ai_analyzed ?? 0;
   const aiRatio = stats.total_items ? Math.round((aiDone / stats.total_items) * 100) : 0;
+  const publicSnapshotStatus = getPublicSnapshotStatusText();
   const overviewTitle = overview?.headline_zh || t('hero_title');
   const overviewSubtitle = overview?.headline_en || '';
   const overviewSummary = overview?.summary_zh || t('hero_desc');
@@ -3517,6 +3617,7 @@ function renderWarRoomHero(stats, overview, total) {
             <span class="hero-chip"><strong>${t('hero_focus')}</strong>${getIpTypeLabel(state.filters.ip_type || 'all')}</span>
             <span class="hero-chip"><strong>${t('hero_mode')}</strong>${state.filters.has_ai ? t('hero_mode_ai') : t('hero_mode_live')}</span>
             <span class="hero-chip"><strong>${t('label_showing')}</strong>${total.toLocaleString()}</span>
+            <span class="hero-chip"><strong>${getPublicSnapshotLabel()}</strong>${escapeHtml(publicSnapshotStatus)}</span>
           </div>
         </div>
         <div class="hero-note">
@@ -4363,7 +4464,10 @@ function renderFocusedNewsIntro(stats, total, items, summary = {}, topics = []) 
   const activeLabels = getActiveFocusLabels();
   const sourceCount = Number(summary.source_count_total ?? new Set((items || []).map((item) => item.source_id || item.source_name).filter(Boolean)).size);
   const aiReady = Number(summary.ai_done_total ?? (items || []).filter((item) => item.ai_status === 'done').length);
-  const lastRefresh = formatDateTimeLabel(stats?.last_scrape_time || stats?.last_analyze_time || '');
+  const publicSnapshot = getPublicSnapshotFreshness();
+  const lastRefresh = STATIC_MODE && publicSnapshot.generatedAtLabel
+    ? publicSnapshot.generatedAtLabel
+    : formatDateTimeLabel(stats?.last_scrape_time || stats?.last_analyze_time || '');
   const isSepFocus = state.filters.ip_type === 'sep';
   const sepTopic = isSepFocus ? (topics || []).find((topic) => topic.topic_id === 'sep_frand') : null;
   const sepAiAnalysis = sepTopic?.sep_ai_analysis || {};
@@ -6999,6 +7103,7 @@ async function renderAboutPage(container) {
     state.stats = stats;
     state.lastStatsToken = getStatsRefreshToken(stats);
     state.sources = sourcesData.sources || [];
+    const publicSnapshotStatus = getPublicSnapshotStatusText();
 
     const groupedSources = { official: [], media: [], lawfirm: [] };
     state.sources.forEach((source) => {
@@ -7065,6 +7170,7 @@ async function renderAboutPage(container) {
             <span class="hero-chip"><strong>Version</strong>${getWorkflowVersionLabel(stats.workflow_version)}</span>
             <span class="hero-chip"><strong>${t('sources_summary_window')}</strong>${formatCollectionWindow(stats)}</span>
             <span class="hero-chip"><strong>${t('hero_refresh')}</strong>${formatDateTimeLabel(stats.last_analyze_time || stats.last_scrape_time || '')}</span>
+            <span class="hero-chip"><strong>${getPublicSnapshotLabel()}</strong>${escapeHtml(publicSnapshotStatus)}</span>
           </div>
         </div>
         <div class="about-status-panel">
@@ -7758,7 +7864,27 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', syncContentFrameGeometry);
 
   // Auto-refresh stats every 60s
-  if (STATIC_MODE) return;
+  if (STATIC_MODE) {
+    setInterval(async () => {
+      try {
+        const previousToken = state.lastStaticSnapshotToken || getPublicSnapshotFreshness().token;
+        resetStaticSnapshotCache();
+        await loadStaticSnapshot();
+        const nextToken = state.lastStaticSnapshotToken || getPublicSnapshotFreshness().token;
+        const shouldRefreshContent =
+          Boolean(previousToken) &&
+          Boolean(nextToken) &&
+          nextToken !== previousToken &&
+          state.currentPage !== 'settings' &&
+          !document.querySelector('.modal-overlay');
+        document.querySelector('.statusbar')?.replaceWith(renderStatusBar());
+        if (shouldRefreshContent) {
+          renderMainContent();
+        }
+      } catch (e) { /* silent */ }
+    }, STATIC_REFRESH_INTERVAL_MS);
+    return;
+  }
   setInterval(async () => {
     try {
       const stats = await apiFetch('/stats');

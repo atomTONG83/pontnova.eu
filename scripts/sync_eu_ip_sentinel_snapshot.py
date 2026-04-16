@@ -9,6 +9,7 @@ pontnova.eu/eu_ip_sentinel_assets/data/snapshot.json
 from __future__ import annotations
 
 import json
+import shutil
 import sys
 import time
 import urllib.error
@@ -23,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / "eu_ip_sentinel_assets" / "data"
 LEGACY_OUTPUT_PATH = OUTPUT_DIR / "snapshot.json"
 INDEX_OUTPUT_PATH = OUTPUT_DIR / "snapshot.index.json"
+MANIFEST_OUTPUT_PATH = OUTPUT_DIR / "snapshot.manifest.json"
 NEWS_INDEX_OUTPUT_PATH = OUTPUT_DIR / "news.index.json"
 TOPIC_DETAILS_DIR = OUTPUT_DIR / "topic-details"
 AUDIO_BRIEF_DIR = OUTPUT_DIR / "audio-briefs"
@@ -175,8 +177,15 @@ def build_topic_detail_payload(topic: dict, items_payload: dict) -> dict:
     }
 
 
-def encode_topic_filename(topic_id: str) -> str:
-    return f"{urllib.parse.quote(topic_id, safe='')}.json"
+def encode_topic_filename(topic_id: str, version_tag: str = "") -> str:
+    filename = urllib.parse.quote(topic_id, safe="")
+    if version_tag:
+        filename = f"{filename}.{version_tag}"
+    return f"{filename}.json"
+
+
+def build_versioned_filename(stem: str, suffix: str, version_tag: str) -> str:
+    return f"{stem}.{version_tag}{suffix}"
 
 
 def write_json(path: Path, payload) -> None:
@@ -187,10 +196,32 @@ def write_json(path: Path, payload) -> None:
     )
 
 
+def cleanup_generated_files() -> None:
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    TOPIC_DETAILS_DIR.mkdir(parents=True, exist_ok=True)
+    AUDIO_BRIEF_DIR.mkdir(parents=True, exist_ok=True)
+    for pattern in (
+        "snapshot.index*.json",
+        "news.index*.json",
+        "news.core*.json",
+        "news.watch*.json",
+        "news.calendar*.json",
+        "news.pending*.json",
+    ):
+        for file_path in OUTPUT_DIR.glob(pattern):
+            file_path.unlink()
+    for topic_file in TOPIC_DETAILS_DIR.glob("*.json"):
+        topic_file.unlink()
+    for audio_file in AUDIO_BRIEF_DIR.glob("daily-latest*.mp3"):
+        audio_file.unlink()
+
+
 def main() -> int:
     stats = fetch_json("/stats")
     daily_audio_latest = fetch_optional_json("/reports/daily/audio/latest", None)
     topic_briefs_payload = fetch_optional_json("/topic-briefs", {"topics": []})
+    generated_at = time.strftime("%Y-%m-%d %H:%M:%S")
+    version_tag = time.strftime("%Y%m%d-%H%M%S")
     topic_details = {}
     topic_detail_files = {}
     for topic in topic_briefs_payload.get("topics", []):
@@ -201,29 +232,29 @@ def main() -> int:
         items_payload = fetch_optional_json(f"/topic-briefs/{topic_id}/items", {"items": [], "total": 0})
         detail_payload = build_topic_detail_payload(brief, items_payload)
         topic_details[topic_id] = detail_payload
-        topic_detail_files[topic_id] = f"{TOPIC_DETAILS_DIR.name}/{encode_topic_filename(topic_id)}"
+        topic_detail_files[topic_id] = f"{TOPIC_DETAILS_DIR.name}/{encode_topic_filename(topic_id, version_tag)}"
 
     news_items = build_news_index(fetch_all_news())
-    generated_at = time.strftime("%Y-%m-%d %H:%M:%S")
     news_lane_payloads = build_news_lane_payloads(news_items, generated_at)
-    audio_public_path = f"{OUTPUT_DIR.parent.name}/{OUTPUT_DIR.name}/audio-briefs/{AUDIO_BRIEF_OUTPUT_NAME}"
+    versioned_audio_name = build_versioned_filename("daily-latest", ".mp3", version_tag)
+    audio_public_path = f"{OUTPUT_DIR.parent.name}/{OUTPUT_DIR.name}/audio-briefs/{versioned_audio_name}"
     audio_output_path = AUDIO_BRIEF_DIR / AUDIO_BRIEF_OUTPUT_NAME
+    versioned_audio_output_path = AUDIO_BRIEF_DIR / versioned_audio_name
+    cleanup_generated_files()
     if daily_audio_latest and daily_audio_latest.get("audio_available") and daily_audio_latest.get("audio_url"):
         source_audio_url = urllib.parse.urljoin(f"{APP_BASE}/", str(daily_audio_latest.get("audio_url", "")).lstrip("/"))
-        download_binary(source_audio_url, audio_output_path)
+        download_binary(source_audio_url, versioned_audio_output_path)
+        shutil.copyfile(versioned_audio_output_path, audio_output_path)
         daily_audio_latest = {
             **daily_audio_latest,
             "audio_url": audio_public_path,
         }
-    else:
-        if audio_output_path.exists():
-            audio_output_path.unlink()
     news_lane_files = {
-        lane: f"news.{lane}.json"
+        lane: build_versioned_filename(f"news.{lane}", ".json", version_tag)
         for lane in NEWS_LANES
     }
     static_files = {
-        "news_index": NEWS_INDEX_OUTPUT_PATH.name,
+        "news_index": build_versioned_filename("news.index", ".json", version_tag),
         "news_lane_files": news_lane_files,
         "topic_details_dir": TOPIC_DETAILS_DIR.name,
         "topic_detail_files": topic_detail_files,
@@ -254,22 +285,33 @@ def main() -> int:
         "total": len(news_items),
         "items": news_items,
     }
+    manifest = {
+        "format_version": 1,
+        "generated_at": generated_at,
+        "version_tag": version_tag,
+        "files": {
+            "snapshot_index": build_versioned_filename("snapshot.index", ".json", version_tag),
+            "legacy_snapshot_index": INDEX_OUTPUT_PATH.name,
+            "legacy_snapshot": LEGACY_OUTPUT_PATH.name,
+        },
+    }
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    TOPIC_DETAILS_DIR.mkdir(parents=True, exist_ok=True)
-    for old_topic_file in TOPIC_DETAILS_DIR.glob("*.json"):
-        old_topic_file.unlink()
-    for lane_file in OUTPUT_DIR.glob("news.*.json"):
-        if lane_file.name != NEWS_INDEX_OUTPUT_PATH.name:
-            lane_file.unlink()
+    versioned_snapshot_index_path = OUTPUT_DIR / manifest["files"]["snapshot_index"]
+    versioned_news_index_path = OUTPUT_DIR / static_files["news_index"]
     write_json(INDEX_OUTPUT_PATH, snapshot_index)
+    write_json(versioned_snapshot_index_path, snapshot_index)
     write_json(NEWS_INDEX_OUTPUT_PATH, news_index_payload)
+    write_json(versioned_news_index_path, news_index_payload)
     for lane, payload in news_lane_payloads.items():
+        write_json(OUTPUT_DIR / f"news.{lane}.json", payload)
         write_json(OUTPUT_DIR / news_lane_files[lane], payload)
     for topic_id, payload in topic_details.items():
         write_json(TOPIC_DETAILS_DIR / encode_topic_filename(topic_id), payload)
+        write_json(TOPIC_DETAILS_DIR / encode_topic_filename(topic_id, version_tag), payload)
     write_json(LEGACY_OUTPUT_PATH, snapshot)
+    write_json(MANIFEST_OUTPUT_PATH, manifest)
     print(f"snapshot index written to {INDEX_OUTPUT_PATH}")
+    print(f"snapshot manifest written to {MANIFEST_OUTPUT_PATH}")
     print(f"news index written to {NEWS_INDEX_OUTPUT_PATH}")
     print(f"topic detail files written to {TOPIC_DETAILS_DIR}")
     print(f"legacy snapshot written to {LEGACY_OUTPUT_PATH}")
