@@ -1828,12 +1828,21 @@ html[data-theme="dark"] body {
 :root[data-theme="dark"] .settings-input,
 :root[data-theme="dark"] .topbar-search-shell,
 :root[data-theme="dark"] .filter-chip,
+:root[data-theme="dark"] .filter-date-field,
 :root[data-theme="dark"] .reports-nav-btn,
 :root[data-theme="dark"] .latest-dynamics-filter,
 :root[data-theme="dark"] .read-more-link.compact-pill {
   background: rgba(26, 35, 49, 0.96);
   border-color: rgba(148, 163, 184, 0.14);
   color: var(--color-text);
+}
+
+:root[data-theme="dark"] .filter-date-field span {
+  color: #9fb0c5;
+}
+
+:root[data-theme="dark"] .filter-date-input {
+  color: #e7edf6;
 }
 
 :root[data-theme="dark"] .btn-secondary {
@@ -2164,6 +2173,11 @@ body::before {
   gap: 8px;
 }
 
+.filter-group-time {
+  flex: 1 1 100%;
+  align-items: flex-start;
+}
+
 .filter-group-end {
   margin-left: auto;
 }
@@ -2190,6 +2204,49 @@ body::before {
   background: linear-gradient(135deg, rgba(44, 119, 111, 0.1), rgba(180, 140, 82, 0.1));
   color: #20353d;
   border-color: rgba(44, 119, 111, 0.2);
+}
+
+.filter-date-range {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding-left: 4px;
+}
+
+.filter-date-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(123, 97, 58, 0.12);
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.filter-date-field span {
+  font-size: 11px;
+  color: var(--color-text-3);
+  white-space: nowrap;
+}
+
+.filter-date-input {
+  min-width: 122px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-1);
+  font: inherit;
+  outline: none;
+}
+
+.filter-date-input::-webkit-calendar-picker-indicator {
+  opacity: 0.72;
+  cursor: pointer;
+}
+
+.filter-date-apply {
+  border-radius: 999px;
 }
 
 .content-area {
@@ -7688,6 +7745,21 @@ body::before {
 
   .filter-group-end {
     margin-left: 0;
+  }
+
+  .filter-date-range {
+    width: 100%;
+    padding-left: 0;
+  }
+
+  .filter-date-field {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .filter-date-input {
+    min-width: 0;
+    width: 100%;
   }
 
   #page-content {

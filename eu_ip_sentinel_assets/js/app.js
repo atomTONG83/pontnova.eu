@@ -30,6 +30,7 @@ const DEFAULT_LANG = 'zh';
 const THEME_VALUES = ['light', 'dark'];
 const SCOPE_VALUES = ['eu', 'intl', 'uk', 'de', 'fr', 'benelux', 'scandinavia', 'all'];
 const EDITORIAL_LANE_VALUES = ['all', 'core', 'watch', 'calendar'];
+const DATE_FILTER_PRESET_VALUES = ['all', '3d', '7d', '30d', 'custom'];
 const getInitialTheme = () => 'dark';
 const getInitialScope = () => {
   const stored = localStorage.getItem('pontnova_scope');
@@ -68,7 +69,9 @@ const state = {
     category: 'all',
     source: '',
     q: '',
+    date_preset: 'all',
     date_from: '',
+    date_to: '',
     has_ai: false,
     scope: getInitialScope(),
   },
@@ -521,6 +524,16 @@ const i18n = {
     filter_scope_fr: '法国',
     filter_scope_benelux: '比荷卢',
     filter_scope_scandinavia: '北欧',
+    filter_time: '时间窗',
+    filter_time_all: '全部',
+    filter_time_3d: '近3天',
+    filter_time_7d: '近7天',
+    filter_time_30d: '近30天',
+    filter_time_custom: '自定义',
+    filter_time_from: '起始',
+    filter_time_to: '截止',
+    filter_time_apply: '应用',
+    filter_time_range_invalid: '请选择完整的起止日期',
     filter_official: '官方',
     filter_media: '媒体',
     filter_lawfirm: '律所',
@@ -1128,6 +1141,16 @@ const i18n = {
     filter_scope_fr: 'France',
     filter_scope_benelux: 'Benelux',
     filter_scope_scandinavia: 'Scandinavia',
+    filter_time: 'Time',
+    filter_time_all: 'All',
+    filter_time_3d: 'Last 3d',
+    filter_time_7d: 'Last 7d',
+    filter_time_30d: 'Last 30d',
+    filter_time_custom: 'Custom',
+    filter_time_from: 'From',
+    filter_time_to: 'To',
+    filter_time_apply: 'Apply',
+    filter_time_range_invalid: 'Choose both start and end dates',
     filter_has_ai: '🤖 AI Analyzed',
     filter_official: 'Official',
     filter_media: 'Media',
@@ -2510,6 +2533,14 @@ function renderFilterBar() {
     ['scandinavia', t('filter_scope_scandinavia')],
     ['all', t('filter_all')],
   ];
+  const timePresetTypes = [
+    ['all', t('filter_time_all')],
+    ['3d', t('filter_time_3d')],
+    ['7d', t('filter_time_7d')],
+    ['30d', t('filter_time_30d')],
+    ['custom', t('filter_time_custom')],
+  ];
+  const activeDatePreset = normalizeDateFilterPreset(state.filters.date_preset);
 
   const typeChips = ipTypes.map(([val, label]) =>
     `<button class="filter-chip ${val} ${state.filters.ip_type === val ? 'active' : ''}"
@@ -2525,6 +2556,23 @@ function renderFilterBar() {
     `<button class="filter-chip ${state.filters.editorial_lane === val ? 'active' : ''}"
              data-filter="editorial_lane" data-value="${val}">${label}</button>`
   ).join('');
+  const timeChips = timePresetTypes.map(([val, label]) =>
+    `<button class="filter-chip ${activeDatePreset === val ? 'active' : ''}"
+             data-filter="date_preset" data-value="${val}">${label}</button>`
+  ).join('');
+  const customDateRange = activeDatePreset === 'custom' ? `
+    <div class="filter-date-range">
+      <label class="filter-date-field">
+        <span>${t('filter_time_from')}</span>
+        <input type="date" id="filter-date-from" class="filter-date-input" value="${escapeHtml(state.filters.date_from || '')}">
+      </label>
+      <label class="filter-date-field">
+        <span>${t('filter_time_to')}</span>
+        <input type="date" id="filter-date-to" class="filter-date-input" value="${escapeHtml(state.filters.date_to || '')}">
+      </label>
+      <button class="btn btn-secondary btn-sm filter-date-apply" id="filter-date-apply">${t('filter_time_apply')}</button>
+    </div>
+  ` : '';
 
   const aiChip = `<button class="filter-chip ai-chip ${state.filters.has_ai ? 'active' : ''}"
     data-filter="has_ai" data-value="toggle">${t('filter_has_ai')}</button>`;
@@ -2533,6 +2581,11 @@ function renderFilterBar() {
     <div class="filter-group">
       <span class="filter-label">IP</span>
       ${typeChips}
+    </div>
+    <div class="filter-group filter-group-time">
+      <span class="filter-label">${t('filter_time')}</span>
+      ${timeChips}
+      ${customDateRange}
     </div>
     <div class="filter-group">
       <span class="filter-label">${state.lang === 'zh' ? '来源' : 'From'}</span>
@@ -2624,6 +2677,7 @@ async function renderNewsPage(container) {
     const dd = String(now.getDate()).padStart(2, '0');
     const todayStart = `${yyyy}-${mm}-${dd} 00:00:00`;
     const todayEnd = `${yyyy}-${mm}-${dd} 23:59:59`;
+    const newsDateRange = getNewsQueryDateRange();
     // Build query params
     const params = new URLSearchParams({
       page: 1,
@@ -2639,6 +2693,8 @@ async function renderNewsPage(container) {
     if (state.filters.q) params.set('q', state.filters.q);
     if (state.filters.source) params.set('source', state.filters.source);
     if (state.filters.has_ai) params.set('has_ai', 'true');
+    if (newsDateRange.date_from) params.set('date_from', newsDateRange.date_from);
+    if (newsDateRange.date_to) params.set('date_to', newsDateRange.date_to);
     const todayParams = new URLSearchParams({ page: 1, limit: 60 });
     todayParams.set('relevant_only', 'true');
     if (state.filters.editorial_lane && state.filters.editorial_lane !== 'all') todayParams.set('editorial_lane', state.filters.editorial_lane);
@@ -4374,6 +4430,9 @@ function applyTopicPreset(topicId) {
   state.focusViewExpanded = false;
   state.filters.editorial_lane = 'all';
   state.filters.source = '';
+  state.filters.date_preset = 'all';
+  state.filters.date_from = '';
+  state.filters.date_to = '';
   switch (topicId) {
     case 'upc':
       state.filters.q = 'UPC';
@@ -4408,6 +4467,7 @@ function isFocusedNewsMode() {
     Boolean(state.filters.source) ||
     Boolean(state.filters.q) ||
     Boolean(state.filters.has_ai) ||
+    state.filters.date_preset !== 'all' ||
     state.filters.scope !== 'eu'
   );
 }
@@ -4425,6 +4485,9 @@ function clearNewsFocusFilters() {
   state.filters.category = 'all';
   state.filters.source = '';
   state.filters.q = '';
+  state.filters.date_preset = 'all';
+  state.filters.date_from = '';
+  state.filters.date_to = '';
   state.filters.has_ai = false;
   state.filters.scope = 'eu';
   localStorage.setItem('pontnova_editorial_lane', state.filters.editorial_lane);
@@ -4446,6 +4509,7 @@ function getActiveFocusLabels() {
   if (state.filters.scope && state.filters.scope !== 'eu') labels.push(resolveScopeLabel(state.filters.scope));
   if (state.filters.source) labels.push(getFilterSourceLabel(state.filters.source));
   if (state.filters.q) labels.push(`"${state.filters.q}"`);
+  if (state.filters.date_preset && state.filters.date_preset !== 'all') labels.push(getDateFilterLabel());
   if (state.filters.has_ai) labels.push(t('focus_mode_ai_only'));
   return labels;
 }
@@ -7675,6 +7739,9 @@ function attachEvents() {
         // Toggle boolean
         state.filters.has_ai = !state.filters.has_ai;
         chip.classList.toggle('active', state.filters.has_ai);
+      } else if (filter === 'date_preset') {
+        applyDatePreset(value);
+        return;
       } else if (filter === 'editorial_lane') {
         state.filters[filter] = value;
         localStorage.setItem('pontnova_editorial_lane', value);
@@ -7695,6 +7762,8 @@ function attachEvents() {
       renderMainContent();
     });
   });
+
+  document.getElementById('filter-date-apply')?.addEventListener('click', applyCustomDateRange);
 
   const content = document.querySelector('.content-area');
   if (content) {
@@ -7755,6 +7824,104 @@ function formatDateTimeLabel(dateStr) {
   } catch {
     return dateStr || '—';
   }
+}
+
+function normalizeDateFilterPreset(value) {
+  return DATE_FILTER_PRESET_VALUES.includes(value) ? value : 'all';
+}
+
+function normalizeDateInputValue(value) {
+  const raw = String(value || '').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
+}
+
+function formatDateInputValue(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function buildRelativeDateInputRange(days) {
+  const span = Math.max(Number(days) || 1, 1);
+  const end = new Date();
+  end.setHours(0, 0, 0, 0);
+  const start = new Date(end);
+  start.setDate(start.getDate() - Math.max(span - 1, 0));
+  return {
+    date_from: formatDateInputValue(start),
+    date_to: formatDateInputValue(end),
+  };
+}
+
+function setDateFilterRange(dateFrom = '', dateTo = '') {
+  let normalizedFrom = normalizeDateInputValue(dateFrom);
+  let normalizedTo = normalizeDateInputValue(dateTo);
+  if (normalizedFrom && normalizedTo && normalizedFrom > normalizedTo) {
+    [normalizedFrom, normalizedTo] = [normalizedTo, normalizedFrom];
+  }
+  state.filters.date_from = normalizedFrom;
+  state.filters.date_to = normalizedTo;
+}
+
+function getNewsQueryDateRange() {
+  const dateFrom = normalizeDateInputValue(state.filters.date_from);
+  const dateTo = normalizeDateInputValue(state.filters.date_to);
+  return {
+    date_from: dateFrom ? `${dateFrom} 00:00:00` : '',
+    date_to: dateTo ? `${dateTo} 23:59:59` : '',
+  };
+}
+
+function getDateFilterLabel() {
+  const preset = normalizeDateFilterPreset(state.filters.date_preset);
+  if (preset === 'all') return '';
+  if (preset === 'custom') {
+    const from = normalizeDateInputValue(state.filters.date_from);
+    const to = normalizeDateInputValue(state.filters.date_to);
+    if (from && to) return `${formatDate(from)} — ${formatDate(to)}`;
+  }
+  return t(`filter_time_${preset}`);
+}
+
+function applyDatePreset(preset, { rerender = true, preserveCustomRange = true } = {}) {
+  const nextPreset = normalizeDateFilterPreset(preset);
+  state.filters.date_preset = nextPreset;
+  if (nextPreset === 'all') {
+    setDateFilterRange('', '');
+  } else if (nextPreset === '3d') {
+    const range = buildRelativeDateInputRange(3);
+    setDateFilterRange(range.date_from, range.date_to);
+  } else if (nextPreset === '7d') {
+    const range = buildRelativeDateInputRange(7);
+    setDateFilterRange(range.date_from, range.date_to);
+  } else if (nextPreset === '30d') {
+    const range = buildRelativeDateInputRange(30);
+    setDateFilterRange(range.date_from, range.date_to);
+  } else if (nextPreset === 'custom' && (!preserveCustomRange || !(state.filters.date_from && state.filters.date_to))) {
+    const range = buildRelativeDateInputRange(7);
+    setDateFilterRange(range.date_from, range.date_to);
+  }
+  state.pagination.page = 1;
+  state.focusViewExpanded = false;
+  if (rerender) renderApp();
+}
+
+function applyCustomDateRange() {
+  const fromInput = document.getElementById('filter-date-from');
+  const toInput = document.getElementById('filter-date-to');
+  const dateFrom = normalizeDateInputValue(fromInput?.value || state.filters.date_from);
+  const dateTo = normalizeDateInputValue(toInput?.value || state.filters.date_to);
+  if (!dateFrom || !dateTo) {
+    showToast(t('filter_time_range_invalid'), 'error');
+    return;
+  }
+  state.filters.date_preset = 'custom';
+  setDateFilterRange(dateFrom, dateTo);
+  state.pagination.page = 1;
+  state.focusViewExpanded = false;
+  renderApp();
 }
 
 function getWorkflowVersionLabel(rawVersion) {
