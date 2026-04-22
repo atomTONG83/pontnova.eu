@@ -1,5 +1,19 @@
 ## 2026-04-22
 
+### Public Sentinel source-list refresh
+
+- Issue: the public Pontnova sentinel snapshot still carried the older `53`-source payload after the French source expansion had already been completed in the backend registry.
+- Root cause: Pontnova reads the same `sources_payload` from the local sentinel backend during snapshot generation. Because the backend was not stably alive on port `8013`, the generated public bundle lagged behind the actual source configuration.
+- Changes:
+  - rechecked the live `/api/sources` response and verified it now returns `60` active sources
+  - regenerated the Pontnova public snapshot bundle from the refreshed backend payload
+  - refreshed the public data files so the added French sources now travel with the website snapshot itself
+- Added public sources now included:
+  - `blip`, `pmdm`, `rfpi`, `iptalk`, `dreyfus`, `schmittbrevet`, `schmittmarque`
+- Risk control:
+  - this refresh stays in the data bundle layer only
+  - rollback can be handled by restoring the previous snapshot data package if needed
+
 ### Public Sentinel time-window parity
 
 - Issue: the public Pontnova sentinel page did not expose the stream time filters (`全部 / 近3天 / 近7天 / 近30天 / 自定义`), so users could not quickly narrow the feed by recency from the public site.
