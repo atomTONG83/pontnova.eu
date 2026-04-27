@@ -491,6 +491,7 @@ const i18n = {
     nav_copyright: '版权',
     nav_data: '数据保护',
     nav_sep: 'SEP标准必要专利',
+    nav_upc: 'UPC观察',
     nav_gi: '地理标志',
     nav_general: '综合IP',
     nav_reports: '情报简报',
@@ -1133,6 +1134,7 @@ const i18n = {
     nav_copyright: 'Copyright',
     nav_data: 'Data Protection',
     nav_sep: 'SEP Standard-Essential Patents',
+    nav_upc: 'UPC Watch',
     nav_gi: 'Geographical Indications',
     nav_general: 'General IP',
     nav_reports: 'Reports',
@@ -2447,6 +2449,7 @@ function renderSidebar() {
         ${renderNavItem('news', 'C', t('nav_copyright'), 'copyright')}
         ${renderNavItem('news', 'DP', t('nav_data'), 'data')}
         ${renderNavItem('news', 'SEP', t('nav_sep'), 'sep')}
+        ${renderTopicNavItem('upc', 'UPC', t('nav_upc'))}
         ${renderNavItem('news', 'GI', t('nav_gi'), 'gi')}
         ${renderNavItem('news', 'IP', t('nav_general'), 'general')}
       </div>
@@ -2473,6 +2476,16 @@ function renderNavItem(page, icon, label, ipType = null) {
   const dataIpType = ipType ? ` data-iptype="${ipType}"` : '';
   return `
     <button class="sidebar-nav-item${activeClass}" data-page="${page}"${dataIpType}>
+      <span class="nav-icon">${icon}</span>
+      ${label}
+    </button>
+  `;
+}
+
+function renderTopicNavItem(topicId, icon, label) {
+  const activeClass = state.currentPage === 'topic' && state.currentTopicId === topicId ? ' active' : '';
+  return `
+    <button class="sidebar-nav-item${activeClass}" data-topic-id="${topicId}">
       <span class="nav-icon">${icon}</span>
       ${label}
     </button>
@@ -4843,11 +4856,11 @@ function renderExpandedOverviewHeader() {
 
 async function appendGlobalDashboardSections(container, statsData, overviewData, dataTotal, boardItems, todayPublishedItems, dailyReport, weeklyReport, topics, upcItems = [], pulseItems = []) {
   container.appendChild(renderWarRoomHero(statsData, overviewData, dataTotal));
+  const upcPanel = renderUpcWatchPanel((topics || []).find((topic) => topic.topic_id === 'upc'), upcItems);
+  if (upcPanel) container.appendChild(upcPanel);
   const audioSection = renderHomeAudioBriefSection(state.dailyAudioBrief);
   if (audioSection) container.appendChild(audioSection);
   container.appendChild(await renderEuropeHeatSection(pulseItems));
-  const upcPanel = renderUpcWatchPanel((topics || []).find((topic) => topic.topic_id === 'upc'), upcItems);
-  if (upcPanel) container.appendChild(upcPanel);
   container.appendChild(renderTodayPublishedSection(todayPublishedItems, statsData));
   container.appendChild(renderCommanderReports(dailyReport, weeklyReport, state.dailyAudioBrief, state.dailyAudioHistory, false));
   container.appendChild(renderTopicTheater(topics || []));
@@ -7924,7 +7937,10 @@ function attachEvents() {
     btn.addEventListener('click', () => {
       const page = btn.dataset.page;
       const ipType = btn.dataset.iptype;
-      if (ipType) {
+      const topicId = btn.dataset.topicId;
+      if (topicId) {
+        navigateToTopic(topicId);
+      } else if (ipType) {
         state.focusViewExpanded = false;
         releaseDefaultEditorialLaneForFocusedNews();
         state.filters.ip_type = ipType;
