@@ -786,6 +786,25 @@ const i18n = {
     section_europe_heat_related_feed: '涉及该国的相关资讯',
     section_europe_heat_upc_overall: 'UPC整体',
     section_europe_heat_upc_overall_desc: '涉及 UPC 制度、规则、任命、统计等系统级动态，不强行归入单一国家。',
+    section_upc_watch: 'UPC观察',
+    section_upc_watch_desc: '集中呈现统一专利法院最新案件、程序与制度信号，便于快速判断UPC风险走向。',
+    section_upc_watch_window: '观察窗口',
+    section_upc_watch_latest: '最新信号',
+    section_upc_watch_signals: '信号结构',
+    section_upc_watch_empty: '当前窗口暂无可展示的UPC资讯。',
+    section_upc_watch_open: '进入UPC专题',
+    section_upc_watch_filter: '查看UPC资讯流',
+    topic_upc_focus: 'UPC案件雷达',
+    topic_upc_focus_desc: '按UPC资讯的核心信号分组，优先显示管辖、禁令、上诉、无效反诉和FRAND交叉动态。',
+    topic_upc_signal_jurisdiction: '管辖权',
+    topic_upc_signal_injunction: '禁令/临时措施',
+    topic_upc_signal_appeal: '上诉',
+    topic_upc_signal_invalidity: '无效/反诉',
+    topic_upc_signal_frand: 'FRAND交叉',
+    topic_upc_signal_procedure: '程序规则',
+    topic_upc_signal_official: '官方动态',
+    topic_upc_signal_case: '案件裁判',
+    topic_upc_lane_empty: '该类信号暂未出现新样本。',
     label_today_scraped: '今日新抓',
     today_published_state_captured: '今日新抓',
     section_latest_dynamics: '最新动态',
@@ -1403,6 +1422,25 @@ const i18n = {
     section_europe_heat_related_feed: 'Related mentions',
     section_europe_heat_upc_overall: 'UPC-wide',
     section_europe_heat_upc_overall_desc: 'System-level UPC items such as rules, appointments, and statistics are grouped here instead of being forced into one country.',
+    section_upc_watch: 'UPC Watch',
+    section_upc_watch_desc: 'Tracks Unified Patent Court case, procedure, and institutional signals so UPC risk direction is visible at a glance.',
+    section_upc_watch_window: 'Window',
+    section_upc_watch_latest: 'Latest Signals',
+    section_upc_watch_signals: 'Signal Mix',
+    section_upc_watch_empty: 'No display-ready UPC items are available in the current window.',
+    section_upc_watch_open: 'Open UPC Topic',
+    section_upc_watch_filter: 'View UPC Feed',
+    topic_upc_focus: 'UPC Case Radar',
+    topic_upc_focus_desc: 'Groups UPC items by core signal: jurisdiction, injunctions, appeals, invalidity counterclaims, and FRAND intersections.',
+    topic_upc_signal_jurisdiction: 'Jurisdiction',
+    topic_upc_signal_injunction: 'Injunctions / PI',
+    topic_upc_signal_appeal: 'Appeal',
+    topic_upc_signal_invalidity: 'Invalidity / Counterclaim',
+    topic_upc_signal_frand: 'FRAND crossover',
+    topic_upc_signal_procedure: 'Procedure',
+    topic_upc_signal_official: 'Official update',
+    topic_upc_signal_case: 'Case decision',
+    topic_upc_lane_empty: 'No fresh sample for this signal yet.',
     label_today_scraped: 'Captured today',
     today_published_state_captured: 'Captured today',
     section_latest_dynamics: 'Latest Signal Readout',
@@ -2701,7 +2739,7 @@ async function renderNewsPage(container) {
     todayParams.set('date_from', todayStart);
     todayParams.set('date_to', todayEnd);
 
-    const [data, statsData, overviewData, dailyReport, weeklyReport, dailyAudioBrief, topicBriefs, sourcesData, todayPublishedData] = await Promise.all([
+    const [data, statsData, overviewData, dailyReport, weeklyReport, dailyAudioBrief, topicBriefs, upcItemsData, sourcesData, todayPublishedData] = await Promise.all([
       apiFetch(`/news?${params}`),
       apiFetch('/stats'),
       apiFetch('/intel-overview').catch(() => null),
@@ -2709,6 +2747,7 @@ async function renderNewsPage(container) {
       apiFetch('/reports/weekly').catch(() => null),
       apiFetch('/reports/daily/audio/latest').catch(() => null),
       apiFetch('/topic-briefs').catch(() => ({ topics: [] })),
+      apiFetch('/topic-briefs/upc/items?limit=8').catch(() => ({ items: [] })),
       apiFetch('/sources').catch(() => ({ sources: [] })),
       apiFetch(`/news?${todayParams}`).catch(() => ({ items: [], total: 0 })),
     ]);
@@ -2788,6 +2827,7 @@ async function renderNewsPage(container) {
         dailyReport,
         weeklyReport,
         topicBriefs?.topics || [],
+        upcItemsData?.items || [],
         streamSourceItems
       );
     }
@@ -2811,6 +2851,7 @@ async function renderNewsPage(container) {
         dailyReport,
         weeklyReport,
         topicBriefs?.topics || [],
+        upcItemsData?.items || [],
         streamItems.length ? streamItems : mergedItems
       );
     }
@@ -2973,6 +3014,9 @@ async function renderTopicPage(container) {
     container.appendChild(shell);
     if (state.currentTopicId === 'sep_frand') {
       container.appendChild(renderSepTopicFocus(brief));
+    }
+    if (state.currentTopicId === 'upc') {
+      container.appendChild(renderUpcTopicFocus(brief, sortedItems));
     }
     container.appendChild(renderTopicTimeline(sortedItems));
     container.appendChild(renderStreamHeader(itemsData.total || sortedItems.length));
@@ -4352,6 +4396,193 @@ function renderActionAndTopics(dailyReport, weeklyReport, topics) {
   return section;
 }
 
+function getUpcSignalMeta(key) {
+  const map = {
+    jurisdiction: { key: 'jurisdiction', label: t('topic_upc_signal_jurisdiction'), tone: 'jurisdiction' },
+    injunction: { key: 'injunction', label: t('topic_upc_signal_injunction'), tone: 'injunction' },
+    appeal: { key: 'appeal', label: t('topic_upc_signal_appeal'), tone: 'appeal' },
+    invalidity: { key: 'invalidity', label: t('topic_upc_signal_invalidity'), tone: 'invalidity' },
+    frand: { key: 'frand', label: t('topic_upc_signal_frand'), tone: 'frand' },
+    procedure: { key: 'procedure', label: t('topic_upc_signal_procedure'), tone: 'procedure' },
+    official: { key: 'official', label: t('topic_upc_signal_official'), tone: 'official' },
+    case: { key: 'case', label: t('topic_upc_signal_case'), tone: 'case' },
+  };
+  return map[key] || map.case;
+}
+
+function getUpcItemText(item) {
+  return [
+    item?.title,
+    item?.title_zh,
+    item?.summary,
+    item?.ai_summary_zh,
+    item?.ai_core_points_zh,
+    item?.ai_insight_zh,
+    item?.topic_secondary,
+    item?.institutions,
+    item?.source_id,
+  ].map((part) => Array.isArray(part) ? part.join(' ') : String(part || '')).join(' ').toLowerCase();
+}
+
+function classifyUpcSignal(item) {
+  const text = getUpcItemText(item);
+  if (/frand|sep|standard[- ]essential|标准必要|许可费|许可|royalty|willing licensee/.test(text)) return getUpcSignalMeta('frand');
+  if (/jurisdiction|competence|long[- ]arm|service|login|管辖|长臂|应诉|送达|登录/.test(text)) return getUpcSignalMeta('jurisdiction');
+  if (/injunction|interim measure|preliminary|provisional|禁令|临时措施|临时禁令/.test(text)) return getUpcSignalMeta('injunction');
+  if (/court of appeal|appeal|上诉|上诉法院|上诉庭/.test(text)) return getUpcSignalMeta('appeal');
+  if (/invalidity|revocation|counterclaim|revoke|无效|撤销|反诉/.test(text)) return getUpcSignalMeta('invalidity');
+  if (/procedure|rule|withdrawal|cost|access|confidential|程序|规则|撤诉|费用|保密/.test(text)) return getUpcSignalMeta('procedure');
+  if (String(item?.source_id || '').toLowerCase() === 'upc' || /statistics|appointment|annual report|official|monthly|统计|任命|官方/.test(text)) return getUpcSignalMeta('official');
+  return getUpcSignalMeta('case');
+}
+
+function buildUpcSignalStats(items) {
+  const order = ['jurisdiction', 'injunction', 'appeal', 'invalidity', 'frand', 'procedure', 'official', 'case'];
+  const counts = new Map(order.map((key) => [key, 0]));
+  (items || []).forEach((item) => {
+    const key = classifyUpcSignal(item).key;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  return order
+    .map((key) => ({ ...getUpcSignalMeta(key), count: counts.get(key) || 0 }))
+    .filter((entry) => entry.count > 0);
+}
+
+function renderUpcWatchPanel(topic, rawItems = []) {
+  const items = sortBySignalPriority((rawItems || []).filter(isRelevantDisplayItem), 'stream');
+  if (!topic && !items.length) return null;
+  const panel = el('section', 'upc-watch-panel');
+  const latestItems = items.slice(0, 3);
+  const signalStats = buildUpcSignalStats(items).slice(0, 5);
+  const itemCount = Number(topic?.item_count || items.length || 0);
+  const sourceCount = Number(topic?.source_count || new Set(items.map((item) => item.source_id || item.source_name || item.url)).size || 0);
+  const headline = topic?.headline_zh || topic?.topic_name_zh || t('section_upc_watch');
+  const summary = topic?.summary_zh || t('section_upc_watch_desc');
+  panel.innerHTML = `
+    <div class="section-heading-row">
+      <div>
+        <div class="section-kicker">${t('section_upc_watch')}</div>
+        <h2 class="section-title">${t('section_upc_watch')}</h2>
+      </div>
+      <div class="section-meta">${t('section_upc_watch_desc')}</div>
+    </div>
+    <div class="upc-watch-shell">
+      <div class="upc-watch-main">
+        <div class="upc-watch-topline">
+          <span class="source-badge official">UPC</span>
+          <span class="ip-badge patent">${itemCount.toLocaleString()}</span>
+          <span class="topic-window-pill">${sourceCount.toLocaleString()} ${t('stat_sources')}</span>
+          ${topic ? `<span class="topic-window-pill">${t('section_upc_watch_window')} · ${escapeHtml(formatCollectionWindow(topic))}</span>` : ''}
+        </div>
+        <h3 class="upc-watch-title">${escapeHtml(headline)}</h3>
+        <p class="upc-watch-summary">${escapeHtml(summary.length > 156 ? `${summary.slice(0, 156).trim()}...` : summary)}</p>
+        <div class="upc-watch-actions">
+          <button class="btn btn-primary upc-watch-open">${t('section_upc_watch_open')}</button>
+          <button class="btn btn-secondary upc-watch-filter">${t('section_upc_watch_filter')}</button>
+        </div>
+      </div>
+      <div class="upc-watch-side">
+        <div class="upc-watch-block">
+          <div class="intel-block-label">${t('section_upc_watch_signals')}</div>
+          <div class="upc-signal-list">
+            ${signalStats.length ? signalStats.map((entry) => `
+              <span class="upc-signal-pill ${escapeHtml(entry.tone)}">
+                <strong>${Number(entry.count || 0).toLocaleString()}</strong>
+                ${escapeHtml(entry.label)}
+              </span>
+            `).join('') : `<span class="topic-related-meta">${t('section_upc_watch_empty')}</span>`}
+          </div>
+        </div>
+        <div class="upc-watch-block">
+          <div class="intel-block-label">${t('section_upc_watch_latest')}</div>
+          <div class="upc-watch-latest-list">
+            ${latestItems.length ? latestItems.map((item, index) => {
+              const signal = classifyUpcSignal(item);
+              return `
+                <button class="upc-watch-latest" data-upc-home-index="${index}">
+                  <span class="upc-signal-pill compact ${escapeHtml(signal.tone)}">${escapeHtml(signal.label)}</span>
+                  <strong>${escapeHtml((state.lang === 'zh' && item.title_zh) ? item.title_zh : (item.title_zh || item.title || ''))}</strong>
+                  <em>${escapeHtml(buildPrimaryDateLabel(item) || formatDateLabel(item.published_at || item.scraped_at || ''))}</em>
+                </button>
+              `;
+            }).join('') : `<div class="mini-empty">${t('section_upc_watch_empty')}</div>`}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  panel.querySelector('.upc-watch-open')?.addEventListener('click', () => navigateToTopic('upc'));
+  panel.querySelector('.upc-watch-filter')?.addEventListener('click', () => applyTopicPreset('upc'));
+  panel.querySelectorAll('[data-upc-home-index]').forEach((btn) => {
+    btn.addEventListener('click', () => showNewsDetail(latestItems[Number(btn.dataset.upcHomeIndex)]));
+  });
+  return panel;
+}
+
+function renderUpcTopicFocus(brief, items = []) {
+  const sortedItems = sortBySignalPriority(items || [], 'stream');
+  const signalStats = buildUpcSignalStats(sortedItems);
+  const laneOrder = ['jurisdiction', 'injunction', 'appeal', 'invalidity', 'frand', 'procedure'];
+  const groups = laneOrder.map((key) => {
+    const meta = getUpcSignalMeta(key);
+    return {
+      ...meta,
+      items: sortedItems.filter((item) => classifyUpcSignal(item).key === key).slice(0, 2),
+    };
+  });
+  const section = el('section', 'upc-topic-focus-panel');
+  section.innerHTML = `
+    <div class="section-heading-row">
+      <div>
+        <div class="section-kicker">${t('topic_upc_focus')}</div>
+        <h2 class="section-title">${t('topic_upc_focus')}</h2>
+      </div>
+      <div class="section-meta">${t('topic_upc_focus_desc')}</div>
+    </div>
+    <div class="upc-topic-summary">
+      <div class="upc-topic-summary-copy">
+        <span class="source-badge official">UPC</span>
+        <strong>${escapeHtml(brief?.headline_zh || brief?.topic_name_zh || t('topic_upc_focus'))}</strong>
+        <p>${escapeHtml((brief?.summary_zh || '').slice(0, 180))}</p>
+      </div>
+      <div class="upc-signal-list upc-topic-signal-list">
+        ${signalStats.length ? signalStats.map((entry) => `
+          <span class="upc-signal-pill ${escapeHtml(entry.tone)}">
+            <strong>${Number(entry.count || 0).toLocaleString()}</strong>
+            ${escapeHtml(entry.label)}
+          </span>
+        `).join('') : `<span class="topic-related-meta">${t('section_upc_watch_empty')}</span>`}
+      </div>
+    </div>
+    <div class="upc-lane-grid">
+      ${groups.map((group) => `
+        <article class="upc-lane-card ${escapeHtml(group.tone)}">
+          <div class="upc-lane-head">
+            <span>${escapeHtml(group.label)}</span>
+            <strong>${Number(group.items.length || 0).toLocaleString()}</strong>
+          </div>
+          <div class="upc-lane-list">
+            ${group.items.length ? group.items.map((item) => `
+              <button class="upc-lane-item" data-upc-item-id="${escapeHtml(String(item.id || ''))}">
+                <span class="news-card-date">${escapeHtml(buildPrimaryDateLabel(item) || formatDateLabel(item.published_at || item.scraped_at || ''))}</span>
+                <strong>${escapeHtml((state.lang === 'zh' && item.title_zh) ? item.title_zh : (item.title_zh || item.title || ''))}</strong>
+                <em>${escapeHtml(compactSourceName(item.source_name || item.source_id || ''))}</em>
+              </button>
+            `).join('') : `<div class="mini-empty">${t('topic_upc_lane_empty')}</div>`}
+          </div>
+        </article>
+      `).join('')}
+    </div>
+  `;
+  section.querySelectorAll('[data-upc-item-id]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const item = sortedItems.find((entry) => String(entry.id || '') === String(btn.dataset.upcItemId || ''));
+      if (item) showNewsDetail(item);
+    });
+  });
+  return section;
+}
+
 function renderChinaActionPanel(dailyReport, weeklyReport) {
   const panel = el('section', 'intel-panel action-panel');
   const primary = dailyReport || weeklyReport;
@@ -4610,11 +4841,13 @@ function renderExpandedOverviewHeader() {
   `);
 }
 
-async function appendGlobalDashboardSections(container, statsData, overviewData, dataTotal, boardItems, todayPublishedItems, dailyReport, weeklyReport, topics, pulseItems = []) {
+async function appendGlobalDashboardSections(container, statsData, overviewData, dataTotal, boardItems, todayPublishedItems, dailyReport, weeklyReport, topics, upcItems = [], pulseItems = []) {
   container.appendChild(renderWarRoomHero(statsData, overviewData, dataTotal));
   const audioSection = renderHomeAudioBriefSection(state.dailyAudioBrief);
   if (audioSection) container.appendChild(audioSection);
   container.appendChild(await renderEuropeHeatSection(pulseItems));
+  const upcPanel = renderUpcWatchPanel((topics || []).find((topic) => topic.topic_id === 'upc'), upcItems);
+  if (upcPanel) container.appendChild(upcPanel);
   container.appendChild(renderTodayPublishedSection(todayPublishedItems, statsData));
   container.appendChild(renderCommanderReports(dailyReport, weeklyReport, state.dailyAudioBrief, state.dailyAudioHistory, false));
   container.appendChild(renderTopicTheater(topics || []));
