@@ -4609,7 +4609,8 @@ async function appendGlobalDashboardSections(container, statsData, overviewData,
   const heatSection = await renderEuropeHeatSection(pulseItems);
   const todaySection = renderTodayPublishedSection(todayPublishedItems, statsData);
   const reportsSection = renderCommanderReports(dailyReport, weeklyReport, state.dailyAudioBrief, state.dailyAudioHistory, false);
-  const topicsSection = renderTopicTheater(topics || []);
+  const homepageTopics = (topics || []).filter((topic) => topic?.topic_id !== 'upc');
+  const topicsSection = renderTopicTheater(homepageTopics);
 
   container.appendChild(heroSection);
   if (isMobileViewport()) {
