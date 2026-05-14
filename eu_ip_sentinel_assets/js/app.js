@@ -30,6 +30,7 @@ const DEFAULT_LANG = 'zh';
 const THEME_VALUES = ['light', 'dark'];
 const SCOPE_VALUES = ['eu', 'intl', 'uk', 'de', 'fr', 'benelux', 'scandinavia', 'all'];
 const EDITORIAL_LANE_VALUES = ['all', 'core', 'watch', 'calendar'];
+const PUBLIC_HIDDEN_PAGES = new Set(['reports', 'sources', 'about']);
 const getInitialTheme = () => 'dark';
 const getInitialScope = () => {
   const stored = localStorage.getItem('pontnova_scope');
@@ -2234,6 +2235,7 @@ function setLang(lang) {
 // ──────────────────────────────────────────────
 
 function navigate(page, ipType = null) {
+  if (PUBLIC_HIDDEN_PAGES.has(page)) page = 'news';
   state.currentPage = page;
   state.pagination.page = 1;
   if (page === 'news') state.focusViewExpanded = false;
@@ -2391,15 +2393,6 @@ function renderSidebar() {
       </div>
     </div>
 
-    <div class="sidebar-divider"></div>
-
-    <div class="sidebar-section">
-      <div class="ip-type-nav">
-        ${renderNavItem('reports', 'REP', t('nav_reports'))}
-        ${renderNavItem('sources', 'SRC', t('nav_sources'))}
-        ${renderNavItem('about', 'INFO', t('nav_about'))}
-      </div>
-    </div>
   `);
   return sidebar;
 }
@@ -2419,11 +2412,19 @@ function renderNavItem(page, icon, label, ipType = null) {
 }
 
 function renderTopbar() {
+  const topbarClasses = ['topbar'];
+  if (state.currentPage === 'news') {
+    topbarClasses.push('topbar-news');
+    if (isMobileViewport()) topbarClasses.push('topbar-news-mobile');
+  }
+  const topicDisplay = state.currentPage === 'topic' && state.currentTopicBrief
+    ? getTopicBriefDisplayCopy(state.currentTopicBrief)
+    : null;
   const topicLabel = state.currentPage === 'topic'
-    ? (state.currentTopicBrief?.topic_name_zh || state.currentTopicBrief?.headline_zh || t('section_topics'))
+    ? (topicDisplay?.title || t('section_topics'))
     : '';
   const topicSub = state.currentPage === 'topic'
-    ? truncateText(state.currentTopicBrief?.summary_zh || t('hero_desc'), 68)
+    ? truncateText(topicDisplay?.summary || t('hero_desc'), 68)
     : '';
   const pageSubtitleRaw = state.currentPage === 'news'
     ? t('topbar_sub_news')
@@ -2439,7 +2440,7 @@ function renderTopbar() {
             ? t('topbar_sub_settings')
     : t('hero_desc');
   const pageSubtitle = truncateText(pageSubtitleRaw, 68);
-  return el('div', 'topbar', `
+  return el('div', topbarClasses.join(' '), `
     <div class="topbar-title">
       ${state.currentPage === 'reports' ? t('nav_reports') : ''}
       ${state.currentPage === 'sources' ? t('nav_sources') : ''}
@@ -2825,6 +2826,8 @@ async function renderTopicPage(container) {
 
     container.innerHTML = '';
     const shell = el('section', 'topic-page-shell');
+    const topicDisplay = getTopicBriefDisplayCopy(brief);
+    const topicReady = topicDisplay.isPublishable || sortedItems.length > 0;
     const actions = resolvePointList(brief.actions, '', 3, 110);
     const watchlist = resolvePointList(brief.watchlist, '', 3, 110);
     const points = resolvePointList(brief.key_points, '', 4, 110);
@@ -2862,9 +2865,9 @@ async function renderTopicPage(container) {
             <span class="ip-badge general">${brief.item_count || 0}</span>
             ${topicStrategy ? `<span class="topic-window-pill">${escapeHtml(topicStrategy.label)}</span>` : ''}
           </div>
-          <h1 class="topic-page-title">${escapeHtml(brief.headline_zh || brief.topic_name_zh || '')}</h1>
-          ${brief.headline_en ? `<div class="topic-page-subtitle">${escapeHtml(brief.headline_en)}</div>` : ''}
-          <p class="topic-page-summary">${escapeHtml(brief.summary_zh || '')}</p>
+          <h1 class="topic-page-title">${escapeHtml(topicDisplay.title || brief.topic_name_zh || '')}</h1>
+          ${topicReady && brief.headline_en ? `<div class="topic-page-subtitle">${escapeHtml(brief.headline_en)}</div>` : ''}
+          <p class="topic-page-summary">${escapeHtml(topicDisplay.summary || '')}</p>
           ${sepAiEntry}
           <div class="topic-page-metric-grid">
             <div class="topic-page-metric">
@@ -2888,23 +2891,23 @@ async function renderTopicPage(container) {
         <div class="topic-page-aside">
           <div class="intel-block compact insight">
             <div class="intel-block-label">${t('block_topic_actions')}</div>
-            ${renderPointList(actions, 'intel-points compact')}
+            ${topicReady ? renderPointList(actions, 'intel-points compact') : `<div class="topic-brief-empty-note">${escapeHtml(topicDisplay.note || topicDisplay.summary)}</div>`}
           </div>
           <div class="intel-block compact">
             <div class="intel-block-label">${t('block_overview_watchlist')}</div>
-            ${renderPointList(watchlist, 'intel-points compact')}
+            ${topicReady ? renderPointList(watchlist, 'intel-points compact') : ''}
           </div>
         </div>
       </div>
       <div class="briefing-report-grid topic-summary-grid">
         <div class="intel-block">
           <div class="intel-block-label">${t('block_topic_points')}</div>
-          ${renderPointList(points)}
+          ${topicReady ? renderPointList(points) : `<div class="topic-brief-empty-note">${escapeHtml(topicDisplay.summary || '')}</div>`}
         </div>
         <div class="intel-block insight">
           <div class="intel-block-label">${t('topic_related')}</div>
-          <div class="topic-related-meta">${brief.item_count || 0} ${t('total_items')} / ${brief.source_count || 0} ${t('stat_sources')}</div>
-          <button class="btn btn-secondary topic-filter-btn">${t('topic_btn')}</button>
+          <div class="topic-related-meta">${sortedItems.length ? `${brief.item_count || 0} ${t('total_items')} / ${brief.source_count || 0} ${t('stat_sources')}` : escapeHtml(topicDisplay.note || topicDisplay.summary)}</div>
+          ${sortedItems.length ? `<button class="btn btn-secondary topic-filter-btn">${t('topic_btn')}</button>` : ''}
         </div>
       </div>
     `;
@@ -2918,11 +2921,17 @@ async function renderTopicPage(container) {
     if (state.currentTopicId === 'sep_frand') {
       container.appendChild(renderSepTopicFocus(brief));
     }
-    container.appendChild(renderTopicTimeline(sortedItems));
-    container.appendChild(renderStreamHeader(itemsData.total || sortedItems.length));
-    const grid = el('div', 'news-grid intelligence-stream topic-detail-grid');
-    sortedItems.forEach((item) => grid.appendChild(renderNewsCard(item, 'must-read')));
-    container.appendChild(grid);
+    if (sortedItems.length) {
+      container.appendChild(renderTopicTimeline(sortedItems));
+      container.appendChild(renderStreamHeader(itemsData.total || sortedItems.length));
+      const grid = el('div', 'news-grid intelligence-stream topic-detail-grid');
+      sortedItems.forEach((item) => grid.appendChild(renderNewsCard(item, 'must-read')));
+      container.appendChild(grid);
+    } else {
+      const emptyState = el('section', 'mini-empty topic-detail-empty');
+      emptyState.textContent = topicDisplay.summary || t('card_empty');
+      container.appendChild(emptyState);
+    }
     if (state.pendingTopicScrollId) {
       const targetId = state.pendingTopicScrollId;
       state.pendingTopicScrollId = '';
@@ -4319,16 +4328,61 @@ function renderChinaActionPanel(dailyReport, weeklyReport) {
   return panel;
 }
 
+function isTopicBriefPublishable(topic) {
+  if (!topic) return false;
+  const itemCount = Number(topic.item_count || 0);
+  const headline = `${topic.headline_zh || ''} ${topic.headline_en || ''}`.trim();
+  const summary = `${topic.summary_zh || ''} ${topic.summary_en || ''}`.trim();
+  const combined = `${headline} ${summary}`;
+  if (itemCount <= 0) return false;
+  if (!headline && !summary) return false;
+  return !/待生成|生成中|pending|placeholder/i.test(combined);
+}
+
+function getTopicBriefDisplayCopy(topic) {
+  const fallbackLabel = topic?.topic_name_zh || topic?.topic_name_en || (state.lang === 'zh' ? '专题观察' : 'Topic Brief');
+  if (isTopicBriefPublishable(topic)) {
+    return {
+      isPublishable: true,
+      title: (topic.headline_zh || topic.headline_en || fallbackLabel).trim(),
+      summary: (topic.summary_zh || topic.summary_en || '').trim(),
+      note: '',
+    };
+  }
+  return state.lang === 'zh'
+    ? {
+        isPublishable: false,
+        title: `${fallbackLabel}：持续观察中`,
+        summary: '当前时间窗内尚未形成足够密度的高相关信号，系统将继续监测，并在达到发布阈值后自动生成专题观察。',
+        note: '观察中，暂不列为正式专题观察。',
+      }
+    : {
+        isPublishable: false,
+        title: `${fallbackLabel}: Under Observation`,
+        summary: 'There are not yet enough high-confidence signals in the current window to publish a topic brief. The system will continue monitoring and publish once the threshold is met.',
+        note: 'Under observation and not yet promoted as a published topic brief.',
+      };
+}
+
 function renderTopicTheater(topics) {
+  const allTopics = topics || [];
+  const readyTopics = allTopics.filter((topic) => isTopicBriefPublishable(topic));
+  const dormantTopics = allTopics.filter((topic) => !isTopicBriefPublishable(topic));
+  const dormantNote = dormantTopics.length
+    ? (state.lang === 'zh'
+      ? `另有 ${dormantTopics.length} 个专题处于持续观察中，待信号密度达到发布阈值后将自动生成。`
+      : `${dormantTopics.length} topics remain under observation and will publish once the signal threshold is met.`)
+    : '';
   const section = el('section', 'topic-theater-panel');
   section.innerHTML = `
     <div class="intel-panel-head">
       <div class="intel-panel-kicker">${t('section_topics')}</div>
-      <span class="intel-panel-count">${String((topics || []).length).padStart(2, '0')}</span>
+      <span class="intel-panel-count">${String(readyTopics.length).padStart(2, '0')}</span>
     </div>
     <div class="topic-card-grid">
-      ${(topics || []).length ? topics.map((topic) => renderTopicBriefCard(topic)).join('') : `<div class="mini-empty">${t('card_empty')}</div>`}
+      ${readyTopics.length ? readyTopics.map((topic) => renderTopicBriefCard(topic)).join('') : `<div class="mini-empty">${escapeHtml(dormantTopics.length ? getTopicBriefDisplayCopy(dormantTopics[0]).summary : t('card_empty'))}</div>`}
     </div>
+    ${dormantNote ? `<div class="topic-theater-note">${escapeHtml(dormantNote)}</div>` : ''}
   `;
   section.querySelectorAll('[data-topic-id]').forEach((btn) => {
     btn.addEventListener('click', () => navigateToTopic(btn.dataset.topicId));
@@ -4337,33 +4391,36 @@ function renderTopicTheater(topics) {
 }
 
 function renderTopicBriefCard(topic) {
-  const points = resolvePointList(topic.key_points, '', 2, 88);
-  const actions = resolvePointList(topic.actions, '', 2, 88);
-  const summary = (topic.summary_zh || '').trim();
+  const display = getTopicBriefDisplayCopy(topic);
+  const points = display.isPublishable ? resolvePointList(topic.key_points, '', 2, 88) : [];
+  const actions = display.isPublishable ? resolvePointList(topic.actions, '', 2, 88) : [];
+  const summary = (display.summary || '').trim();
   const compactSummary = summary.length > 110 ? `${summary.slice(0, 110).trim()}...` : summary;
   const topicStrategy = getTopicStrategyMeta(topic);
   return `
-    <article class="topic-brief-card">
+    <article class="topic-brief-card${display.isPublishable ? '' : ' is-dormant'}">
       <div class="topic-brief-topline">
         <span class="source-badge official">${escapeHtml(topic.topic_name_zh || '')}</span>
         <span class="ip-badge general">${topic.item_count || 0}</span>
         <span class="topic-brief-micro">${topic.source_count || 0} ${t('stat_sources')}</span>
         ${topicStrategy ? `<span class="topic-window-pill">${escapeHtml(topicStrategy.label)}</span>` : ''}
       </div>
-      <h3 class="topic-brief-title">${escapeHtml(topic.headline_zh || topic.topic_name_zh || '')}</h3>
-      ${topic.headline_en ? `<div class="topic-brief-subtitle">${escapeHtml(topic.headline_en)}</div>` : ''}
+      <h3 class="topic-brief-title">${escapeHtml(display.title || topic.topic_name_zh || '')}</h3>
+      ${display.isPublishable && topic.headline_en ? `<div class="topic-brief-subtitle">${escapeHtml(topic.headline_en)}</div>` : ''}
       ${topicStrategy ? `<div class="topic-brief-subtitle">${escapeHtml(topicStrategy.hint)}</div>` : ''}
       <p class="topic-brief-summary">${escapeHtml(compactSummary)}</p>
-      <div class="topic-brief-block">
-        <div class="intel-block-label">${t('block_topic_points')}</div>
-        ${renderPointList(points, 'intel-points compact')}
-      </div>
-      <div class="topic-brief-block">
-        <div class="intel-block-label">${t('block_topic_actions')}</div>
-        ${renderPointList(actions, 'intel-points compact')}
-      </div>
-      <div class="topic-brief-tier">${renderSourceTierSummary(topic)}</div>
-      <button class="btn btn-secondary topic-brief-btn" data-topic-id="${escapeHtml(topic.topic_id || '')}">${t('topic_open')}</button>
+      ${display.isPublishable ? `
+        <div class="topic-brief-block">
+          <div class="intel-block-label">${t('block_topic_points')}</div>
+          ${renderPointList(points, 'intel-points compact')}
+        </div>
+        <div class="topic-brief-block">
+          <div class="intel-block-label">${t('block_topic_actions')}</div>
+          ${renderPointList(actions, 'intel-points compact')}
+        </div>
+        <div class="topic-brief-tier">${renderSourceTierSummary(topic)}</div>
+        <button class="btn btn-secondary topic-brief-btn" data-topic-id="${escapeHtml(topic.topic_id || '')}">${t('topic_open')}</button>
+      ` : `<div class="topic-brief-empty-note">${escapeHtml(display.note || display.summary)}</div>`}
     </article>
   `;
 }
@@ -4547,13 +4604,28 @@ function renderExpandedOverviewHeader() {
 }
 
 async function appendGlobalDashboardSections(container, statsData, overviewData, dataTotal, boardItems, todayPublishedItems, dailyReport, weeklyReport, topics, pulseItems = []) {
-  container.appendChild(renderWarRoomHero(statsData, overviewData, dataTotal));
   const audioSection = renderHomeAudioBriefSection(state.dailyAudioBrief);
+  const heroSection = renderWarRoomHero(statsData, overviewData, dataTotal);
+  const heatSection = await renderEuropeHeatSection(pulseItems);
+  const todaySection = renderTodayPublishedSection(todayPublishedItems, statsData);
+  const reportsSection = renderCommanderReports(dailyReport, weeklyReport, state.dailyAudioBrief, state.dailyAudioHistory, false);
+  const topicsSection = renderTopicTheater(topics || []);
+
+  container.appendChild(heroSection);
+  if (isMobileViewport()) {
+    container.appendChild(todaySection);
+    container.appendChild(reportsSection);
+    container.appendChild(topicsSection);
+    container.appendChild(heatSection);
+    if (audioSection) container.appendChild(audioSection);
+    return;
+  }
+
   if (audioSection) container.appendChild(audioSection);
-  container.appendChild(await renderEuropeHeatSection(pulseItems));
-  container.appendChild(renderTodayPublishedSection(todayPublishedItems, statsData));
-  container.appendChild(renderCommanderReports(dailyReport, weeklyReport, state.dailyAudioBrief, state.dailyAudioHistory, false));
-  container.appendChild(renderTopicTheater(topics || []));
+  container.appendChild(heatSection);
+  container.appendChild(todaySection);
+  container.appendChild(reportsSection);
+  container.appendChild(topicsSection);
 }
 
 function renderStreamHeader(total, items = []) {
