@@ -4004,7 +4004,6 @@ function renderCommanderReports(dailyReport, weeklyReport, dailyAudioBrief = nul
     const historySection = renderAudioBriefHistory(dailyAudioHistory);
     if (historySection) section.appendChild(historySection);
   }
-  section.querySelector('[data-open-page="reports"]')?.addEventListener('click', () => navigate('reports'));
   return section;
 }
 
@@ -4389,7 +4388,6 @@ function renderBriefingReportCard(report, reportType) {
       await triggerReportExport(btn.dataset.reportType, btn.dataset.exportFormat);
     });
   });
-  card.querySelector('[data-open-page="reports"]')?.addEventListener('click', () => navigate('reports'));
   return card;
 }
 
