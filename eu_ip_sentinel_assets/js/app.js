@@ -4845,14 +4845,13 @@ function renderExpandedOverviewHeader() {
 
 async function appendGlobalDashboardSections(container, statsData, overviewData, dataTotal, boardItems, todayPublishedItems, dailyReport, weeklyReport, topics, upcItems = [], pulseItems = []) {
   container.appendChild(renderWarRoomHero(statsData, overviewData, dataTotal));
-  const upcPanel = renderUpcWatchPanel((topics || []).find((topic) => topic.topic_id === 'upc'), upcItems);
-  if (upcPanel) container.appendChild(upcPanel);
   const audioSection = renderHomeAudioBriefSection(state.dailyAudioBrief);
   if (audioSection) container.appendChild(audioSection);
   container.appendChild(await renderEuropeHeatSection(pulseItems));
   container.appendChild(renderTodayPublishedSection(todayPublishedItems, statsData));
   container.appendChild(renderCommanderReports(dailyReport, weeklyReport, state.dailyAudioBrief, state.dailyAudioHistory, false));
-  container.appendChild(renderTopicTheater(topics || []));
+  const homepageTopics = (topics || []).filter((topic) => topic?.topic_id !== 'upc');
+  container.appendChild(renderTopicTheater(homepageTopics));
 }
 
 function renderStreamHeader(total, items = []) {
