@@ -2297,6 +2297,7 @@ function setLang(lang) {
 // ──────────────────────────────────────────────
 
 function navigate(page, ipType = null) {
+  if (['reports', 'sources', 'about'].includes(page)) page = 'news';
   state.currentPage = page;
   state.pagination.page = 1;
   if (page === 'news') state.focusViewExpanded = false;
@@ -2455,15 +2456,6 @@ function renderSidebar() {
       </div>
     </div>
 
-    <div class="sidebar-divider"></div>
-
-    <div class="sidebar-section">
-      <div class="ip-type-nav">
-        ${renderNavItem('reports', 'REP', t('nav_reports'))}
-        ${renderNavItem('sources', 'SRC', t('nav_sources'))}
-        ${renderNavItem('about', 'INFO', t('nav_about'))}
-      </div>
-    </div>
   `);
   return sidebar;
 }
@@ -3992,7 +3984,7 @@ function renderCommanderReports(dailyReport, weeklyReport, dailyAudioBrief = nul
       </div>
       <div class="section-meta section-meta-column">
         <span>${isReportsPage ? t('section_reports_desc_page') : t('section_reports_desc_home')}</span>
-        ${isReportsPage ? `<span>${formatCollectionWindow(dailyReport || weeklyReport || state.stats)}</span>` : `<button class="btn btn-secondary section-jump-btn" data-open-page="reports">${t('reports_open_center')}</button>`}
+        ${isReportsPage ? `<span>${formatCollectionWindow(dailyReport || weeklyReport || state.stats)}</span>` : ''}
       </div>
     </div>
     <div class="briefing-report-section-summary">
@@ -4385,7 +4377,6 @@ function renderBriefingReportCard(report, reportType) {
             <button class="btn btn-secondary briefing-export-btn" data-report-type="${reportType}" data-export-format="pdf">${t('export_pdf')}</button>
           `
           : `
-            <button class="btn btn-primary briefing-open-btn" data-open-page="reports">${t('reports_open_center_short')}</button>
             <button class="btn btn-secondary briefing-export-btn" data-report-type="${reportType}" data-export-format="pdf">${t('report_export_pdf_short')}</button>
           `}
       </div>
