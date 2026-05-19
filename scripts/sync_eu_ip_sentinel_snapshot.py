@@ -9,6 +9,7 @@ pontnova.eu/eu_ip_sentinel_assets/data/snapshot.json
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sys
 import time
@@ -18,8 +19,8 @@ import urllib.request
 from pathlib import Path
 
 
-API_BASE = "http://127.0.0.1:8013/api"
-APP_BASE = "http://127.0.0.1:8013"
+API_BASE = os.environ.get("EU_IP_SENTINEL_API_BASE", "http://127.0.0.1:8013/api").rstrip("/")
+APP_BASE = os.environ.get("EU_IP_SENTINEL_APP_BASE", API_BASE.rsplit("/api", 1)[0]).rstrip("/")
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / "eu_ip_sentinel_assets" / "data"
 LEGACY_OUTPUT_PATH = OUTPUT_DIR / "snapshot.json"
@@ -29,13 +30,16 @@ NEWS_INDEX_OUTPUT_PATH = OUTPUT_DIR / "news.index.json"
 TOPIC_DETAILS_DIR = OUTPUT_DIR / "topic-details"
 AUDIO_BRIEF_DIR = OUTPUT_DIR / "audio-briefs"
 AUDIO_BRIEF_OUTPUT_NAME = "daily-latest.mp3"
+AUDIO_BRIEF_OUTPUT_NAME_EN = "daily-latest-en.mp3"
 NEWS_LANES = ("core", "watch", "calendar", "pending")
+CORE_TOPIC_IDS = ("upc", "sep_frand", "euipo")
 
 NEWS_INDEX_FIELDS = (
     "id",
     "guid",
     "title",
     "title_zh",
+    "title_en",
     "url",
     "source_id",
     "source_name",
@@ -53,16 +57,29 @@ NEWS_INDEX_FIELDS = (
     "geo_tag_labels_en",
     "summary",
     "ai_summary_zh",
+    "ai_summary_en",
     "ai_insight_zh",
+    "ai_insight_en",
     "ai_core_points_zh",
+    "ai_core_points_en",
     "ai_insight_points_zh",
+    "ai_insight_points_en",
     "ai_key_points_zh",
+    "core_points_en",
+    "insight_points_en",
+    "ai_en_status",
+    "ai_en_model",
+    "ai_en_translated_at",
+    "ai_en_source_hash",
+    "english_analysis_ready",
     "ai_status",
     "ai_is_relevant",
     "ai_model",
     "ai_confidence",
     "ai_analyzed_at",
     "ai_document_type",
+    "verification_status",
+    "verification_publishable",
     "ai_topic_primary",
     "ai_topic_secondary_list",
     "ai_institutions",
@@ -105,6 +122,37 @@ def fetch_optional_json(path: str, fallback):
         return fallback
 
 
+def is_placeholder_topic(topic: dict) -> bool:
+    headline = str(topic.get("headline_zh") or "").strip()
+    summary = str(topic.get("summary_zh") or "").strip()
+    item_count = int(topic.get("item_count") or 0)
+    if "待生成" in headline:
+        return True
+    if not summary:
+        return True
+    if item_count <= 0 and (topic.get("topic_id") or "") in CORE_TOPIC_IDS:
+        return True
+    return False
+
+
+def normalize_topic_for_public(topic: dict) -> dict:
+    normalized = dict(topic or {})
+    item_count = int(normalized.get("item_count") or 0)
+    if item_count > 0:
+        return normalized
+    topic_name_zh = str(normalized.get("topic_name_zh") or "专题观察").strip()
+    topic_name_en = str(normalized.get("topic_name_en") or "Topic Brief").strip()
+    headline_zh = str(normalized.get("headline_zh") or "").strip()
+    summary_zh = str(normalized.get("summary_zh") or "").strip()
+    if "待生成" not in headline_zh and summary_zh:
+        return normalized
+    normalized["headline_zh"] = f"{topic_name_zh}持续观察中"
+    normalized["headline_en"] = f"{topic_name_en} under observation"
+    normalized["summary_zh"] = "当前时间窗内尚未形成足够密度的高相关信号，系统将继续监测，并在达到发布阈值后自动生成专题观察。"
+    normalized["summary_en"] = "There are not yet enough high-confidence signals in the current window to publish a topic brief. The system will continue monitoring and publish once the threshold is met."
+    return normalized
+
+
 def download_binary(url: str, output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with urllib.request.urlopen(url, timeout=60) as response:
@@ -120,6 +168,7 @@ def fetch_all_news():
             "page": page,
             "limit": limit,
             "relevant_only": "true",
+            "publishable_only": "true",
         })
         payload = fetch_json(f"/news?{query}")
         items.extend(payload.get("items", []))
@@ -138,10 +187,13 @@ def compact_object(payload: dict) -> dict:
 
 
 def build_news_index_item(item: dict) -> dict:
-    return compact_object({
+    compacted = compact_object({
         key: item.get(key)
         for key in NEWS_INDEX_FIELDS
     })
+    if compacted.get("ai_summary_en") and compacted.get("ai_insight_en") and compacted.get("ai_en_status") == "done":
+        compacted["english_analysis_ready"] = True
+    return compacted
 
 
 def build_news_index(items: list[dict]) -> list[dict]:
@@ -220,6 +272,12 @@ def main() -> int:
     stats = fetch_json("/stats")
     daily_audio_latest = fetch_optional_json("/reports/daily/audio/latest", None)
     topic_briefs_payload = fetch_optional_json("/topic-briefs", {"topics": []})
+    if any(is_placeholder_topic(topic) for topic in topic_briefs_payload.get("topics", [])):
+        topic_briefs_payload = fetch_optional_json("/topic-briefs?force=true", topic_briefs_payload)
+    topic_briefs_payload["topics"] = [
+        normalize_topic_for_public(topic)
+        for topic in topic_briefs_payload.get("topics", [])
+    ]
     generated_at = time.strftime("%Y-%m-%d %H:%M:%S")
     version_tag = time.strftime("%Y%m%d-%H%M%S")
     topic_details = {}
@@ -229,6 +287,9 @@ def main() -> int:
         if not topic_id:
             continue
         brief = fetch_optional_json(f"/topic-briefs/{topic_id}", topic)
+        if is_placeholder_topic(brief):
+            brief = fetch_optional_json(f"/topic-briefs/{topic_id}?force=true", brief)
+        brief = normalize_topic_for_public(brief)
         items_payload = fetch_optional_json(f"/topic-briefs/{topic_id}/items", {"items": [], "total": 0})
         detail_payload = build_topic_detail_payload(brief, items_payload)
         topic_details[topic_id] = detail_payload
@@ -237,9 +298,13 @@ def main() -> int:
     news_items = build_news_index(fetch_all_news())
     news_lane_payloads = build_news_lane_payloads(news_items, generated_at)
     versioned_audio_name = build_versioned_filename("daily-latest", ".mp3", version_tag)
+    versioned_audio_name_en = build_versioned_filename("daily-latest-en", ".mp3", version_tag)
     audio_public_path = f"{OUTPUT_DIR.parent.name}/{OUTPUT_DIR.name}/audio-briefs/{versioned_audio_name}"
+    audio_public_path_en = f"{OUTPUT_DIR.parent.name}/{OUTPUT_DIR.name}/audio-briefs/{versioned_audio_name_en}"
     audio_output_path = AUDIO_BRIEF_DIR / AUDIO_BRIEF_OUTPUT_NAME
+    audio_output_path_en = AUDIO_BRIEF_DIR / AUDIO_BRIEF_OUTPUT_NAME_EN
     versioned_audio_output_path = AUDIO_BRIEF_DIR / versioned_audio_name
+    versioned_audio_output_path_en = AUDIO_BRIEF_DIR / versioned_audio_name_en
     cleanup_generated_files()
     if daily_audio_latest and daily_audio_latest.get("audio_available") and daily_audio_latest.get("audio_url"):
         source_audio_url = urllib.parse.urljoin(f"{APP_BASE}/", str(daily_audio_latest.get("audio_url", "")).lstrip("/"))
@@ -248,6 +313,14 @@ def main() -> int:
         daily_audio_latest = {
             **daily_audio_latest,
             "audio_url": audio_public_path,
+        }
+    if daily_audio_latest and daily_audio_latest.get("audio_available_en") and daily_audio_latest.get("audio_url_en"):
+        source_audio_url_en = urllib.parse.urljoin(f"{APP_BASE}/", str(daily_audio_latest.get("audio_url_en", "")).lstrip("/"))
+        download_binary(source_audio_url_en, versioned_audio_output_path_en)
+        shutil.copyfile(versioned_audio_output_path_en, audio_output_path_en)
+        daily_audio_latest = {
+            **daily_audio_latest,
+            "audio_url_en": audio_public_path_en,
         }
     news_lane_files = {
         lane: build_versioned_filename(f"news.{lane}", ".json", version_tag)

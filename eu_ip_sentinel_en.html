@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Pontnova Europe IP Intelligence: AI-curated European IP signals from institutions, courts, specialist media and law-firm analysis.">
+  <meta property="og:title" content="Pontnova | Europe IP Intelligence">
+  <meta property="og:description" content="AI-curated European IP intelligence for peer firms, in-house teams and companies operating in Europe.">
+  <meta name="theme-color" content="#0b0b0b">
+  <title>Pontnova | Europe IP Intelligence</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="eu_ip_sentinel_assets/css/style.css?v=20260519-sync-003">
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    body {
+      margin: 0;
+      background: #050505;
+      color: #f5f5f5;
+      font-family: 'IBM Plex Sans', sans-serif;
+    }
+    #initial-loader {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(31, 143, 132, 0.12), transparent 28%),
+        radial-gradient(circle at 80% 18%, rgba(196, 164, 124, 0.16), transparent 24%),
+        linear-gradient(145deg, #090909 0%, #111111 55%, #0b0b0b 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      gap: 16px;
+    }
+    #initial-loader .loader-logo {
+      width: 64px;
+      height: 64px;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #f0d7aa, #c4a47c);
+      color: #050505;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, .28);
+    }
+    #initial-loader .loader-text {
+      font-size: 15px;
+      font-weight: 700;
+      color: rgba(245, 237, 223, .9);
+      letter-spacing: .08em;
+    }
+    #initial-loader .loader-subtitle {
+      margin-top: -8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(245, 237, 223, .52);
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+    #initial-loader .loader-dots {
+      display: flex;
+      gap: 5px;
+    }
+    #initial-loader .loader-dots span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #c4a47c;
+      animation: bounce 1.2s infinite ease-in-out;
+    }
+    #initial-loader .loader-dots span:nth-child(2) { animation-delay: .15s; }
+    #initial-loader .loader-dots span:nth-child(3) { animation-delay: .3s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(.6); opacity: .4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+    #initial-loader.fade-out {
+      animation: fadeOut .4s ease forwards;
+    }
+    @keyframes fadeOut { to { opacity: 0; pointer-events: none; } }
+
+    .pontnova-shell {
+      --pontnova-shell-width: 1360px;
+      --pontnova-shell-gutter: 20px;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top right, rgba(196, 164, 124, 0.18), transparent 24%),
+        radial-gradient(circle at left 20%, rgba(31, 143, 132, 0.10), transparent 20%),
+        linear-gradient(180deg, #050505 0%, #0a0a0a 100%);
+    }
+    .pontnova-topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      backdrop-filter: blur(18px);
+      background: rgba(5, 5, 5, 0.72);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .pontnova-topbar__inner {
+      width: min(var(--pontnova-shell-width), calc(100% - (var(--pontnova-shell-gutter) * 2)));
+      margin: 0 auto;
+      padding: 16px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .pontnova-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .pontnova-brand__mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #c4a47c, #8e714f);
+      color: #050505;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      box-shadow: 0 12px 32px rgba(196, 164, 124, 0.24);
+    }
+    .pontnova-brand__title {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #f5f5f5;
+    }
+    .pontnova-brand__subtitle {
+      margin-top: 2px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(245,245,245,0.48);
+    }
+    .pontnova-topbar__actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .pontnova-link,
+    .pontnova-ai-badge {
+      min-height: 44px;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .pontnova-link {
+      padding: 0 18px;
+      color: rgba(245,245,245,0.84);
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.04);
+    }
+    .pontnova-ai-badge {
+      gap: 10px;
+      padding: 0 18px;
+      background: rgba(196, 164, 124, 0.12);
+      border: 1px solid rgba(196, 164, 124, 0.18);
+      color: #ead8b7;
+    }
+    .pontnova-ai-badge__dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 9999px;
+      background: #d8bc8a;
+      box-shadow: 0 0 0 6px rgba(196, 164, 124, 0.08);
+    }
+    .pontnova-app {
+      width: min(var(--pontnova-shell-width), calc(100% - (var(--pontnova-shell-gutter) * 2)));
+      margin: 0 auto;
+      padding: 0 0 48px;
+    }
+    .pontnova-hero {
+      padding: 34px 0 22px;
+    }
+    .pontnova-hero__panel {
+      border-radius: 28px;
+      padding: 32px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+      box-shadow: 0 28px 60px rgba(0,0,0,0.28);
+    }
+    .pontnova-kicker {
+      color: rgba(196, 164, 124, 0.86);
+      font: 800 11px/1.2 'IBM Plex Sans', sans-serif;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .pontnova-heading {
+      margin: 0;
+      max-width: 880px;
+      color: #f8f4ec;
+      font: 800 clamp(32px, 5vw, 68px)/1.02 'IBM Plex Sans', sans-serif;
+      letter-spacing: 0;
+    }
+    .pontnova-heading em {
+      font-style: normal;
+      color: #c4a47c;
+    }
+    .pontnova-subtitle {
+      margin: 18px 0 0;
+      max-width: 760px;
+      color: rgba(245,245,245,0.72);
+      font: 500 15px/1.9 'IBM Plex Sans', sans-serif;
+    }
+    #app {
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: 0 30px 70px rgba(0,0,0,0.24);
+    }
+    @media (max-width: 900px) {
+      .pontnova-topbar__inner {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .pontnova-topbar__actions,
+      .pontnova-link {
+        width: 100%;
+      }
+      .pontnova-topbar__actions {
+        justify-content: flex-start;
+      }
+      .pontnova-hero__panel {
+        padding: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="pontnova-shell">
+    <div id="initial-loader">
+      <div class="loader-logo">IP</div>
+      <div class="loader-text">Pontnova Europe IP Intelligence</div>
+      <div class="loader-subtitle">AI-CURATED SIGNALS</div>
+      <div class="loader-dots"><span></span><span></span><span></span></div>
+    </div>
+
+    <header class="pontnova-topbar">
+      <div class="pontnova-topbar__inner">
+        <div class="pontnova-brand">
+          <div class="pontnova-brand__mark">PN</div>
+          <div>
+            <div class="pontnova-brand__title">Pontnova</div>
+            <div class="pontnova-brand__subtitle">Europe IP Intelligence</div>
+          </div>
+        </div>
+        <div class="pontnova-topbar__actions">
+          <a href="index.html" class="pontnova-link">Pontnova Home</a>
+          <a href="eu_ip_sentinel.html" class="pontnova-link">Chinese</a>
+          <div class="pontnova-ai-badge" aria-label="AI-curated European IP signals">
+            <span class="pontnova-ai-badge__dot"></span>
+            <span>AI-curated</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="pontnova-app">
+      <section class="pontnova-hero">
+        <div class="pontnova-hero__panel">
+          <div class="pontnova-kicker">Pontnova intelligence view</div>
+          <h1 class="pontnova-heading">European IP signals,<br><em>turned into decision-ready intelligence.</em></h1>
+          <p class="pontnova-subtitle">A client-facing view of high-signal European IP developments from official institutions, courts, specialist media and law-firm analysis.</p>
+        </div>
+      </section>
+      <div id="app"></div>
+    </main>
+  </div>
+
+  <script src="eu_ip_sentinel_assets/js/app.js?v=20260519-sync-003"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const hideLoader = () => {
+        const loader = document.getElementById('initial-loader');
+        if (loader) {
+          loader.classList.add('fade-out');
+          setTimeout(() => loader.remove(), 400);
+        }
+      };
+      requestAnimationFrame(() => setTimeout(hideLoader, 180));
+    });
+  </script>
+</body>
+</html>

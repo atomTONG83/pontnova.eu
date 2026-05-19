@@ -27,20 +27,30 @@ const STATIC_DEFAULT_FILES = {
   topic_details_dir: 'topic-details',
 };
 const DEFAULT_LANG = 'zh';
+const LANG_VALUES = ['zh', 'en'];
+const MOBILE_LAYOUT_BREAKPOINT = 768;
 const THEME_VALUES = ['light', 'dark'];
 const SCOPE_VALUES = ['eu', 'intl', 'uk', 'de', 'fr', 'benelux', 'scandinavia', 'all'];
 const EDITORIAL_LANE_VALUES = ['all', 'core', 'watch', 'calendar'];
 const PUBLIC_HIDDEN_PAGES = new Set(['reports', 'sources', 'about']);
 const getInitialTheme = () => 'dark';
+const getInitialLang = () => {
+  const params = new URLSearchParams(window.location.search);
+  const fromQuery = String(params.get('lang') || '').trim().toLowerCase();
+  if (LANG_VALUES.includes(fromQuery)) return fromQuery;
+  if (/en(?:\.html|\/)?$/i.test(window.location.pathname) || /\/en(?:\/|$)/i.test(window.location.pathname)) return 'en';
+  const stored = localStorage.getItem('pontnova_lang');
+  if (LANG_VALUES.includes(stored)) return stored;
+  const docLang = String(document.documentElement.lang || '').toLowerCase();
+  if (docLang.startsWith('en')) return 'en';
+  return DEFAULT_LANG;
+};
 const getInitialScope = () => {
   const stored = localStorage.getItem('pontnova_scope');
   return SCOPE_VALUES.includes(stored) ? stored : 'eu';
 };
 const getDefaultEditorialLaneSelection = () => 'all';
-const getInitialEditorialLane = () => {
-  const stored = localStorage.getItem('pontnova_editorial_lane');
-  return EDITORIAL_LANE_VALUES.includes(stored) ? stored : getDefaultEditorialLaneSelection();
-};
+const getInitialEditorialLane = () => getDefaultEditorialLaneSelection();
 
 function releaseDefaultEditorialLaneForFocusedNews() {
   if (state.filters.editorial_lane === getDefaultEditorialLaneSelection()) {
@@ -58,7 +68,7 @@ function shouldReleaseDefaultEditorialLane(filter, value) {
 }
 
 const state = {
-  lang: DEFAULT_LANG,
+  lang: getInitialLang(),
   theme: getInitialTheme(),
   currentPage: 'news',
   focusViewExpanded: false,
@@ -91,6 +101,10 @@ const state = {
   publicSnapshotMeta: null,
   lastStaticSnapshotToken: '',
 };
+
+function isMobileViewport() {
+  return window.matchMedia(`(max-width: ${MOBILE_LAYOUT_BREAKPOINT}px)`).matches;
+}
 
 const EUROPE_HEAT_POINTS = [
   { id: 'ie', x: 182, y: 195, lx: 144, ly: 176, anchor: 'end' },
@@ -162,7 +176,7 @@ let europeHeatBaseMapPromise = null;
 let regionDisplayNamesZh = null;
 let regionDisplayNamesEn = null;
 
-localStorage.setItem('pontnova_lang', DEFAULT_LANG);
+localStorage.setItem('pontnova_lang', state.lang);
 
 let staticSnapshotPromise = null;
 let staticNewsIndexPromise = null;
@@ -388,7 +402,12 @@ function staticFilterNews(items, params) {
   const dateTo = params.get('date_to') || '';
   const hasAiRaw = params.get('has_ai');
   const relevantOnlyRaw = params.get('relevant_only');
+  const publishableOnlyRaw = params.get('publishable_only');
   const scope = params.get('scope') || '';
+  const isPublishable = (item) => {
+    if (item?.verification_publishable === undefined && item?.verification_status === undefined) return true;
+    return item?.verification_publishable === 1 || item?.verification_publishable === true || item?.verification_status === 'pass';
+  };
 
   if (ipType && ipType !== 'all') filtered = filtered.filter((item) => item.ip_type === ipType);
   if (editorialLane && editorialLane !== 'all') filtered = filtered.filter((item) => getEditorialLane(item) === editorialLane);
@@ -401,6 +420,8 @@ function staticFilterNews(items, params) {
   if (hasAiRaw === 'false') filtered = filtered.filter((item) => item.ai_status !== 'done');
   if (relevantOnlyRaw === 'true') filtered = filtered.filter((item) => item.ai_is_relevant !== 0);
   if (relevantOnlyRaw === 'false') filtered = filtered.filter((item) => item.ai_is_relevant === 0);
+  if (publishableOnlyRaw === 'true') filtered = filtered.filter((item) => isPublishable(item));
+  if (publishableOnlyRaw === 'false') filtered = filtered.filter((item) => !isPublishable(item));
   if (query) {
     filtered = filtered.filter((item) => {
       const haystack = [
@@ -792,8 +813,8 @@ const i18n = {
     reports_center_title: '情报简报',
     reports_center_desc: '围绕当前两份简报、20 条可追溯明细、最近几期与历史归档组织整个简报流，便于持续跟踪盘面变化。',
     reports_center_window: '当前观察窗口',
-    reports_center_daily_mix: '日报来源结构',
-    reports_center_weekly_mix: '周报来源结构',
+    reports_center_daily_mix: '日报覆盖来源',
+    reports_center_weekly_mix: '周报覆盖来源',
     reports_center_recent_count: '最近几期',
     reports_center_archive_count: '历史归档',
     reports_center_pending: '待补分析',
@@ -1399,8 +1420,8 @@ const i18n = {
     reports_center_title: 'Reports Center',
     reports_center_desc: 'Organize the two current briefs, 20 traceable items, recent runs, and archive history into one continuous reporting flow.',
     reports_center_window: 'Current Window',
-    reports_center_daily_mix: 'Daily Source Mix',
-    reports_center_weekly_mix: 'Weekly Source Mix',
+    reports_center_daily_mix: 'Daily Sources',
+    reports_center_weekly_mix: 'Weekly Sources',
     reports_center_recent_count: 'Recent Runs',
     reports_center_archive_count: 'Archive Runs',
     reports_center_pending: 'Pending Analysis',
@@ -1876,7 +1897,7 @@ function renderReportDetailItems(report) {
             <span class="source-badge ${(item.category || '') === 'official' ? 'official' : ((item.category || '') === 'media' ? 'media' : 'lawfirm')}">${escapeHtml(compactSourceName(item.source_name || '') || '—')}</span>
             <span class="ip-badge ${item.ip_type || 'general'}">${getIpTypeLabel(item.ip_type || 'general')}</span>
             ${renderGeoBadges(item, true)}
-            ${renderAnalysisDepthBadge(item, true)}
+            ${renderReaderEventBadge(item)}
             <span class="news-card-date">${escapeHtml(buildPrimaryDateLabel(item))}</span>
           </div>
           <a href="${escapeHtml(item.url || '#')}" target="_blank" rel="noopener" class="btn btn-secondary report-detail-link">${t('detail_btn')}</a>
@@ -1979,7 +2000,6 @@ function renderReportScope(report) {
     <div class="briefing-report-scope">
       <span class="briefing-report-scope-chip">${itemCount} ${t('report_scope_items')}</span>
       <span class="briefing-report-scope-chip">${sourceCount} ${t('report_scope_sources')}</span>
-      <span class="briefing-report-scope-tier" title="${escapeHtml(t('source_tier_summary'))}">${renderSourceTierSummary(report)}</span>
     </div>
   `;
 }
@@ -2001,7 +2021,7 @@ function renderReportPreviewItems(report, reportType, limit = 2) {
                 <span class="source-badge ${(item.category || '') === 'official' ? 'official' : ((item.category || '') === 'media' ? 'media' : 'lawfirm')}">${escapeHtml(compactSourceName(item.source_name || '') || '—')}</span>
                 <span class="ip-badge ${item.ip_type || 'general'}">${getIpTypeLabel(item.ip_type || 'general')}</span>
                 ${renderGeoBadges(item, true, 1)}
-                ${renderAnalysisDepthBadge(item, true)}
+                ${renderReaderEventBadge(item)}
               </span>
               <strong class="briefing-report-preview-title">${escapeHtml(truncateText(title, 72))}</strong>
               <span class="briefing-report-preview-meta">${escapeHtml(buildPrimaryDateLabel(item))}</span>
@@ -2145,7 +2165,7 @@ function renderTodayPublishedCard(item, mode = 'published') {
         <span class="source-badge ${(item.category || '') === 'official' ? 'official' : ((item.category || '') === 'media' ? 'media' : 'lawfirm')}">${escapeHtml(compactSourceName(item.source_name || '') || '—')}</span>
         <span class="ip-badge ${item.ip_type || 'general'}">${getIpTypeLabel(item.ip_type || 'general')}</span>
         ${renderGeoBadges(item, true, 1)}
-        ${renderAnalysisDepthBadge(item, true)}
+        ${renderReaderEventBadge(item)}
         ${mode === 'captured' ? `<span class="today-published-state">${t('today_published_state_captured')}</span>` : ''}
         <span class="today-published-date">${escapeHtml(buildPrimaryDateLabel(item))}</span>
       </div>
@@ -2167,16 +2187,121 @@ function renderTodayPublishedCard(item, mode = 'published') {
 // API Calls
 // ──────────────────────────────────────────────
 
+function parseLocalizedPointArray(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.filter(part => String(part || '').trim());
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed.filter(part => String(part || '').trim());
+  } catch {}
+  return String(value).trim() ? [String(value).trim()] : [];
+}
+
+function stringifyLocalizedPoints(value) {
+  return JSON.stringify(parseLocalizedPointArray(value));
+}
+
+function containsHanText(value) {
+  return /[\u4e00-\u9fff]/.test(String(value || ''));
+}
+
+function filterEnglishPoints(value) {
+  return parseLocalizedPointArray(value).filter(part => !containsHanText(part));
+}
+
+function localizeEnglishPayload(value) {
+  if (state.lang !== 'en' || value == null) return value;
+  if (Array.isArray(value)) return value.map(localizeEnglishPayload);
+  if (typeof value !== 'object') return value;
+  const copy = {};
+  Object.entries(value).forEach(([key, child]) => {
+    copy[key] = localizeEnglishPayload(child);
+  });
+  const originalLanguage = String(value.language || '').toLowerCase();
+  const originalTitle = originalLanguage === 'en' && !containsHanText(value.title) ? (value.title || '') : '';
+  const originalSummary = originalLanguage === 'en' && !containsHanText(value.summary) ? (value.summary || '') : '';
+  if ('title_zh' in value || 'title_en' in value || 'title' in value) {
+    const englishTitle = value.title_en && !containsHanText(value.title_en) ? value.title_en : '';
+    const displayTitle = englishTitle || originalTitle || 'English title pending';
+    copy.title = displayTitle;
+    copy.title_zh = displayTitle;
+    copy.title_en = displayTitle;
+  }
+  if ('ai_summary_zh' in value || 'ai_summary_en' in value) {
+    copy.ai_summary_zh = value.ai_summary_en && !containsHanText(value.ai_summary_en) ? value.ai_summary_en : '';
+    copy.summary = originalSummary;
+  }
+  if ('ai_core_points_zh' in value || 'ai_core_points_en' in value || 'core_points_en' in value) {
+    const corePoints = filterEnglishPoints(value.ai_core_points_en || value.core_points_en || []);
+    copy.ai_core_points_zh = stringifyLocalizedPoints(corePoints);
+    copy.core_points_zh = corePoints;
+  }
+  if ('ai_insight_zh' in value || 'ai_insight_en' in value) {
+    copy.ai_insight_zh = value.ai_insight_en && !containsHanText(value.ai_insight_en) ? value.ai_insight_en : '';
+  }
+  if ('ai_insight_points_zh' in value || 'ai_insight_points_en' in value || 'insight_points_en' in value) {
+    const insightPoints = filterEnglishPoints(value.ai_insight_points_en || value.insight_points_en || []);
+    copy.ai_insight_points_zh = stringifyLocalizedPoints(insightPoints);
+    copy.insight_points_zh = insightPoints;
+  }
+  if ('headline_zh' in value || 'headline_en' in value) copy.headline_zh = value.headline_en || '';
+  if ('summary_zh' in value || 'summary_en' in value) copy.summary_zh = value.summary_en || '';
+  if ('topic_name_zh' in value || 'topic_name_en' in value) {
+    const topicName = value.topic_name_en && !containsHanText(value.topic_name_en) ? value.topic_name_en : 'Topic Brief';
+    copy.topic_name_zh = topicName;
+    copy.topic_name_en = topicName;
+  }
+  if ('jurisdictions_en' in value) copy.jurisdictions = parseLocalizedPointArray(value.jurisdictions_en);
+  if ('ip_types_en' in value) copy.ip_types = parseLocalizedPointArray(value.ip_types_en);
+  [
+    'top_signals',
+    'cross_currents',
+    'implications',
+    'watchlist',
+    'key_moves',
+    'business_actions',
+    'quick_takeaways',
+    'storylines',
+    'actions',
+    'key_points',
+    'key_actors',
+    'what_changed_vs_last_window',
+    'next_watch_72h',
+    'report_items',
+  ].forEach((key) => {
+    const englishKey = `${key}_en`;
+    if (englishKey in value) copy[key] = localizeEnglishPayload(value[englishKey]);
+    else if (key in value) copy[key] = [];
+  });
+  [
+    'executive_line',
+    'weekly_thesis',
+    'regional_shift',
+    'report_focus_zh',
+    'report_role_zh',
+  ].forEach((key) => {
+    const englishKey = key.endsWith('_zh') ? key.replace(/_zh$/, '_en') : `${key}_en`;
+    if (englishKey in value) copy[key] = value[englishKey] || '';
+    else if (key in value) copy[key] = '';
+  });
+  Object.keys(copy).forEach((key) => {
+    if (!key.endsWith('_zh') || !containsHanText(copy[key])) return;
+    const englishKey = key.replace(/_zh$/, '_en');
+    copy[key] = value[englishKey] && !containsHanText(value[englishKey]) ? value[englishKey] : '';
+  });
+  return copy;
+}
+
 async function apiFetch(path, options = {}) {
   if (STATIC_MODE) {
-    return staticApiFetch(path, options);
+    return localizeEnglishPayload(await staticApiFetch(path, options));
   }
   const res = await fetch(API + path, {
     headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
   });
   if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
-  return res.json();
+  return localizeEnglishPayload(await res.json());
 }
 
 function getStatsRefreshToken(stats) {
@@ -2220,13 +2345,70 @@ function downloadBase64File(filename, base64Content, mimeType = 'application/oct
 }
 
 // ──────────────────────────────────────────────
-// Language (currently fixed to zh)
+// Language
 // ──────────────────────────────────────────────
 
+function resolveStaticLanguagePath(pathname, lang) {
+  if (/\/eu-ip-frontier\//i.test(pathname)) {
+    if (lang === 'en') {
+      if (/\/(?:index|eu_ip_sentinel)\.html$/i.test(pathname)) return pathname.replace(/\/(?:index|eu_ip_sentinel)\.html$/i, '/en.html');
+      if (/\/eu-ip-frontier\/?$/i.test(pathname)) return pathname.replace(/\/?$/i, '/en.html');
+    }
+    if (lang === 'zh' && /\/en\.html$/i.test(pathname)) return pathname.replace(/\/en\.html$/i, '/index.html');
+    return pathname;
+  }
+  if (/eu_ip_sentinel_en\.html$/i.test(pathname)) {
+    return lang === 'zh' ? pathname.replace(/eu_ip_sentinel_en\.html$/i, 'eu_ip_sentinel.html') : pathname;
+  }
+  if (/eu_ip_sentinel\.html$/i.test(pathname)) {
+    return lang === 'en' ? pathname.replace(/eu_ip_sentinel\.html$/i, 'eu_ip_sentinel_en.html') : pathname;
+  }
+  return '';
+}
+
+function getLanguageSwitchUrl(lang) {
+  const nextLang = LANG_VALUES.includes(lang) ? lang : DEFAULT_LANG;
+  const url = new URL(window.location.href);
+  if (typeof STATIC_MODE !== 'undefined' && STATIC_MODE) {
+    const targetPath = resolveStaticLanguagePath(url.pathname, nextLang);
+    if (targetPath) {
+      url.pathname = targetPath;
+      url.searchParams.delete('lang');
+      return url.href;
+    }
+  }
+  url.searchParams.set('lang', nextLang);
+  return url.href;
+}
+
+function renderLanguageToggle() {
+  const label = state.lang === 'zh' ? '语言切换' : 'Language switch';
+  const zhLabel = state.lang === 'zh' ? '中' : 'ZH';
+  return `
+    <div class="lang-toggle topbar-lang-toggle" role="group" aria-label="${label}">
+      <button type="button" class="lang-btn${state.lang === 'zh' ? ' active' : ''}" data-lang="zh">${zhLabel}</button>
+      <button type="button" class="lang-btn${state.lang === 'en' ? ' active' : ''}" data-lang="en">EN</button>
+    </div>
+  `;
+}
+
 function setLang(lang) {
-  state.lang = DEFAULT_LANG;
-  localStorage.setItem('pontnova_lang', DEFAULT_LANG);
-  $$('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === DEFAULT_LANG));
+  state.lang = LANG_VALUES.includes(lang) ? lang : DEFAULT_LANG;
+  localStorage.setItem('pontnova_lang', state.lang);
+  const targetUrl = getLanguageSwitchUrl(state.lang);
+  if (targetUrl) {
+    const current = new URL(window.location.href);
+    const target = new URL(targetUrl);
+    if (typeof STATIC_MODE !== 'undefined' && STATIC_MODE && target.pathname !== current.pathname) {
+      window.location.href = targetUrl;
+      return;
+    }
+    if (target.search !== current.search) {
+      window.history.replaceState({}, '', `${target.pathname}${target.search}${target.hash}`);
+    }
+  }
+  document.documentElement.lang = state.lang === 'en' ? 'en' : 'zh-CN';
+  $$('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === state.lang));
   renderApp();
 }
 
@@ -2342,6 +2524,7 @@ function syncReportsNavByScroll() {
 
 function renderApp() {
   applyTheme(state.theme);
+  document.documentElement.lang = state.lang === 'en' ? 'en' : 'zh-CN';
   const app = document.getElementById('app');
   app.innerHTML = '';
   app.appendChild(renderLayout());
@@ -2462,6 +2645,7 @@ function renderTopbar() {
       </div>
     </div>
     <div class="topbar-actions">
+      ${renderLanguageToggle()}
       <span class="topbar-ai-badge" title="${t('topbar_ai_badge_hint')}" aria-label="${t('topbar_ai_badge_hint')}">
         <span class="topbar-ai-label">${t('topbar_ai_powered')}</span>
         <span class="topbar-ai-sub">${t('topbar_ai_powered_en')}</span>
@@ -2494,13 +2678,6 @@ function renderFilterBar() {
     ['lawfirm', t('filter_lawfirm')],
   ];
 
-  const laneTypes = [
-    ['all', t('filter_all')],
-    ['core', t('filter_lane_core')],
-    ['watch', t('filter_lane_watch')],
-    ['calendar', t('filter_lane_calendar')],
-  ];
-
   const scopeTypes = [
     ['eu', t('filter_scope_eu')],
     ['intl', t('filter_scope_intl')],
@@ -2522,14 +2699,6 @@ function renderFilterBar() {
              data-filter="category" data-value="${val}">${label}</button>`
   ).join('');
 
-  const laneChips = laneTypes.map(([val, label]) =>
-    `<button class="filter-chip ${state.filters.editorial_lane === val ? 'active' : ''}"
-             data-filter="editorial_lane" data-value="${val}">${label}</button>`
-  ).join('');
-
-  const aiChip = `<button class="filter-chip ai-chip ${state.filters.has_ai ? 'active' : ''}"
-    data-filter="has_ai" data-value="toggle">${t('filter_has_ai')}</button>`;
-
   return el('div', 'filter-bar', `
     <div class="filter-group">
       <span class="filter-label">IP</span>
@@ -2540,18 +2709,11 @@ function renderFilterBar() {
       ${catChips}
     </div>
     <div class="filter-group">
-      <span class="filter-label">${t('filter_lane')}</span>
-      ${laneChips}
-    </div>
-    <div class="filter-group">
       <span class="filter-label">${t('filter_scope')}</span>
       ${scopeTypes.map(([val, label]) => `
         <button class="filter-chip scope-chip ${state.filters.scope === val ? 'active' : ''}"
                 data-filter="scope" data-value="${val}">${label}</button>
       `).join('')}
-    </div>
-    <div class="filter-group filter-group-end">
-      ${aiChip}
     </div>
   `);
 }
@@ -2639,9 +2801,18 @@ async function renderNewsPage(container) {
     if (state.filters.scope && state.filters.scope !== 'all') params.set('scope', state.filters.scope);
     if (state.filters.q) params.set('q', state.filters.q);
     if (state.filters.source) params.set('source', state.filters.source);
-    if (state.filters.has_ai) params.set('has_ai', 'true');
+    if (state.lang === 'en') {
+      params.set('has_ai', 'true');
+      params.set('publishable_only', 'true');
+    } else if (state.filters.has_ai) {
+      params.set('has_ai', 'true');
+    }
     const todayParams = new URLSearchParams({ page: 1, limit: 60 });
     todayParams.set('relevant_only', 'true');
+    if (state.lang === 'en') {
+      todayParams.set('has_ai', 'true');
+      todayParams.set('publishable_only', 'true');
+    }
     if (state.filters.editorial_lane && state.filters.editorial_lane !== 'all') todayParams.set('editorial_lane', state.filters.editorial_lane);
     todayParams.set('date_from', todayStart);
     todayParams.set('date_to', todayEnd);
@@ -2710,7 +2881,11 @@ async function renderNewsPage(container) {
     }
 
     mergedItems = dedupeNewsItems(mergedItems).filter(isRelevantDisplayItem);
-    const displayTotal = data.total;
+    const displayTotal = state.lang === 'en' ? mergedItems.length : data.total;
+    state.pagination.total = displayTotal;
+    if (state.lang === 'en' && !sepTimelineMode) {
+      state.pagination.pages = Math.max(1, Math.ceil(displayTotal / state.pagination.limit));
+    }
     const featuredItems = sortBySignalPriority(mergedItems.filter(isPresentationItem), 'brief');
     const streamItems = mergedItems.filter(isStreamItem);
     const streamSourceItems = streamItems.length ? streamItems : mergedItems;
@@ -2718,6 +2893,7 @@ async function renderNewsPage(container) {
       ? selectChronologyWindow(streamSourceItems, sepTimelineWindowLimit, { showAll: true })
       : selectChronologyWindow(streamSourceItems, state.pagination.limit, { showAll: focusedMode });
     const boardItems = featuredItems.length ? featuredItems : visibleItems;
+    const todayPublishedItems = (todayPublishedData?.items || []).filter(isRelevantDisplayItem);
 
     container.innerHTML = '';
     if (focusedMode) {
@@ -2729,7 +2905,7 @@ async function renderNewsPage(container) {
         overviewData,
         displayTotal,
         boardItems,
-        todayPublishedData?.items || [],
+        todayPublishedItems,
         dailyReport,
         weeklyReport,
         topicBriefs?.topics || [],
@@ -2752,7 +2928,7 @@ async function renderNewsPage(container) {
         overviewData,
         displayTotal,
         boardItems,
-        todayPublishedData?.items || [],
+        todayPublishedItems,
         dailyReport,
         weeklyReport,
         topicBriefs?.topics || [],
@@ -2993,7 +3169,7 @@ function renderSepTopicFocus(brief) {
             ${actorGroups.map((group) => `
               <div class="sep-actor-group">
                 <div class="sep-actor-group-title">${escapeHtml((state.lang === 'zh' ? group.title_zh : group.title_en) || group.title_zh || '')}</div>
-                ${renderPointList(group.items || [], 'intel-points compact')}
+                ${renderPointList(state.lang === 'zh' ? (group.items || []) : (group.items_en || group.items || []), 'intel-points compact')}
               </div>
             `).join('')}
           </div>
@@ -3019,18 +3195,18 @@ function renderSepTopicFocus(brief) {
                 <span class="news-card-date">${escapeHtml(formatDate(item.date || ''))}</span>
                 <span class="source-badge media">${escapeHtml(compactSourceName(item.source_name || ''))}</span>
                 ${(item.signal_label_zh || item.signal_label_en) ? `<span class="topic-window-pill">${escapeHtml(state.lang === 'zh' ? (item.signal_label_zh || '') : (item.signal_label_en || item.signal_label_zh || ''))}</span>` : ''}
-                ${item.china_relevant ? `<span class="sep-china-indicator">${t('topic_sep_china_related')}</span>` : ''}
+                ${state.lang === 'zh' && item.china_relevant ? `<span class="sep-china-indicator">${t('topic_sep_china_related')}</span>` : ''}
                 ${item.scope ? `<span class="ip-badge general">${escapeHtml(resolveScopeLabel(item.scope))}</span>` : ''}
               </div>
-              <div class="sep-case-line-title">${escapeHtml((state.lang === 'zh' && item.title_zh) ? item.title_zh : (item.title_zh || item.title || ''))}</div>
-              ${Array.isArray(item.china_labels) && item.china_labels.length ? `<div class="sep-focus-company-list compact">${item.china_labels.map((label) => `<span class="sep-focus-company-pill">${escapeHtml(label)}</span>`).join('')}</div>` : ''}
+              <div class="sep-case-line-title">${escapeHtml((state.lang === 'zh' && item.title_zh) ? item.title_zh : (item.title_en || item.title || ''))}</div>
+              ${state.lang === 'zh' && Array.isArray(item.china_labels) && item.china_labels.length ? `<div class="sep-focus-company-list compact">${item.china_labels.map((label) => `<span class="sep-focus-company-pill">${escapeHtml(label)}</span>`).join('')}</div>` : ''}
               ${item.url ? `<a class="sep-case-line-link" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${t('topic_open_source')}</a>` : ''}
             </div>
           `).join('') : `<div class="mini-empty">${t('card_empty')}</div>`}
         </div>
       </div>
     </div>
-    <div class="intel-block insight sep-topic-impact-block">
+    <div class="intel-block insight sep-topic-impact-block" style="${state.lang === 'en' ? 'display:none !important;' : ''}">
       <div class="intel-block-label">${t('topic_sep_china_impact')}</div>
       <div class="topic-related-meta">${t('topic_sep_china_impact_desc')}</div>
       ${chinaImpactSummary ? `<p class="sep-impact-summary">${escapeHtml(chinaImpactSummary)}</p>` : ''}
@@ -3486,7 +3662,7 @@ function renderTopicTimeline(items) {
                 <span class="source-badge ${item.category || 'media'}">${escapeHtml(compactSourceName(item.source_name || ''))}</span>
                 <span class="ip-badge ${item.ip_type || 'general'}">${getIpTypeLabel(item.ip_type || 'general')}</span>
                 ${renderGeoBadges(item)}
-                ${renderSignalTagPills(item, true)}
+                ${renderReaderEventBadge(item)}
               </span>
               <span class="news-card-date">${escapeHtml(buildPrimaryDateLabel(item))}</span>
             </span>
@@ -3563,7 +3739,7 @@ function renderFocusedSepTimeline(items, total = 0) {
                     <span class="source-badge ${item.category || 'media'}">${escapeHtml(compactSourceName(item.source_name || ''))}</span>
                     <span class="ip-badge ${item.ip_type || 'general'}">${getIpTypeLabel(item.ip_type || 'general')}</span>
                     ${renderGeoBadges(item)}
-                    ${renderSignalTagPills(item, true)}
+                    ${renderReaderEventBadge(item)}
                   </span>
                   <span class="news-card-date">${escapeHtml(buildPrimaryDateLabel(item))}</span>
                 </span>
@@ -3749,6 +3925,22 @@ function formatAudioBriefDuration(seconds) {
   return minutes ? `${minutes}m ${String(remainder).padStart(2, '0')}s` : `${remainder}s`;
 }
 
+function shouldRenderAudioBrief(brief) {
+  if (!brief) return false;
+  if (state.lang !== 'en') return true;
+  const segments = Array.isArray(brief.segments) ? brief.segments : [];
+  const hasUsableEnglish = (value) => {
+    const text = String(value || '').trim();
+    return Boolean(text && text !== 'English title pending' && !containsHanText(text));
+  };
+  return Boolean(
+    hasUsableEnglish(brief.transcript_en)
+    || hasUsableEnglish(brief.opening_line_en)
+    || hasUsableEnglish(brief.closing_line_en)
+    || segments.some((segment) => hasUsableEnglish(segment.title_en) || hasUsableEnglish(segment.what_happened_en) || hasUsableEnglish(segment.why_it_matters_en))
+  );
+}
+
 function renderAudioBriefCard(brief) {
   const copy = getAudioBriefCopy();
   const card = el('article', 'briefing-report-card briefing-report-card--audio');
@@ -3758,10 +3950,21 @@ function renderAudioBriefCard(brief) {
     card.innerHTML = `<div class="mini-empty">${copy.empty}</div>`;
     return card;
   }
+  if (!shouldRenderAudioBrief(brief)) return null;
 
   const segments = Array.isArray(brief.segments) ? brief.segments : [];
-  const transcriptLines = Array.isArray(brief.transcript_lines_zh) ? brief.transcript_lines_zh : [];
-  const isAudioReady = Boolean(brief.audio_available && brief.audio_url);
+  const useEnglishAudio = state.lang === 'en';
+  const transcriptLines = useEnglishAudio && Array.isArray(brief.transcript_lines_en)
+    ? brief.transcript_lines_en
+    : (Array.isArray(brief.transcript_lines_zh) ? brief.transcript_lines_zh : []);
+  const audioUrl = useEnglishAudio ? (brief.audio_url_en || '') : (brief.audio_url || '');
+  const isAudioReady = Boolean((useEnglishAudio ? brief.audio_available_en : brief.audio_available) && audioUrl);
+  const durationSeconds = useEnglishAudio
+    ? (brief.estimated_duration_seconds_en || brief.estimated_duration_seconds || 0)
+    : (brief.estimated_duration_seconds || 0);
+  const voiceName = useEnglishAudio
+    ? (brief.voice_name_en || brief.voice_name || '')
+    : (brief.voice_name || '');
   const briefDateLabel = formatDateLabel(brief.brief_date || brief.generated_at || '');
   const transcriptBody = transcriptLines.map((line) => `<p>${escapeHtml(line)}</p>`).join('');
   const segmentMarkup = segments.slice(0, 4).map((segment) => `
@@ -3784,7 +3987,7 @@ function renderAudioBriefCard(brief) {
     <div class="audio-brief-player-shell">
       ${isAudioReady
         ? `
-          <audio class="audio-brief-player" controls preload="none" src="${escapeHtml(brief.audio_url)}"></audio>
+          <audio class="audio-brief-player" controls preload="none" src="${escapeHtml(audioUrl)}"></audio>
         `
         : `<div class="audio-brief-status">${escapeHtml(brief.tts_reason || copy.scriptOnly)}</div>`
       }
@@ -3798,11 +4001,11 @@ function renderAudioBriefCard(brief) {
         <div class="audio-brief-meta-row">
           <span class="audio-brief-meta-pill">${copy.current}</span>
           <span class="audio-brief-meta-pill">${isAudioReady ? copy.ready : copy.scriptOnly}</span>
-          <span class="audio-brief-meta-pill">${copy.duration}: ${escapeHtml(formatAudioBriefDuration(brief.estimated_duration_seconds || 0))}</span>
-          ${brief.voice_name ? `<span class="audio-brief-meta-pill">${copy.voice}: ${escapeHtml(brief.voice_name)}</span>` : ''}
+          <span class="audio-brief-meta-pill">${copy.duration}: ${escapeHtml(formatAudioBriefDuration(durationSeconds))}</span>
+          ${voiceName ? `<span class="audio-brief-meta-pill">${copy.voice}: ${escapeHtml(voiceName)}</span>` : ''}
           <span class="audio-brief-meta-pill">${copy.points}: ${escapeHtml(String(segments.length || 0))}</span>
           <span class="audio-brief-meta-pill">${copy.generatedAt}: ${escapeHtml(formatDateTimeLabel(brief.generated_at || ''))}</span>
-          ${isAudioReady ? `<a class="btn btn-secondary btn-sm" href="${escapeHtml(brief.audio_url)}" download>${copy.download}</a>` : ''}
+          ${isAudioReady ? `<a class="btn btn-secondary btn-sm" href="${escapeHtml(audioUrl)}" download>${copy.download}</a>` : ''}
         </div>
         ${segmentMarkup ? `<div class="audio-brief-segment-list">${segmentMarkup}</div>` : ''}
         ${transcriptBody ? `
@@ -3819,7 +4022,7 @@ function renderAudioBriefCard(brief) {
 
 function renderAudioBriefHistory(historyItems = []) {
   const copy = getAudioBriefCopy();
-  const items = (historyItems || []).filter(Boolean).slice(1, 8);
+  const items = (historyItems || []).filter(shouldRenderAudioBrief).slice(1, 8);
   if (!items.length) return null;
 
   const section = el('section', 'reports-audio-history-shell');
@@ -3857,9 +4060,11 @@ function renderAudioBriefHistory(historyItems = []) {
 
 function renderHomeAudioBriefSection(dailyAudioBrief) {
   if (!dailyAudioBrief) return null;
+  const audioCard = renderAudioBriefCard(dailyAudioBrief);
+  if (!audioCard) return null;
   const section = el('section', 'briefing-report-section briefing-report-section--audio-home');
   const grid = el('div', 'briefing-report-grid briefing-report-grid--single');
-  grid.appendChild(renderAudioBriefCard(dailyAudioBrief));
+  grid.appendChild(audioCard);
   section.appendChild(grid);
   return section;
 }
@@ -3867,11 +4072,12 @@ function renderHomeAudioBriefSection(dailyAudioBrief) {
 function renderCommanderReports(dailyReport, weeklyReport, dailyAudioBrief = null, dailyAudioHistory = [], includeAudio = true) {
   const section = el('section', 'briefing-report-section');
   const isReportsPage = state.currentPage === 'reports';
-  const availableReports = [dailyReport, weeklyReport, includeAudio ? dailyAudioBrief : null].filter(Boolean);
+  const displayAudioBrief = includeAudio && shouldRenderAudioBrief(dailyAudioBrief) ? dailyAudioBrief : null;
+  const availableReports = [dailyReport, weeklyReport, displayAudioBrief].filter(Boolean);
   const totalReportItems = [dailyReport, weeklyReport].filter(Boolean).reduce((sum, report) => sum + Number(report?.report_item_count || report?.item_count || 0), 0);
   const dailyCount = Number(dailyReport?.report_item_count || dailyReport?.item_count || 0);
   const weeklyCount = Number(weeklyReport?.report_item_count || weeklyReport?.item_count || 0);
-  const audioCount = Number(dailyAudioBrief?.segments?.length || 0);
+  const audioCount = Number(displayAudioBrief?.segments?.length || 0);
   const dailySummaryLabel = state.lang === 'zh' ? `日报 ${dailyCount}` : `Daily ${dailyCount}`;
   const weeklySummaryLabel = state.lang === 'zh' ? `周报 ${weeklyCount}` : `Weekly ${weeklyCount}`;
   const audioSummaryLabel = state.lang === 'zh' ? `语音 ${audioCount}` : `Audio ${audioCount}`;
@@ -3896,13 +4102,13 @@ function renderCommanderReports(dailyReport, weeklyReport, dailyAudioBrief = nul
       <span class="briefing-report-section-chip">${totalReportItems} ${t('section_reports_summary_items')}</span>
       <span class="briefing-report-section-chip daily">${escapeHtml(dailySummaryLabel)}</span>
       <span class="briefing-report-section-chip weekly">${escapeHtml(weeklySummaryLabel)}</span>
-      ${includeAudio && dailyAudioBrief ? `<span class="briefing-report-section-chip audio">${escapeHtml(audioSummaryLabel)}</span>` : ''}
+      ${displayAudioBrief ? `<span class="briefing-report-section-chip audio">${escapeHtml(audioSummaryLabel)}</span>` : ''}
     </div>
   `;
   const grid = el('div', 'briefing-report-grid');
   grid.appendChild(renderBriefingReportCard(dailyReport, 'daily'));
   grid.appendChild(renderBriefingReportCard(weeklyReport, 'weekly'));
-  if (includeAudio && dailyAudioBrief) grid.appendChild(renderAudioBriefCard(dailyAudioBrief));
+  if (displayAudioBrief) grid.appendChild(renderAudioBriefCard(displayAudioBrief));
   section.appendChild(grid);
   if (isReportsPage) {
     const historySection = renderAudioBriefHistory(dailyAudioHistory);
@@ -3913,14 +4119,15 @@ function renderCommanderReports(dailyReport, weeklyReport, dailyAudioBrief = nul
 }
 
 function renderReportsCenterHero(dailyReport, weeklyReport, dailyAudioBrief, topics, stats, archive) {
+  const displayAudioBrief = shouldRenderAudioBrief(dailyAudioBrief) ? dailyAudioBrief : null;
   const primary = dailyReport || weeklyReport || {};
   const archiveRuns = buildArchiveRunGroups([...(archive?.groups?.daily || []), ...(archive?.groups?.weekly || [])]);
-  const currentCount = [dailyReport, weeklyReport, dailyAudioBrief].filter(Boolean).length;
+  const currentCount = [dailyReport, weeklyReport, displayAudioBrief].filter(Boolean).length;
   const recentCount = Math.min(8, archiveRuns.length);
   const archiveCount = archiveRuns.length;
   const dailyCount = Number(dailyReport?.report_item_count || dailyReport?.item_count || 0);
   const weeklyCount = Number(weeklyReport?.report_item_count || weeklyReport?.item_count || 0);
-  const audioCount = Number(dailyAudioBrief?.segments?.length || 0);
+  const audioCount = Number(displayAudioBrief?.segments?.length || 0);
   const totalReportItems = dailyCount + weeklyCount;
   const dailySummaryLabel = state.lang === 'zh' ? `日报 ${dailyCount}` : `Daily ${dailyCount}`;
   const weeklySummaryLabel = state.lang === 'zh' ? `周报 ${weeklyCount}` : `Weekly ${weeklyCount}`;
@@ -3939,7 +4146,7 @@ function renderReportsCenterHero(dailyReport, weeklyReport, dailyAudioBrief, top
       <span class="briefing-report-section-chip">${totalReportItems} ${t('section_reports_summary_items')}</span>
       <span class="briefing-report-section-chip daily">${escapeHtml(dailySummaryLabel)}</span>
       <span class="briefing-report-section-chip weekly">${escapeHtml(weeklySummaryLabel)}</span>
-      ${dailyAudioBrief ? `<span class="briefing-report-section-chip audio">${escapeHtml(audioSummaryLabel)}</span>` : ''}
+      ${displayAudioBrief ? `<span class="briefing-report-section-chip audio">${escapeHtml(audioSummaryLabel)}</span>` : ''}
     </div>
   `;
   const actionRow = el('div', 'reports-center-actions');
@@ -3949,7 +4156,7 @@ function renderReportsCenterHero(dailyReport, weeklyReport, dailyAudioBrief, top
       <div class="reports-center-action-group">
         ${dailyReport ? `<button class="btn btn-secondary reports-center-action-btn" data-open-report-card="daily">${t('reports_center_open_daily')}<span class="reports-center-action-count">${dailyCount}</span></button>` : ''}
         ${weeklyReport ? `<button class="btn btn-secondary reports-center-action-btn" data-open-report-card="weekly">${t('reports_center_open_weekly')}<span class="reports-center-action-count">${weeklyCount}</span></button>` : ''}
-        ${dailyAudioBrief ? `<button class="btn btn-secondary reports-center-action-btn" data-open-report-card="audio">${getAudioBriefCopy().audioOpen}<span class="reports-center-action-count">${audioCount}</span></button>` : ''}
+        ${displayAudioBrief ? `<button class="btn btn-secondary reports-center-action-btn" data-open-report-card="audio">${getAudioBriefCopy().audioOpen}<span class="reports-center-action-count">${audioCount}</span></button>` : ''}
       </div>
     </div>
   `;
@@ -3961,14 +4168,14 @@ function renderReportsCenterHero(dailyReport, weeklyReport, dailyAudioBrief, top
   const cards = [
     { value: formatCollectionWindow(primary || stats) || '—', label: t('reports_center_window') },
     {
-      value: formatTierTriplet(dailyReport?.source_tier_core, dailyReport?.source_tier_stable, dailyReport?.source_tier_watch),
+      value: Number(dailyReport?.source_count || 0).toLocaleString(),
       label: t('reports_center_daily_mix'),
-      sub: getTierTripletCaption(),
+      sub: t('report_scope_sources'),
     },
     {
-      value: formatTierTriplet(weeklyReport?.source_tier_core, weeklyReport?.source_tier_stable, weeklyReport?.source_tier_watch),
+      value: Number(weeklyReport?.source_count || 0).toLocaleString(),
       label: t('reports_center_weekly_mix'),
-      sub: getTierTripletCaption(),
+      sub: t('report_scope_sources'),
     },
     {
       value: Number(recentCount || 0).toLocaleString(),
@@ -3984,12 +4191,6 @@ function renderReportsCenterHero(dailyReport, weeklyReport, dailyAudioBrief, top
     </div>
   `).join('');
   shell.appendChild(grid);
-  const compareRow = el('div', 'reports-center-compare-row');
-  compareRow.innerHTML = `
-    <div class="reports-center-compare-pack">${renderReportSignalPill(dailyReport)}${renderReportComparison(dailyReport, 'daily', true)}</div>
-    <div class="reports-center-compare-pack">${renderReportSignalPill(weeklyReport)}${renderReportComparison(weeklyReport, 'weekly', true)}</div>
-  `;
-  shell.appendChild(compareRow);
   const navRow = el('div', 'reports-center-nav');
   navRow.innerHTML = `
     <button class="btn btn-secondary reports-nav-btn" data-report-anchor="current">${t('reports_nav_current')}<span class="reports-nav-count">${currentCount}</span></button>
@@ -4250,12 +4451,10 @@ function renderBriefingReportCard(report, reportType) {
     </div>
     <div class="briefing-report-topline">
       <span class="source-badge official">${escapeHtml(roleLabel)}</span>
-      ${renderReportSignalPill(report)}
     </div>
     <h3 class="briefing-report-title">${escapeHtml(report.headline_zh || reportLabel)}</h3>
     ${report.headline_en ? `<div class="briefing-report-subtitle">${escapeHtml(report.headline_en)}</div>` : ''}
     <div class="briefing-report-flavor">${escapeHtml(flavorText)}</div>
-    ${renderReportComparison(report, reportType)}
     ${renderReportScope(report)}
     <p class="briefing-report-summary">${escapeHtml(compactSummary)}</p>
     ${isReportsPage ? foldedBody : `
@@ -4273,7 +4472,6 @@ function renderBriefingReportCard(report, reportType) {
     <div class="briefing-report-meta">
       <span>${formatCollectionWindow(report)}</span>
       <div class="briefing-report-actions">
-        <span class="briefing-tier-summary" title="${escapeHtml(t('source_tier_summary'))}">${renderSourceTierSummary(report)}</span>
         ${isReportsPage
           ? `
             <button class="btn btn-secondary briefing-export-btn" data-report-type="${reportType}" data-export-format="html">${t('export_html')}</button>
@@ -4418,7 +4616,6 @@ function renderTopicBriefCard(topic) {
           <div class="intel-block-label">${t('block_topic_actions')}</div>
           ${renderPointList(actions, 'intel-points compact')}
         </div>
-        <div class="topic-brief-tier">${renderSourceTierSummary(topic)}</div>
         <button class="btn btn-secondary topic-brief-btn" data-topic-id="${escapeHtml(topic.topic_id || '')}">${t('topic_open')}</button>
       ` : `<div class="topic-brief-empty-note">${escapeHtml(display.note || display.summary)}</div>`}
     </article>
@@ -4897,8 +5094,7 @@ function renderPriorityBrief(overview, items) {
       <span class="source-badge ${item.category || 'media'}">${escapeHtml(item.source_name || '')}</span>
       <span class="ip-badge ${item.ip_type || 'general'}">${getIpTypeLabel(item.ip_type || 'general')}</span>
       ${renderGeoBadges(item)}
-      ${renderAnalysisDepthBadge(item, true)}
-      ${renderSignalTagPills(item, true)}
+      ${renderReaderEventBadge(item)}
       <span class="priority-date">${date}</span>
     </div>
     <div class="priority-flag">${t('card_priority')}</div>
@@ -5183,16 +5379,136 @@ function getGeoLabels(item) {
   return primary ? [primary] : [];
 }
 
-function renderGeoBadges(item, compact = false, maxItems = 2) {
-  const labels = getGeoLabels(item);
-  if (!labels.length) return '';
-  const primary = getGeoLabel(item);
-  const ordered = [];
-  if (primary) ordered.push(primary);
-  labels.forEach((label) => {
-    if (label && !ordered.includes(label)) ordered.push(label);
+function parseListField(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (!value) return [];
+  if (typeof value !== 'string') return [];
+  const raw = value.trim();
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.filter(Boolean);
+  } catch {}
+  if (raw.includes('|')) return raw.split('|').map((part) => part.trim()).filter(Boolean);
+  return raw.split(',').map((part) => part.trim()).filter(Boolean);
+}
+
+function getItemInstitutionSet(item) {
+  const values = parseListField(item?.ai_institutions).map((value) => String(value || '').toLowerCase());
+  const sourceId = String(item?.source_id || '').toLowerCase();
+  if (sourceId) values.push(sourceId);
+  const text = `${item?.title || ''} ${item?.title_zh || ''} ${item?.summary || ''} ${item?.ai_summary_zh || ''}`.toLowerCase();
+  const checks = [
+    ['upc', /\bupc\b|unified patent court/],
+    ['epo', /\bepo\b|european patent office/],
+    ['euipo', /\beuipo\b/],
+    ['cjeu', /\bcjeu\b|court of justice of the european union|\bgeneral court\b/],
+    ['wipo', /\bwipo\b/],
+    ['ec', /\beuropean commission\b|\beu commission\b/],
+    ['eurlex', /\beur-lex\b/],
+    ['eu', /\beuropean parliament\b|\beuropean union\b|\beu trade mark\b|\beutm\b|\bcommunity design\b/],
+  ];
+  checks.forEach(([code, pattern]) => {
+    if (pattern.test(text)) values.push(code);
   });
-  return `<span class="geo-badges">${ordered.slice(0, maxItems).map((label) => `<span class="geo-badge${compact ? ' compact' : ''}">${escapeHtml(label)}</span>`).join('')}</span>`;
+  return new Set(values);
+}
+
+function getReaderForumLabel(item) {
+  const institutions = getItemInstitutionSet(item);
+  if (institutions.has('upc')) return 'UPC';
+  if (institutions.has('epo')) return 'EPO';
+  if (institutions.has('wipo')) return 'WIPO';
+  if (['euipo', 'cjeu', 'ec', 'eurlex', 'eu'].some((code) => institutions.has(code))) {
+    return state.lang === 'zh' ? '欧盟' : 'EU';
+  }
+  return '';
+}
+
+function getGeoEntries(item) {
+  const codes = parseListField(item?.geo_tags_list).map((code) => String(code || '').toLowerCase());
+  const labels = getGeoLabels(item);
+  const entries = [];
+  const add = (code, label) => {
+    const normalizedLabel = String(label || '').trim();
+    if (!normalizedLabel) return;
+    if (!entries.some((entry) => entry.label === normalizedLabel)) {
+      entries.push({ code: String(code || '').toLowerCase(), label: normalizedLabel });
+    }
+  };
+  const primaryCode = String(item?.primary_scope || item?.ai_primary_scope || '').toLowerCase();
+  const primaryLabel = getGeoLabel(item);
+  add(primaryCode, primaryLabel);
+  labels.forEach((label, index) => add(codes[index] || '', label));
+  return entries;
+}
+
+function isBroadGeoEntry(entry) {
+  const label = String(entry?.label || '').toLowerCase();
+  return entry?.code === 'eu' || label === '欧洲层面' || label === '欧洲范围' || label === 'europe-wide';
+}
+
+function isRegionalGeoEntry(entry) {
+  return ['benelux', 'scandinavia'].includes(entry?.code);
+}
+
+function isInternationalGeoEntry(entry) {
+  const label = String(entry?.label || '').toLowerCase();
+  return entry?.code === 'intl' || label === '国际' || label === 'international';
+}
+
+function isEuLevelInstitutionalItem(item) {
+  const primaryCode = String(item?.primary_scope || item?.ai_primary_scope || '').toLowerCase();
+  if (primaryCode !== 'eu') return false;
+  if (isUpcItem(item)) return false;
+  const institutions = getItemInstitutionSet(item);
+  if (['euipo', 'cjeu', 'ec', 'eurlex', 'eu'].some((code) => institutions.has(code))) return true;
+  const sourceId = String(item?.source_id || '').toLowerCase();
+  if (['euipo', 'euipo_tm', 'euipo_design', 'euipo_gi', 'cjeu', 'ec', 'eurlex'].includes(sourceId)) return true;
+  const text = [
+    item?.title || '',
+    item?.title_zh || '',
+    item?.summary || '',
+    item?.ai_summary_zh || '',
+  ].join(' ').toLowerCase();
+  return /\beuipo\b|\bgeneral court\b|\bcjeu\b|court of justice of the european union|\beuropean commission\b|\beuropean parliament\b|\beuropean union\b/.test(text);
+}
+
+function getReaderGeoLabels(item) {
+  const entries = getGeoEntries(item);
+  const forumLabel = getReaderForumLabel(item);
+  const primaryCode = String(item?.primary_scope || item?.ai_primary_scope || '').toLowerCase();
+  const concrete = entries.filter((entry) => !isBroadGeoEntry(entry) && !isInternationalGeoEntry(entry) && !isRegionalGeoEntry(entry));
+  const regional = entries.filter(isRegionalGeoEntry);
+  const broad = entries.filter((entry) => isBroadGeoEntry(entry) || isInternationalGeoEntry(entry));
+  const ordered = [];
+  const add = (label) => {
+    if (label && !ordered.includes(label)) ordered.push(label);
+  };
+
+  if (forumLabel === 'UPC') add(forumLabel);
+  if (isEuLevelInstitutionalItem(item)) {
+    add(forumLabel || (state.lang === 'zh' ? '欧盟' : 'EU'));
+    if (!ordered.length) broad.forEach((entry) => add(entry.label));
+    return ordered;
+  }
+  if (primaryCode === 'eu') {
+    if (forumLabel && forumLabel !== 'UPC') add(forumLabel);
+    broad.forEach((entry) => add(entry.label));
+  }
+  const primaryConcrete = concrete.find((entry) => entry.code === primaryCode);
+  if (primaryConcrete) add(primaryConcrete.label);
+  concrete.forEach((entry) => add(entry.label));
+  regional.forEach((entry) => add(entry.label));
+  if (forumLabel && forumLabel !== 'UPC') add(forumLabel);
+  if (!ordered.length) broad.forEach((entry) => add(entry.label));
+  return ordered;
+}
+
+function renderGeoBadges(item, compact = false, maxItems = 2) {
+  const labels = getReaderGeoLabels(item);
+  if (!labels.length) return '';
+  return `<span class="geo-badges">${labels.slice(0, maxItems).map((label) => `<span class="geo-badge${compact ? ' compact' : ''}">${escapeHtml(label)}</span>`).join('')}</span>`;
 }
 
 function getEuropeHeatLabel(id) {
@@ -5418,6 +5734,16 @@ function getEuropeHeatItemRouting(item) {
       relatedTargets,
       displayTargets: upcOverall ? [] : (primaryTargets.length ? primaryTargets : relatedTargets),
       tags,
+    };
+  }
+  if (isEuLevelInstitutionalItem(item)) {
+    return {
+      upc: false,
+      upcOverall: false,
+      primaryTargets: [],
+      relatedTargets: [],
+      displayTargets: [],
+      tags: tags.includes('eu') ? tags : ['eu', ...tags],
     };
   }
   const primaryTargets = [];
@@ -5831,6 +6157,31 @@ function renderAnalysisDepthBadge(item, compact = false) {
   return `<span class="analysis-depth-badge ${tier}${compact ? ' compact' : ''}" title="${escapeHtml(desc)}">${escapeHtml(label)}</span>`;
 }
 
+function getReaderEventMeta(item) {
+  const type = String(item?.ai_document_type || '').trim().toLowerCase();
+  const map = {
+    judgment: ['judgment', '裁判', 'Judgment'],
+    policy_update: ['policy', '政策', 'Policy'],
+    legislation: ['policy', '立法', 'Legislation'],
+    guidance: ['guidance', '指引', 'Guidance'],
+    official_news: ['official', '官方', 'Official'],
+    enforcement_action: ['enforcement', '执法', 'Enforcement'],
+    event_notice: ['event', '活动', 'Event'],
+    data_release: ['data', '数据', 'Data'],
+    lawfirm_analysis: ['analysis', '解读', 'Analysis'],
+    market_commentary: ['analysis', '观察', 'Commentary'],
+  };
+  const hit = map[type];
+  if (!hit) return null;
+  return { key: hit[0], label: state.lang === 'zh' ? hit[1] : hit[2] };
+}
+
+function renderReaderEventBadge(item, compact = true) {
+  const meta = getReaderEventMeta(item);
+  if (!meta) return '';
+  return `<span class="reader-event-badge ${meta.key}${compact ? ' compact' : ''}">${escapeHtml(meta.label)}</span>`;
+}
+
 function getHeadlineVariantClass(title) {
   const text = (title || '').trim();
   if (!text) return '';
@@ -6239,7 +6590,22 @@ function isHardSignalHomeItem(item) {
 function isRelevantDisplayItem(item) {
   if (!item) return false;
   if (item.ai_is_relevant === 0) return false;
+  if (state.lang === 'en' && !hasCompleteEnglishAnalysis(item)) return false;
   return true;
+}
+
+function hasCompleteEnglishAnalysis(item) {
+  if (!item) return false;
+  const isUsableEnglish = (value) => {
+    const text = String(value || '').trim();
+    return Boolean(text && text !== 'English title pending' && !containsHanText(text));
+  };
+  return (
+    String(item.ai_en_status || '').trim().toLowerCase() === 'done'
+    && isUsableEnglish(item.title_en || item.title)
+    && isUsableEnglish(item.ai_summary_en || item.ai_summary_zh)
+    && isUsableEnglish(item.ai_insight_en || item.ai_insight_zh)
+  );
 }
 
 function getEditorialLane(item) {
@@ -6487,10 +6853,7 @@ function isStreamItem(item) {
 
 function renderNewsCard(item, tier = 'scan') {
   const ipType = item.ip_type || 'general';
-  const category = item.category || 'media';
   const date = buildPrimaryDateLabel(item);
-  const linkDateMeta = buildOriginalLinkDateMeta(item);
-  const catLabel = { official: t('filter_official'), media: t('filter_media'), lawfirm: t('filter_lawfirm') }[category] || category;
   const aiDone = item.ai_status === 'done';
   const primaryTitle = item.title_zh || item.title || '—';
   const englishTitle = item.title && item.title !== primaryTitle ? item.title : '';
@@ -6498,19 +6861,22 @@ function renderNewsCard(item, tier = 'scan') {
   const insight = item.ai_insight_zh || '';
   const fallbackSummary = buildFallbackBrief(item, 'summary');
   const fallbackInsight = buildFallbackBrief(item, 'signal');
-  const summaryPoints = resolvePointList(item.ai_core_points_zh, synopsis || fallbackSummary, 2, tier === 'must-read' ? 78 : 68);
-  const insightPoints = resolvePointList(item.ai_insight_points_zh, insight || fallbackInsight, 1, 72);
-  const primaryInsight = insightPoints[0] || truncateText(insight || fallbackInsight, 72) || '';
+  const summaryLimit = state.lang === 'en' ? (tier === 'must-read' ? 132 : 118) : (tier === 'must-read' ? 78 : 68);
+  const insightLimit = state.lang === 'en' ? 150 : 72;
+  const summaryPoints = resolvePointList(item.ai_core_points_zh, synopsis || fallbackSummary, 2, summaryLimit);
+  const insightPoints = resolvePointList(item.ai_insight_points_zh, insight || fallbackInsight, state.lang === 'en' ? 2 : 1, insightLimit);
+  const primaryInsight = state.lang === 'en'
+    ? truncateText(insight || insightPoints.join(' ') || fallbackInsight, insightLimit)
+    : (insightPoints[0] || truncateText(insight || fallbackInsight, insightLimit) || '');
 
   const card = el('div', `news-card news-card--latest-style tier-${tier}${aiDone ? ' has-ai' : ''}`);
   card.dataset.type = ipType;
   card.dataset.id = item.id;
   card.innerHTML = `
     <div class="news-card-meta compact latest-like">
-      <span class="source-badge ${category}">${catLabel}</span>
       <span class="ip-badge ${ipType}">${getIpTypeLabel(ipType)}</span>
-      ${renderGeoBadges(item)}
-      ${renderAnalysisDepthBadge(item, true)}
+      ${renderGeoBadges(item, true, 1)}
+      ${renderReaderEventBadge(item)}
       <span class="news-card-date">${date}</span>
     </div>
     <div class="news-card-rubric">${escapeHtml(compactSourceName(item.source_name || ''))}</div>
@@ -6523,10 +6889,6 @@ function renderNewsCard(item, tier = 'scan') {
     </div>
     <div class="news-card-insight-line news-card-insight-latest">${escapeHtml(primaryInsight || '—')}</div>
     <div class="news-card-footer compact latest-like">
-      <div class="news-card-footer-meta">
-        <span class="news-card-source-name">${escapeHtml(compactSourceName(item.source_name || '—'))}</span>
-        <span class="news-card-date">${escapeHtml(linkDateMeta)}</span>
-      </div>
       <a href="${item.url}" target="_blank" rel="noopener" class="read-more-link compact-pill"
          onclick="event.stopPropagation()">
         ${t('detail_btn_short')}
@@ -7540,14 +7902,16 @@ function showNewsDetail(item) {
   const root = document.getElementById('modal-root');
   const ipType = item.ip_type || 'general';
   const linkDateMeta = buildOriginalLinkDateMeta(item);
-  const aiDone = item.ai_status === 'done';
   const hostname = (() => { try { return new URL(item.url).hostname; } catch { return item.url; } })();
+  const aiDone = item.ai_status === 'done';
   const primaryTitle = state.lang === 'zh' && item.title_zh ? item.title_zh : item.title;
   const secondaryTitle = item.title_zh ? item.title : '';
   const fallbackSummary = buildFallbackBrief(item, 'summary');
   const fallbackInsight = buildFallbackBrief(item, 'signal');
-  const summaryPoints = resolvePointList(item.ai_core_points_zh, item.ai_summary_zh || item.summary || fallbackSummary, 4, 180);
-  const insightPoints = resolvePointList(item.ai_insight_points_zh, item.ai_insight_zh || fallbackInsight, 3, 170);
+  const summaryText = (item.ai_summary_zh || item.summary || fallbackSummary || '').trim();
+  const insightText = (item.ai_insight_zh || fallbackInsight || '').trim();
+  const summaryPoints = resolvePointList(item.ai_core_points_zh, summaryText, 4, state.lang === 'en' ? 240 : 180);
+  const insightPoints = resolvePointList(item.ai_insight_points_zh, insightText, 3, state.lang === 'en' ? 230 : 170);
 
   const overlay = el('div', 'modal-overlay');
   overlay.innerHTML = `
@@ -7557,10 +7921,8 @@ function showNewsDetail(item) {
           <div class="modal-header-tags">
             <span class="ip-badge ${ipType}">${getIpTypeLabel(ipType)}</span>
             <span class="source-badge ${item.category}">${item.source_name || ''}</span>
-            ${renderGeoBadges(item)}
-            ${renderAnalysisDepthBadge(item, true)}
-            ${renderSignalTagPills(item, true)}
-            ${aiDone ? '<span class="ai-badge ai-badge-sm">AI</span>' : ''}
+            ${renderGeoBadges(item, true, 1)}
+            ${renderReaderEventBadge(item)}
           </div>
           <div class="modal-header-caption">${t('section_priority')}</div>
         </div>
@@ -7575,10 +7937,12 @@ function showNewsDetail(item) {
         </div>
         <div class="intel-block modal-intel-block">
           <div class="intel-block-label">${t('block_core_points')}</div>
+          ${state.lang === 'en' && summaryText ? `<p class="modal-analysis-copy">${escapeHtml(summaryText)}</p>` : ''}
           ${renderPointList(summaryPoints)}
         </div>
         <div class="intel-block modal-intel-block insight">
           <div class="intel-block-label">${t('block_insight')}</div>
+          ${state.lang === 'en' && insightText ? `<p class="modal-analysis-copy">${escapeHtml(insightText)}</p>` : ''}
           ${renderPointList(insightPoints)}
         </div>
         <div class="intel-block modal-intel-block intel-link-block">
