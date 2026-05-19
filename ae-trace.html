@@ -58,7 +58,7 @@
 
     <div id="ui-container">
         <h1>AE循迹</h1>
-        <p>全球 46 城定位</p>
+        <p id="city-count">全球足迹定位</p>
     </div>
     
     <div id="loading">正在加载 8K 级超清地貌贴图，请稍等数秒...</div>
@@ -70,7 +70,7 @@
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
         const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
@@ -84,11 +84,26 @@
         controls.minDistance = 1.1; 
         controls.maxDistance = 10;
         controls.enablePan = false;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.18;
+
+        let isUserInteracting = false;
+        controls.addEventListener('start', () => {
+            isUserInteracting = true;
+            controls.autoRotate = false;
+        });
+        controls.addEventListener('end', () => {
+            isUserInteracting = false;
+            setTimeout(() => {
+                if (!isUserInteracting) controls.autoRotate = true;
+            }, 2600);
+        });
 
         // 星空背景
         const starsGeometry = new THREE.BufferGeometry();
-        const posArray = new Float32Array(5000 * 3);
-        for(let i = 0; i < 5000 * 3; i++) posArray[i] = (Math.random() - 0.5) * 200; 
+        const starCount = isTouchDevice ? 2600 : 5000;
+        const posArray = new Float32Array(starCount * 3);
+        for(let i = 0; i < starCount * 3; i++) posArray[i] = (Math.random() - 0.5) * 200; 
         starsGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
         const starsMaterial = new THREE.PointsMaterial({ size: 0.1, color: 0xffffff, transparent: true, opacity: 0.8 });
         scene.add(new THREE.Points(starsGeometry, starsMaterial));
@@ -164,6 +179,7 @@
             { name: "第戎", lat: 47.3220, lon: 5.0415 },
             { name: "圣米歇尔山", lat: 48.6360, lon: -1.5115 },
             { name: "埃特雷塔（Étretat）", lat: 49.7060, lon: 0.2050 },
+            { name: "伦敦", lat: 51.5074, lon: -0.1278 },
             
             { name: "慕尼黑", lat: 48.1351, lon: 11.5820 },
             { name: "杜塞尔多夫", lat: 51.2277, lon: 6.7735 },
@@ -188,27 +204,35 @@
             { name: "塞内加尔", lat: 14.7167, lon: -17.4677 }
         ];
 
+        document.getElementById('city-count').textContent = `全球 ${cities.length} 城定位`;
+
         const markerEntries = [];
         const earthCenter = new THREE.Vector3();
         const baseLabelScale = new THREE.Vector3(0.145, 0.036, 1);
+        const scratchWorldPosition = new THREE.Vector3();
+        const scratchWorldNormal = new THREE.Vector3();
+        const scratchCameraDirection = new THREE.Vector3();
+        const fireworks = [];
+
+        function latLonToVector3(lat, lon, radius = 1.0) {
+            const phi = (90 - lat) * (Math.PI / 180);
+            const theta = (lon + 180) * (Math.PI / 180);
+            const x = -(radius * Math.sin(phi) * Math.cos(theta));
+            const y = radius * Math.cos(phi);
+            const z = (radius * Math.sin(phi) * Math.sin(theta));
+            return new THREE.Vector3(x, y, z);
+        }
 
         // 【核心优化】引线阵列错落排布法
         function createLocationMarker(cityName, lat, lon, index) {
             const markerGroup = new THREE.Group();
 
-            const radius = 1.0; 
-            const phi = (90 - lat) * (Math.PI / 180);
-            const theta = (lon + 180) * (Math.PI / 180); 
-            
             // 地表坐标
-            const x = -(radius * Math.sin(phi) * Math.cos(theta));
-            const y = radius * Math.cos(phi);
-            const z = (radius * Math.sin(phi) * Math.sin(theta));
-            const surfacePos = new THREE.Vector3(x, y, z);
+            const surfacePos = latLonToVector3(lat, lon);
 
             // 1. 贴地的小圆点
             const pointGeometry = new THREE.SphereGeometry(0.003, 16, 16);
-            const pointMaterial = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+            const pointMaterial = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true });
             const point = new THREE.Mesh(pointGeometry, pointMaterial);
             point.position.copy(surfacePos);
             markerGroup.add(point);
@@ -252,7 +276,7 @@
             sprite.scale.copy(baseLabelScale);
             markerGroup.add(sprite);
 
-            return { markerGroup, sprite };
+            return { markerGroup, sprite, point, line, surfacePos: surfacePos.clone().normalize() };
         }
 
         // 遍历数组，传入 index 以计算错落高度
@@ -263,6 +287,98 @@
         });
         // ==========================================
 
+        function createSingaporeFireworks() {
+            const singapore = cities.find(city => city.name === "新加坡");
+            if (!singapore) return;
+
+            const normal = latLonToVector3(singapore.lat, singapore.lon).normalize();
+            const anchor = normal.clone().multiplyScalar(1.18);
+            const tangent = new THREE.Vector3(0, 1, 0).cross(normal).normalize();
+            const bitangent = normal.clone().cross(tangent).normalize();
+            const colors = [0xffd166, 0x72f6ff, 0xff5d8f, 0xffffff];
+
+            const launchGeometry = new THREE.BufferGeometry().setFromPoints([
+                normal.clone().multiplyScalar(1.015),
+                anchor.clone()
+            ]);
+            const launchLine = new THREE.Line(
+                launchGeometry,
+                new THREE.LineBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.55 })
+            );
+            earth.add(launchLine);
+
+            for (let burstIndex = 0; burstIndex < 3; burstIndex++) {
+                const particleCount = isTouchDevice ? 42 : 72;
+                const positions = new Float32Array(particleCount * 3);
+                const directions = [];
+                const burstGeometry = new THREE.BufferGeometry();
+
+                for (let i = 0; i < particleCount; i++) {
+                    const angle = (i / particleCount) * Math.PI * 2;
+                    const ringDrift = Math.sin(i * 7.13) * 0.55;
+                    const direction = tangent.clone().multiplyScalar(Math.cos(angle))
+                        .add(bitangent.clone().multiplyScalar(Math.sin(angle)))
+                        .add(normal.clone().multiplyScalar(ringDrift))
+                        .normalize();
+                    directions.push(direction);
+                    positions.set(anchor.toArray(), i * 3);
+                }
+
+                burstGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+                const burstMaterial = new THREE.PointsMaterial({
+                    color: colors[burstIndex % colors.length],
+                    size: burstIndex === 0 ? 0.018 : 0.014,
+                    transparent: true,
+                    opacity: 0,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false
+                });
+
+                const points = new THREE.Points(burstGeometry, burstMaterial);
+                points.renderOrder = 4;
+                earth.add(points);
+
+                fireworks.push({
+                    anchor,
+                    directions,
+                    geometry: burstGeometry,
+                    material: burstMaterial,
+                    positions,
+                    delay: burstIndex * 0.68,
+                    duration: 2.25,
+                    maxRadius: 0.155 + burstIndex * 0.04
+                });
+            }
+        }
+
+        createSingaporeFireworks();
+
+        function updateFireworks(time) {
+            fireworks.forEach((burst) => {
+                const cycle = (time * 0.001 + burst.delay) % 3.4;
+                const progress = cycle / burst.duration;
+
+                if (progress >= 1) {
+                    burst.material.opacity = 0;
+                    return;
+                }
+
+                const eased = 1 - Math.pow(1 - progress, 2.6);
+                const sparkle = 0.72 + Math.sin(time * 0.022 + burst.delay * 9) * 0.28;
+                burst.material.opacity = Math.max(0, (1 - progress) * sparkle);
+
+                for (let i = 0; i < burst.directions.length; i++) {
+                    const offset = burst.directions[i].clone().multiplyScalar(eased * burst.maxRadius);
+                    const gravity = burst.anchor.clone().normalize().multiplyScalar(-0.035 * progress * progress);
+                    const particlePos = burst.anchor.clone().add(offset).add(gravity);
+                    burst.positions.set(particlePos.toArray(), i * 3);
+                }
+
+                burst.geometry.attributes.position.needsUpdate = true;
+            });
+        }
+
         function updateMarkerLabelScale() {
             earth.getWorldPosition(earthCenter);
             const cameraDistance = camera.position.distanceTo(earthCenter);
@@ -270,6 +386,18 @@
             const labelScaleFactor = THREE.MathUtils.lerp(0.62, 1.0, zoomT);
 
             markerEntries.forEach((entry) => {
+                scratchWorldPosition.copy(entry.surfacePos).applyMatrix4(earth.matrixWorld);
+                scratchWorldNormal.copy(entry.surfacePos).applyQuaternion(earth.quaternion).normalize();
+                scratchCameraDirection.copy(camera.position).sub(scratchWorldPosition).normalize();
+
+                const visibility = THREE.MathUtils.smoothstep(scratchWorldNormal.dot(scratchCameraDirection), -0.08, 0.18);
+                entry.sprite.material.opacity = visibility;
+                entry.line.material.opacity = visibility * 0.6;
+                entry.point.material.opacity = visibility;
+                entry.sprite.visible = visibility > 0.02;
+                entry.line.visible = visibility > 0.02;
+                entry.point.visible = visibility > 0.02;
+
                 entry.sprite.scale.set(
                     baseLabelScale.x * labelScaleFactor,
                     baseLabelScale.y * labelScaleFactor,
@@ -303,11 +431,13 @@
         // 动画循环
         function animate() {
             requestAnimationFrame(animate);
+            const time = performance.now();
 
-            earth.rotation.y += 0.0005; 
+            if (!controls.autoRotate) earth.rotation.y += 0.00035; 
 
             controls.update();
             updateMarkerLabelScale();
+            updateFireworks(time);
             renderer.render(scene, camera);
         }
 
@@ -318,6 +448,7 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         });
     </script>
 </body>
