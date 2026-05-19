@@ -5395,9 +5395,11 @@ function getItemInstitutionSet(item) {
     ['upc', /\bupc\b|unified patent court/],
     ['epo', /\bepo\b|european patent office/],
     ['euipo', /\beuipo\b/],
-    ['cjeu', /\bcjeu\b|court of justice of the european union/],
+    ['cjeu', /\bcjeu\b|court of justice of the european union|\bgeneral court\b/],
     ['wipo', /\bwipo\b/],
-    ['ec', /\beuropean commission\b/],
+    ['ec', /\beuropean commission\b|\beu commission\b/],
+    ['eurlex', /\beur-lex\b/],
+    ['eu', /\beuropean parliament\b|\beuropean union\b|\beu trade mark\b|\beutm\b|\bcommunity design\b/],
   ];
   checks.forEach(([code, pattern]) => {
     if (pattern.test(text)) values.push(code);
@@ -5407,17 +5409,13 @@ function getItemInstitutionSet(item) {
 
 function getReaderForumLabel(item) {
   const institutions = getItemInstitutionSet(item);
-  const labels = [
-    ['upc', 'UPC'],
-    ['epo', 'EPO'],
-    ['euipo', 'EUIPO'],
-    ['cjeu', 'CJEU'],
-    ['wipo', 'WIPO'],
-    ['eurlex', state.lang === 'zh' ? '欧盟' : 'EU'],
-    ['ec', state.lang === 'zh' ? '欧盟' : 'EU'],
-  ];
-  const hit = labels.find(([code]) => institutions.has(code));
-  return hit ? hit[1] : '';
+  if (institutions.has('upc')) return 'UPC';
+  if (institutions.has('epo')) return 'EPO';
+  if (institutions.has('wipo')) return 'WIPO';
+  if (['euipo', 'cjeu', 'ec', 'eurlex', 'eu'].some((code) => institutions.has(code))) {
+    return state.lang === 'zh' ? '欧盟' : 'EU';
+  }
+  return '';
 }
 
 function getGeoEntries(item) {
@@ -5452,6 +5450,23 @@ function isInternationalGeoEntry(entry) {
   return entry?.code === 'intl' || label === '国际' || label === 'international';
 }
 
+function isEuLevelInstitutionalItem(item) {
+  const primaryCode = String(item?.primary_scope || item?.ai_primary_scope || '').toLowerCase();
+  if (primaryCode !== 'eu') return false;
+  if (isUpcItem(item)) return false;
+  const institutions = getItemInstitutionSet(item);
+  if (['euipo', 'cjeu', 'ec', 'eurlex', 'eu'].some((code) => institutions.has(code))) return true;
+  const sourceId = String(item?.source_id || '').toLowerCase();
+  if (['euipo', 'euipo_tm', 'euipo_design', 'euipo_gi', 'cjeu', 'ec', 'eurlex'].includes(sourceId)) return true;
+  const text = [
+    item?.title || '',
+    item?.title_zh || '',
+    item?.summary || '',
+    item?.ai_summary_zh || '',
+  ].join(' ').toLowerCase();
+  return /\beuipo\b|\bgeneral court\b|\bcjeu\b|court of justice of the european union|\beuropean commission\b|\beuropean parliament\b|\beuropean union\b/.test(text);
+}
+
 function getReaderGeoLabels(item) {
   const entries = getGeoEntries(item);
   const forumLabel = getReaderForumLabel(item);
@@ -5465,6 +5480,15 @@ function getReaderGeoLabels(item) {
   };
 
   if (forumLabel === 'UPC') add(forumLabel);
+  if (isEuLevelInstitutionalItem(item)) {
+    add(forumLabel || (state.lang === 'zh' ? '欧盟' : 'EU'));
+    if (!ordered.length) broad.forEach((entry) => add(entry.label));
+    return ordered;
+  }
+  if (primaryCode === 'eu') {
+    if (forumLabel && forumLabel !== 'UPC') add(forumLabel);
+    broad.forEach((entry) => add(entry.label));
+  }
   const primaryConcrete = concrete.find((entry) => entry.code === primaryCode);
   if (primaryConcrete) add(primaryConcrete.label);
   concrete.forEach((entry) => add(entry.label));
@@ -5703,6 +5727,16 @@ function getEuropeHeatItemRouting(item) {
       relatedTargets,
       displayTargets: upcOverall ? [] : (primaryTargets.length ? primaryTargets : relatedTargets),
       tags,
+    };
+  }
+  if (isEuLevelInstitutionalItem(item)) {
+    return {
+      upc: false,
+      upcOverall: false,
+      primaryTargets: [],
+      relatedTargets: [],
+      displayTargets: [],
+      tags: tags.includes('eu') ? tags : ['eu', ...tags],
     };
   }
   const primaryTargets = [];
