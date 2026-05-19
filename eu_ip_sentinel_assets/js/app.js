@@ -37,10 +37,7 @@ const getInitialScope = () => {
   return SCOPE_VALUES.includes(stored) ? stored : 'eu';
 };
 const getDefaultEditorialLaneSelection = () => 'all';
-const getInitialEditorialLane = () => {
-  const stored = localStorage.getItem('pontnova_editorial_lane');
-  return EDITORIAL_LANE_VALUES.includes(stored) ? stored : getDefaultEditorialLaneSelection();
-};
+const getInitialEditorialLane = () => getDefaultEditorialLaneSelection();
 
 function releaseDefaultEditorialLaneForFocusedNews() {
   if (state.filters.editorial_lane === getDefaultEditorialLaneSelection()) {
@@ -824,8 +821,8 @@ const i18n = {
     reports_center_title: '情报简报',
     reports_center_desc: '围绕当前两份简报、20 条可追溯明细、最近几期与历史归档组织整个简报流，便于持续跟踪盘面变化。',
     reports_center_window: '当前观察窗口',
-    reports_center_daily_mix: '日报来源结构',
-    reports_center_weekly_mix: '周报来源结构',
+    reports_center_daily_mix: '日报覆盖来源',
+    reports_center_weekly_mix: '周报覆盖来源',
     reports_center_recent_count: '最近几期',
     reports_center_archive_count: '历史归档',
     reports_center_pending: '待补分析',
@@ -1461,8 +1458,8 @@ const i18n = {
     reports_center_title: 'Reports Center',
     reports_center_desc: 'Organize the two current briefs, 20 traceable items, recent runs, and archive history into one continuous reporting flow.',
     reports_center_window: 'Current Window',
-    reports_center_daily_mix: 'Daily Source Mix',
-    reports_center_weekly_mix: 'Weekly Source Mix',
+    reports_center_daily_mix: 'Daily Sources',
+    reports_center_weekly_mix: 'Weekly Sources',
     reports_center_recent_count: 'Recent Runs',
     reports_center_archive_count: 'Archive Runs',
     reports_center_pending: 'Pending Analysis',
@@ -1938,7 +1935,7 @@ function renderReportDetailItems(report) {
             <span class="source-badge ${(item.category || '') === 'official' ? 'official' : ((item.category || '') === 'media' ? 'media' : 'lawfirm')}">${escapeHtml(compactSourceName(item.source_name || '') || '—')}</span>
             <span class="ip-badge ${item.ip_type || 'general'}">${getIpTypeLabel(item.ip_type || 'general')}</span>
             ${renderGeoBadges(item, true)}
-            ${renderAnalysisDepthBadge(item, true)}
+            ${renderReaderEventBadge(item)}
             <span class="news-card-date">${escapeHtml(buildPrimaryDateLabel(item))}</span>
           </div>
           <a href="${escapeHtml(item.url || '#')}" target="_blank" rel="noopener" class="btn btn-secondary report-detail-link">${t('detail_btn')}</a>
@@ -2041,7 +2038,6 @@ function renderReportScope(report) {
     <div class="briefing-report-scope">
       <span class="briefing-report-scope-chip">${itemCount} ${t('report_scope_items')}</span>
       <span class="briefing-report-scope-chip">${sourceCount} ${t('report_scope_sources')}</span>
-      <span class="briefing-report-scope-tier" title="${escapeHtml(t('source_tier_summary'))}">${renderSourceTierSummary(report)}</span>
     </div>
   `;
 }
@@ -2063,7 +2059,7 @@ function renderReportPreviewItems(report, reportType, limit = 2) {
                 <span class="source-badge ${(item.category || '') === 'official' ? 'official' : ((item.category || '') === 'media' ? 'media' : 'lawfirm')}">${escapeHtml(compactSourceName(item.source_name || '') || '—')}</span>
                 <span class="ip-badge ${item.ip_type || 'general'}">${getIpTypeLabel(item.ip_type || 'general')}</span>
                 ${renderGeoBadges(item, true, 1)}
-                ${renderAnalysisDepthBadge(item, true)}
+                ${renderReaderEventBadge(item)}
               </span>
               <strong class="briefing-report-preview-title">${escapeHtml(truncateText(title, 72))}</strong>
               <span class="briefing-report-preview-meta">${escapeHtml(buildPrimaryDateLabel(item))}</span>
@@ -2207,7 +2203,7 @@ function renderTodayPublishedCard(item, mode = 'published') {
         <span class="source-badge ${(item.category || '') === 'official' ? 'official' : ((item.category || '') === 'media' ? 'media' : 'lawfirm')}">${escapeHtml(compactSourceName(item.source_name || '') || '—')}</span>
         <span class="ip-badge ${item.ip_type || 'general'}">${getIpTypeLabel(item.ip_type || 'general')}</span>
         ${renderGeoBadges(item, true, 1)}
-        ${renderAnalysisDepthBadge(item, true)}
+        ${renderReaderEventBadge(item)}
         ${mode === 'captured' ? `<span class="today-published-state">${t('today_published_state_captured')}</span>` : ''}
         <span class="today-published-date">${escapeHtml(buildPrimaryDateLabel(item))}</span>
       </div>
@@ -2559,13 +2555,6 @@ function renderFilterBar() {
     ['lawfirm', t('filter_lawfirm')],
   ];
 
-  const laneTypes = [
-    ['all', t('filter_all')],
-    ['core', t('filter_lane_core')],
-    ['watch', t('filter_lane_watch')],
-    ['calendar', t('filter_lane_calendar')],
-  ];
-
   const scopeTypes = [
     ['eu', t('filter_scope_eu')],
     ['intl', t('filter_scope_intl')],
@@ -2595,10 +2584,6 @@ function renderFilterBar() {
              data-filter="category" data-value="${val}">${label}</button>`
   ).join('');
 
-  const laneChips = laneTypes.map(([val, label]) =>
-    `<button class="filter-chip ${state.filters.editorial_lane === val ? 'active' : ''}"
-             data-filter="editorial_lane" data-value="${val}">${label}</button>`
-  ).join('');
   const timeChips = timePresetTypes.map(([val, label]) =>
     `<button class="filter-chip ${activeDatePreset === val ? 'active' : ''}"
              data-filter="date_preset" data-value="${val}">${label}</button>`
@@ -2617,9 +2602,6 @@ function renderFilterBar() {
     </div>
   ` : '';
 
-  const aiChip = `<button class="filter-chip ai-chip ${state.filters.has_ai ? 'active' : ''}"
-    data-filter="has_ai" data-value="toggle">${t('filter_has_ai')}</button>`;
-
   return el('div', 'filter-bar', `
     <div class="filter-group">
       <span class="filter-label">IP</span>
@@ -2635,18 +2617,11 @@ function renderFilterBar() {
       ${catChips}
     </div>
     <div class="filter-group">
-      <span class="filter-label">${t('filter_lane')}</span>
-      ${laneChips}
-    </div>
-    <div class="filter-group">
       <span class="filter-label">${t('filter_scope')}</span>
       ${scopeTypes.map(([val, label]) => `
         <button class="filter-chip scope-chip ${state.filters.scope === val ? 'active' : ''}"
                 data-filter="scope" data-value="${val}">${label}</button>
       `).join('')}
-    </div>
-    <div class="filter-group filter-group-end">
-      ${aiChip}
     </div>
   `);
 }
@@ -3582,7 +3557,7 @@ function renderTopicTimeline(items) {
                 <span class="source-badge ${item.category || 'media'}">${escapeHtml(compactSourceName(item.source_name || ''))}</span>
                 <span class="ip-badge ${item.ip_type || 'general'}">${getIpTypeLabel(item.ip_type || 'general')}</span>
                 ${renderGeoBadges(item)}
-                ${renderSignalTagPills(item, true)}
+                ${renderReaderEventBadge(item)}
               </span>
               <span class="news-card-date">${escapeHtml(buildPrimaryDateLabel(item))}</span>
             </span>
@@ -3659,7 +3634,7 @@ function renderFocusedSepTimeline(items, total = 0) {
                     <span class="source-badge ${item.category || 'media'}">${escapeHtml(compactSourceName(item.source_name || ''))}</span>
                     <span class="ip-badge ${item.ip_type || 'general'}">${getIpTypeLabel(item.ip_type || 'general')}</span>
                     ${renderGeoBadges(item)}
-                    ${renderSignalTagPills(item, true)}
+                    ${renderReaderEventBadge(item)}
                   </span>
                   <span class="news-card-date">${escapeHtml(buildPrimaryDateLabel(item))}</span>
                 </span>
@@ -4056,14 +4031,14 @@ function renderReportsCenterHero(dailyReport, weeklyReport, dailyAudioBrief, top
   const cards = [
     { value: formatCollectionWindow(primary || stats) || '—', label: t('reports_center_window') },
     {
-      value: formatTierTriplet(dailyReport?.source_tier_core, dailyReport?.source_tier_stable, dailyReport?.source_tier_watch),
+      value: Number(dailyReport?.source_count || 0).toLocaleString(),
       label: t('reports_center_daily_mix'),
-      sub: getTierTripletCaption(),
+      sub: t('report_scope_sources'),
     },
     {
-      value: formatTierTriplet(weeklyReport?.source_tier_core, weeklyReport?.source_tier_stable, weeklyReport?.source_tier_watch),
+      value: Number(weeklyReport?.source_count || 0).toLocaleString(),
       label: t('reports_center_weekly_mix'),
-      sub: getTierTripletCaption(),
+      sub: t('report_scope_sources'),
     },
     {
       value: Number(recentCount || 0).toLocaleString(),
@@ -4079,12 +4054,6 @@ function renderReportsCenterHero(dailyReport, weeklyReport, dailyAudioBrief, top
     </div>
   `).join('');
   shell.appendChild(grid);
-  const compareRow = el('div', 'reports-center-compare-row');
-  compareRow.innerHTML = `
-    <div class="reports-center-compare-pack">${renderReportSignalPill(dailyReport)}${renderReportComparison(dailyReport, 'daily', true)}</div>
-    <div class="reports-center-compare-pack">${renderReportSignalPill(weeklyReport)}${renderReportComparison(weeklyReport, 'weekly', true)}</div>
-  `;
-  shell.appendChild(compareRow);
   const navRow = el('div', 'reports-center-nav');
   navRow.innerHTML = `
     <button class="btn btn-secondary reports-nav-btn" data-report-anchor="current">${t('reports_nav_current')}<span class="reports-nav-count">${currentCount}</span></button>
@@ -4345,12 +4314,10 @@ function renderBriefingReportCard(report, reportType) {
     </div>
     <div class="briefing-report-topline">
       <span class="source-badge official">${escapeHtml(roleLabel)}</span>
-      ${renderReportSignalPill(report)}
     </div>
     <h3 class="briefing-report-title">${escapeHtml(report.headline_zh || reportLabel)}</h3>
     ${report.headline_en ? `<div class="briefing-report-subtitle">${escapeHtml(report.headline_en)}</div>` : ''}
     <div class="briefing-report-flavor">${escapeHtml(flavorText)}</div>
-    ${renderReportComparison(report, reportType)}
     ${renderReportScope(report)}
     <p class="briefing-report-summary">${escapeHtml(compactSummary)}</p>
     ${isReportsPage ? foldedBody : `
@@ -4368,7 +4335,6 @@ function renderBriefingReportCard(report, reportType) {
     <div class="briefing-report-meta">
       <span>${formatCollectionWindow(report)}</span>
       <div class="briefing-report-actions">
-        <span class="briefing-tier-summary" title="${escapeHtml(t('source_tier_summary'))}">${renderSourceTierSummary(report)}</span>
         ${isReportsPage
           ? `
             <button class="btn btn-secondary briefing-export-btn" data-report-type="${reportType}" data-export-format="html">${t('export_html')}</button>
@@ -4651,7 +4617,6 @@ function renderTopicBriefCard(topic) {
         <div class="intel-block-label">${t('block_topic_actions')}</div>
         ${renderPointList(actions, 'intel-points compact')}
       </div>
-      <div class="topic-brief-tier">${renderSourceTierSummary(topic)}</div>
       <button class="btn btn-secondary topic-brief-btn" data-topic-id="${escapeHtml(topic.topic_id || '')}">${t('topic_open')}</button>
     </article>
   `;
@@ -5122,8 +5087,7 @@ function renderPriorityBrief(overview, items) {
       <span class="source-badge ${item.category || 'media'}">${escapeHtml(item.source_name || '')}</span>
       <span class="ip-badge ${item.ip_type || 'general'}">${getIpTypeLabel(item.ip_type || 'general')}</span>
       ${renderGeoBadges(item)}
-      ${renderAnalysisDepthBadge(item, true)}
-      ${renderSignalTagPills(item, true)}
+      ${renderReaderEventBadge(item)}
       <span class="priority-date">${date}</span>
     </div>
     <div class="priority-flag">${t('card_priority')}</div>
@@ -6056,6 +6020,31 @@ function renderAnalysisDepthBadge(item, compact = false) {
   return `<span class="analysis-depth-badge ${tier}${compact ? ' compact' : ''}" title="${escapeHtml(desc)}">${escapeHtml(label)}</span>`;
 }
 
+function getReaderEventMeta(item) {
+  const type = String(item?.ai_document_type || '').trim().toLowerCase();
+  const map = {
+    judgment: ['judgment', '裁判', 'Judgment'],
+    policy_update: ['policy', '政策', 'Policy'],
+    legislation: ['policy', '立法', 'Legislation'],
+    guidance: ['guidance', '指引', 'Guidance'],
+    official_news: ['official', '官方', 'Official'],
+    enforcement_action: ['enforcement', '执法', 'Enforcement'],
+    event_notice: ['event', '活动', 'Event'],
+    data_release: ['data', '数据', 'Data'],
+    lawfirm_analysis: ['analysis', '解读', 'Analysis'],
+    market_commentary: ['analysis', '观察', 'Commentary'],
+  };
+  const hit = map[type];
+  if (!hit) return null;
+  return { key: hit[0], label: state.lang === 'zh' ? hit[1] : hit[2] };
+}
+
+function renderReaderEventBadge(item, compact = true) {
+  const meta = getReaderEventMeta(item);
+  if (!meta) return '';
+  return `<span class="reader-event-badge ${meta.key}${compact ? ' compact' : ''}">${escapeHtml(meta.label)}</span>`;
+}
+
 function getHeadlineVariantClass(title) {
   const text = (title || '').trim();
   if (!text) return '';
@@ -6712,10 +6701,8 @@ function isStreamItem(item) {
 
 function renderNewsCard(item, tier = 'scan') {
   const ipType = item.ip_type || 'general';
-  const category = item.category || 'media';
   const date = buildPrimaryDateLabel(item);
   const linkDateMeta = buildOriginalLinkDateMeta(item);
-  const catLabel = { official: t('filter_official'), media: t('filter_media'), lawfirm: t('filter_lawfirm') }[category] || category;
   const aiDone = item.ai_status === 'done';
   const primaryTitle = item.title_zh || item.title || '—';
   const englishTitle = item.title && item.title !== primaryTitle ? item.title : '';
@@ -6732,10 +6719,9 @@ function renderNewsCard(item, tier = 'scan') {
   card.dataset.id = item.id;
   card.innerHTML = `
     <div class="news-card-meta compact latest-like">
-      <span class="source-badge ${category}">${catLabel}</span>
       <span class="ip-badge ${ipType}">${getIpTypeLabel(ipType)}</span>
-      ${renderGeoBadges(item)}
-      ${renderAnalysisDepthBadge(item, true)}
+      ${renderGeoBadges(item, true, 1)}
+      ${renderReaderEventBadge(item)}
       <span class="news-card-date">${date}</span>
     </div>
     <div class="news-card-rubric">${escapeHtml(compactSourceName(item.source_name || ''))}</div>
@@ -7765,7 +7751,6 @@ function showNewsDetail(item) {
   const root = document.getElementById('modal-root');
   const ipType = item.ip_type || 'general';
   const linkDateMeta = buildOriginalLinkDateMeta(item);
-  const aiDone = item.ai_status === 'done';
   const hostname = (() => { try { return new URL(item.url).hostname; } catch { return item.url; } })();
   const primaryTitle = state.lang === 'zh' && item.title_zh ? item.title_zh : item.title;
   const secondaryTitle = item.title_zh ? item.title : '';
@@ -7782,10 +7767,8 @@ function showNewsDetail(item) {
           <div class="modal-header-tags">
             <span class="ip-badge ${ipType}">${getIpTypeLabel(ipType)}</span>
             <span class="source-badge ${item.category}">${item.source_name || ''}</span>
-            ${renderGeoBadges(item)}
-            ${renderAnalysisDepthBadge(item, true)}
-            ${renderSignalTagPills(item, true)}
-            ${aiDone ? '<span class="ai-badge ai-badge-sm">AI</span>' : ''}
+            ${renderGeoBadges(item, true, 1)}
+            ${renderReaderEventBadge(item)}
           </div>
           <div class="modal-header-caption">${t('section_priority')}</div>
         </div>
