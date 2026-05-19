@@ -1,37 +1,55 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Pontnova.eu GitHub Pages 部署脚本
+# Manual fallback deploy for pontnova.eu.
+# The canonical update path is the atom-ip-sentinel backend deploy hub.
 
-echo "🚀 开始部署 pontnova.eu 到 GitHub Pages..."
+PROJECT_NAME="${CF_PAGES_PROJECT:-pontnova}"
+BRANCH="${CF_PAGES_BRANCH:-main}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEPLOY_DIR="$ROOT_DIR/.cloudflare-pages/$PROJECT_NAME"
 
-# 进入网站目录
-cd /Users/atom1983/.openclaw/workspace/core/pontnova_site
+PUBLIC_PATHS=(
+  "index.html"
+  "eu_ip_sentinel.html"
+  "eu_ip_sentinel_en.html"
+  "ae-trace.html"
+  "workload.html"
+  "atom_ip_workload.html"
+  "robots.txt"
+  "eu_ip_sentinel_assets"
+)
 
-# 检查 Git 仓库
-if [ ! -d ".git" ]; then
-    echo "📦 初始化 Git 仓库..."
-    git init
-    git branch -M main
+cd "$ROOT_DIR"
+
+if [[ "${SKIP_SYNC:-0}" != "1" ]]; then
+  python3 scripts/sync_eu_ip_sentinel_snapshot.py
 fi
 
-# 添加文件
-echo "📝 添加文件..."
-git add .
+rm -rf "$DEPLOY_DIR"
+mkdir -p "$DEPLOY_DIR"
 
-# 提交
-echo "💾 提交更改..."
-git commit -m "Deploy pontnova.eu landing page - $(date '+%Y-%m-%d %H:%M:%S')"
+for path in "${PUBLIC_PATHS[@]}"; do
+  if [[ ! -e "$path" ]]; then
+    echo "Missing public path: $path" >&2
+    exit 1
+  fi
+  mkdir -p "$DEPLOY_DIR/$(dirname "$path")"
+  cp -R "$path" "$DEPLOY_DIR/$path"
+done
 
-# 推送到 GitHub
-echo "☁️ 推送到 GitHub..."
-git remote add origin git@github.com:atomtong83/pontnova.eu.git 2>/dev/null || true
-git push -u origin main --force
+if [[ ! -f "$DEPLOY_DIR/404.html" ]]; then
+  printf '%s\n' \
+    '<!doctype html>' \
+    '<html lang="en">' \
+    '<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>404 Not Found</title></head>' \
+    '<body><main><h1>404 Not Found</h1><p>The requested page is not available.</p><p><a href="/">Return to Pontnova</a></p></main></body>' \
+    '</html>' > "$DEPLOY_DIR/404.html"
+fi
 
-echo ""
-echo "✅ 部署完成！"
-echo "🌐 访问地址：https://atomtong83.github.io/pontnova.eu/"
-echo ""
-echo "⚠️  下一步："
-echo "1. 在 GitHub 仓库设置中启用 GitHub Pages"
-echo "2. 设置自定义域名 pontnova.eu"
-echo "3. 在 GoDaddy 更新 DNS 记录"
+npx wrangler pages deploy "$DEPLOY_DIR" \
+  --project-name "$PROJECT_NAME" \
+  --branch "$BRANCH" \
+  --skip-caching \
+  --commit-dirty \
+  "$@"
