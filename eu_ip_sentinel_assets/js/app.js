@@ -5372,16 +5372,112 @@ function getGeoLabels(item) {
   return primary ? [primary] : [];
 }
 
-function renderGeoBadges(item, compact = false, maxItems = 2) {
-  const labels = getGeoLabels(item);
-  if (!labels.length) return '';
-  const primary = getGeoLabel(item);
-  const ordered = [];
-  if (primary) ordered.push(primary);
-  labels.forEach((label) => {
-    if (label && !ordered.includes(label)) ordered.push(label);
+function parseListField(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (!value) return [];
+  if (typeof value !== 'string') return [];
+  const raw = value.trim();
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.filter(Boolean);
+  } catch {}
+  if (raw.includes('|')) return raw.split('|').map((part) => part.trim()).filter(Boolean);
+  return raw.split(',').map((part) => part.trim()).filter(Boolean);
+}
+
+function getItemInstitutionSet(item) {
+  const values = parseListField(item?.ai_institutions).map((value) => String(value || '').toLowerCase());
+  const sourceId = String(item?.source_id || '').toLowerCase();
+  if (sourceId) values.push(sourceId);
+  const text = `${item?.title || ''} ${item?.title_zh || ''} ${item?.summary || ''} ${item?.ai_summary_zh || ''}`.toLowerCase();
+  const checks = [
+    ['upc', /\bupc\b|unified patent court/],
+    ['epo', /\bepo\b|european patent office/],
+    ['euipo', /\beuipo\b/],
+    ['cjeu', /\bcjeu\b|court of justice of the european union/],
+    ['wipo', /\bwipo\b/],
+    ['ec', /\beuropean commission\b/],
+  ];
+  checks.forEach(([code, pattern]) => {
+    if (pattern.test(text)) values.push(code);
   });
-  return `<span class="geo-badges">${ordered.slice(0, maxItems).map((label) => `<span class="geo-badge${compact ? ' compact' : ''}">${escapeHtml(label)}</span>`).join('')}</span>`;
+  return new Set(values);
+}
+
+function getReaderForumLabel(item) {
+  const institutions = getItemInstitutionSet(item);
+  const labels = [
+    ['upc', 'UPC'],
+    ['epo', 'EPO'],
+    ['euipo', 'EUIPO'],
+    ['cjeu', 'CJEU'],
+    ['wipo', 'WIPO'],
+    ['eurlex', state.lang === 'zh' ? '欧盟' : 'EU'],
+    ['ec', state.lang === 'zh' ? '欧盟' : 'EU'],
+  ];
+  const hit = labels.find(([code]) => institutions.has(code));
+  return hit ? hit[1] : '';
+}
+
+function getGeoEntries(item) {
+  const codes = parseListField(item?.geo_tags_list).map((code) => String(code || '').toLowerCase());
+  const labels = getGeoLabels(item);
+  const entries = [];
+  const add = (code, label) => {
+    const normalizedLabel = String(label || '').trim();
+    if (!normalizedLabel) return;
+    if (!entries.some((entry) => entry.label === normalizedLabel)) {
+      entries.push({ code: String(code || '').toLowerCase(), label: normalizedLabel });
+    }
+  };
+  const primaryCode = String(item?.primary_scope || item?.ai_primary_scope || '').toLowerCase();
+  const primaryLabel = getGeoLabel(item);
+  add(primaryCode, primaryLabel);
+  labels.forEach((label, index) => add(codes[index] || '', label));
+  return entries;
+}
+
+function isBroadGeoEntry(entry) {
+  const label = String(entry?.label || '').toLowerCase();
+  return entry?.code === 'eu' || label === '欧洲层面' || label === '欧洲范围' || label === 'europe-wide';
+}
+
+function isRegionalGeoEntry(entry) {
+  return ['benelux', 'scandinavia'].includes(entry?.code);
+}
+
+function isInternationalGeoEntry(entry) {
+  const label = String(entry?.label || '').toLowerCase();
+  return entry?.code === 'intl' || label === '国际' || label === 'international';
+}
+
+function getReaderGeoLabels(item) {
+  const entries = getGeoEntries(item);
+  const forumLabel = getReaderForumLabel(item);
+  const primaryCode = String(item?.primary_scope || item?.ai_primary_scope || '').toLowerCase();
+  const concrete = entries.filter((entry) => !isBroadGeoEntry(entry) && !isInternationalGeoEntry(entry) && !isRegionalGeoEntry(entry));
+  const regional = entries.filter(isRegionalGeoEntry);
+  const broad = entries.filter((entry) => isBroadGeoEntry(entry) || isInternationalGeoEntry(entry));
+  const ordered = [];
+  const add = (label) => {
+    if (label && !ordered.includes(label)) ordered.push(label);
+  };
+
+  if (forumLabel === 'UPC') add(forumLabel);
+  const primaryConcrete = concrete.find((entry) => entry.code === primaryCode);
+  if (primaryConcrete) add(primaryConcrete.label);
+  concrete.forEach((entry) => add(entry.label));
+  regional.forEach((entry) => add(entry.label));
+  if (forumLabel && forumLabel !== 'UPC') add(forumLabel);
+  if (!ordered.length) broad.forEach((entry) => add(entry.label));
+  return ordered;
+}
+
+function renderGeoBadges(item, compact = false, maxItems = 2) {
+  const labels = getReaderGeoLabels(item);
+  if (!labels.length) return '';
+  return `<span class="geo-badges">${labels.slice(0, maxItems).map((label) => `<span class="geo-badge${compact ? ' compact' : ''}">${escapeHtml(label)}</span>`).join('')}</span>`;
 }
 
 function getEuropeHeatLabel(id) {
