@@ -2795,6 +2795,7 @@ async function renderNewsPage(container) {
         : Math.max(state.pagination.limit * 4, 80),
     });
     params.set('relevant_only', 'true');
+    params.set('publishable_only', 'true');
     if (state.filters.ip_type && state.filters.ip_type !== 'all') params.set('ip_type', state.filters.ip_type);
     if (state.filters.editorial_lane && state.filters.editorial_lane !== 'all') params.set('editorial_lane', state.filters.editorial_lane);
     if (state.filters.category && state.filters.category !== 'all') params.set('category', state.filters.category);
@@ -2803,15 +2804,14 @@ async function renderNewsPage(container) {
     if (state.filters.source) params.set('source', state.filters.source);
     if (state.lang === 'en') {
       params.set('has_ai', 'true');
-      params.set('publishable_only', 'true');
     } else if (state.filters.has_ai) {
       params.set('has_ai', 'true');
     }
     const todayParams = new URLSearchParams({ page: 1, limit: 60 });
     todayParams.set('relevant_only', 'true');
+    todayParams.set('publishable_only', 'true');
     if (state.lang === 'en') {
       todayParams.set('has_ai', 'true');
-      todayParams.set('publishable_only', 'true');
     }
     if (state.filters.editorial_lane && state.filters.editorial_lane !== 'all') todayParams.set('editorial_lane', state.filters.editorial_lane);
     todayParams.set('date_from', todayStart);

@@ -46,3 +46,19 @@
 - Risk control:
   - source snapshots remain committed to `origin/main` for traceability
   - Cloudflare deployment is performed by direct Wrangler upload, independent of GitHub Pages
+
+## 2026-05-21
+
+### Chinese / English public-list parity
+
+- Issue: the Chinese public list used the broader relevant feed, while the English public list used the safer publishable feed plus complete-English filtering. This made the English page appear materially shorter for same-day items.
+- Root cause: several same-day Chinese items were `verification_publishable=0` (`fail` or `review`) but still visible in the Chinese default list. English correctly withheld them, but the two language views no longer shared a content universe.
+- Changes:
+  - aligned Chinese and English default list queries on `publishable_only=true`
+  - kept complete-English filtering in English mode to prevent Chinese fallback
+  - refreshed cache-buster tokens for the public JS bundle
+  - regenerated the static snapshot after the local base completed English companion coverage for the publishable layer
+- Result:
+  - 2026-05-21 publishable same-day items: 4
+  - 2026-05-21 publishable English-ready items: 4
+  - public English page and public Chinese page now use the same publishable content set
