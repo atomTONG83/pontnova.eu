@@ -71,6 +71,8 @@ NEWS_INDEX_FIELDS = (
     "ai_en_model",
     "ai_en_translated_at",
     "ai_en_source_hash",
+    "ai_en_generation_mode",
+    "ai_en_editorial_version",
     "english_analysis_ready",
     "ai_status",
     "ai_is_relevant",
@@ -100,12 +102,12 @@ NEWS_INDEX_FIELDS = (
 )
 
 
-def fetch_json(path: str, retries: int = 6, sleep_seconds: float = 1.2):
+def fetch_json(path: str, retries: int = 6, sleep_seconds: float = 1.2, timeout: float = 30):
     url = f"{API_BASE}{path}"
     last_error = None
     for attempt in range(1, retries + 1):
         try:
-            with urllib.request.urlopen(url, timeout=30) as response:
+            with urllib.request.urlopen(url, timeout=timeout) as response:
                 return json.loads(response.read().decode("utf-8"))
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError) as exc:
             last_error = exc
@@ -115,9 +117,9 @@ def fetch_json(path: str, retries: int = 6, sleep_seconds: float = 1.2):
     raise RuntimeError(f"failed to fetch {url}: {last_error}")
 
 
-def fetch_optional_json(path: str, fallback):
+def fetch_optional_json(path: str, fallback, retries: int = 2, timeout: float = 12):
     try:
-        return fetch_json(path)
+        return fetch_json(path, retries=retries, timeout=timeout)
     except Exception:
         return fallback
 
@@ -271,9 +273,9 @@ def cleanup_generated_files() -> None:
 def main() -> int:
     stats = fetch_json("/stats")
     daily_audio_latest = fetch_optional_json("/reports/daily/audio/latest", None)
-    topic_briefs_payload = fetch_optional_json("/topic-briefs", {"topics": []})
+    topic_briefs_payload = fetch_optional_json("/topic-briefs", {"topics": []}, retries=1, timeout=10)
     if any(is_placeholder_topic(topic) for topic in topic_briefs_payload.get("topics", [])):
-        topic_briefs_payload = fetch_optional_json("/topic-briefs?force=true", topic_briefs_payload)
+        topic_briefs_payload = fetch_optional_json("/topic-briefs?force=true", topic_briefs_payload, retries=1, timeout=10)
     topic_briefs_payload["topics"] = [
         normalize_topic_for_public(topic)
         for topic in topic_briefs_payload.get("topics", [])
@@ -286,11 +288,11 @@ def main() -> int:
         topic_id = topic.get("topic_id")
         if not topic_id:
             continue
-        brief = fetch_optional_json(f"/topic-briefs/{topic_id}", topic)
+        brief = fetch_optional_json(f"/topic-briefs/{topic_id}", topic, retries=1, timeout=10)
         if is_placeholder_topic(brief):
-            brief = fetch_optional_json(f"/topic-briefs/{topic_id}?force=true", brief)
+            brief = fetch_optional_json(f"/topic-briefs/{topic_id}?force=true", brief, retries=1, timeout=10)
         brief = normalize_topic_for_public(brief)
-        items_payload = fetch_optional_json(f"/topic-briefs/{topic_id}/items", {"items": [], "total": 0})
+        items_payload = fetch_optional_json(f"/topic-briefs/{topic_id}/items", {"items": [], "total": 0}, retries=1, timeout=10)
         detail_payload = build_topic_detail_payload(brief, items_payload)
         topic_details[topic_id] = detail_payload
         topic_detail_files[topic_id] = f"{TOPIC_DETAILS_DIR.name}/{encode_topic_filename(topic_id, version_tag)}"
