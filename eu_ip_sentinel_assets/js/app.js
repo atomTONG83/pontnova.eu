@@ -31,7 +31,7 @@ const LANG_VALUES = ['zh', 'en'];
 const MOBILE_LAYOUT_BREAKPOINT = 768;
 const THEME_VALUES = ['light', 'dark'];
 const SCOPE_VALUES = ['eu', 'intl', 'uk', 'de', 'fr', 'benelux', 'scandinavia', 'all'];
-const EDITORIAL_LANE_VALUES = ['all', 'core', 'watch', 'calendar'];
+const EDITORIAL_LANE_VALUES = ['all', 'core', 'watch', 'review', 'calendar'];
 const PUBLIC_HIDDEN_PAGES = new Set(['reports', 'sources', 'about']);
 const getInitialTheme = () => 'dark';
 const getInitialLang = () => {
@@ -391,6 +391,11 @@ function staticMatchScope(item, scope) {
   return primary === scope || tags.includes(scope);
 }
 
+function isPublishableNewsItem(item) {
+  if (item?.verification_publishable === undefined && item?.verification_status === undefined) return true;
+  return item?.verification_publishable === 1 || item?.verification_publishable === true || item?.verification_status === 'pass';
+}
+
 function staticFilterNews(items, params) {
   let filtered = [...(items || [])];
   const ipType = params.get('ip_type');
@@ -404,10 +409,6 @@ function staticFilterNews(items, params) {
   const relevantOnlyRaw = params.get('relevant_only');
   const publishableOnlyRaw = params.get('publishable_only');
   const scope = params.get('scope') || '';
-  const isPublishable = (item) => {
-    if (item?.verification_publishable === undefined && item?.verification_status === undefined) return true;
-    return item?.verification_publishable === 1 || item?.verification_publishable === true || item?.verification_status === 'pass';
-  };
 
   if (ipType && ipType !== 'all') filtered = filtered.filter((item) => item.ip_type === ipType);
   if (editorialLane && editorialLane !== 'all') filtered = filtered.filter((item) => getEditorialLane(item) === editorialLane);
@@ -420,8 +421,8 @@ function staticFilterNews(items, params) {
   if (hasAiRaw === 'false') filtered = filtered.filter((item) => item.ai_status !== 'done');
   if (relevantOnlyRaw === 'true') filtered = filtered.filter((item) => item.ai_is_relevant !== 0);
   if (relevantOnlyRaw === 'false') filtered = filtered.filter((item) => item.ai_is_relevant === 0);
-  if (publishableOnlyRaw === 'true') filtered = filtered.filter((item) => isPublishable(item));
-  if (publishableOnlyRaw === 'false') filtered = filtered.filter((item) => !isPublishable(item));
+  if (publishableOnlyRaw === 'true') filtered = filtered.filter((item) => isPublishableNewsItem(item));
+  if (publishableOnlyRaw === 'false') filtered = filtered.filter((item) => !isPublishableNewsItem(item));
   if (query) {
     filtered = filtered.filter((item) => {
       const haystack = [
@@ -549,7 +550,14 @@ const i18n = {
     filter_lane: '阅读层级',
     filter_lane_core: '核心流',
     filter_lane_watch: '观察流',
+    filter_lane_review: '待复核',
     filter_lane_calendar: '活动公告',
+    verification_review: '待复核',
+    verification_fail: '未放行',
+    verification_pending: '待核验',
+    verification_note_review: 'AI 已标记为 IP 相关，正在等待二次事实复核，暂不作为正式解读发布。',
+    verification_note_fail: '该条未通过发布核验，仅保留原始线索，需人工确认后再使用。',
+    verification_note_pending: '该条尚未完成事实核验，仅作为观察线索保留。',
     filter_has_ai: '🤖 有AI分析',
     search_placeholder: '搜索知识产权新闻...',
     btn_refresh: '全源刷新',
@@ -1157,7 +1165,14 @@ const i18n = {
     filter_lane: 'Reading Lane',
     filter_lane_core: 'Core',
     filter_lane_watch: 'Watch',
+    filter_lane_review: 'Review Queue',
     filter_lane_calendar: 'Calendar',
+    verification_review: 'Under Review',
+    verification_fail: 'Not Released',
+    verification_pending: 'Pending Check',
+    verification_note_review: 'AI marked this item as IP-relevant. It is waiting for a second factual review and is not treated as a published interpretation.',
+    verification_note_fail: 'This item did not pass the publication check. Treat it as a raw lead until manually confirmed.',
+    verification_note_pending: 'This item has not completed factual review and is retained only as a monitoring lead.',
     search_placeholder: 'Search IP news...',
     btn_refresh: 'Full Refresh',
     btn_refreshing: 'Refreshing...',
@@ -2678,6 +2693,14 @@ function renderFilterBar() {
     ['lawfirm', t('filter_lawfirm')],
   ];
 
+  const laneTypes = [
+    ['all', t('filter_all')],
+    ['core', t('filter_lane_core')],
+    ['watch', t('filter_lane_watch')],
+    ['review', t('filter_lane_review')],
+    ['calendar', t('filter_lane_calendar')],
+  ];
+
   const scopeTypes = [
     ['eu', t('filter_scope_eu')],
     ['intl', t('filter_scope_intl')],
@@ -2699,6 +2722,11 @@ function renderFilterBar() {
              data-filter="category" data-value="${val}">${label}</button>`
   ).join('');
 
+  const laneChips = laneTypes.map(([val, label]) =>
+    `<button class="filter-chip ${state.filters.editorial_lane === val ? 'active' : ''}"
+             data-filter="editorial_lane" data-value="${val}">${label}</button>`
+  ).join('');
+
   return el('div', 'filter-bar', `
     <div class="filter-group">
       <span class="filter-label">IP</span>
@@ -2707,6 +2735,10 @@ function renderFilterBar() {
     <div class="filter-group">
       <span class="filter-label">${state.lang === 'zh' ? '来源' : 'From'}</span>
       ${catChips}
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">${t('filter_lane')}</span>
+      ${laneChips}
     </div>
     <div class="filter-group">
       <span class="filter-label">${t('filter_scope')}</span>
@@ -2779,6 +2811,7 @@ async function renderNewsPage(container) {
   try {
     const sepTimelineMode = isSepTimelineMode();
     const focusedMode = isFocusedNewsMode();
+    const reviewQueueMode = isReviewQueueMode();
     const sepTimelineLimit = 48;
     const sepTimelineWindowLimit = 72;
     const now = new Date();
@@ -2795,9 +2828,9 @@ async function renderNewsPage(container) {
         : Math.max(state.pagination.limit * 4, 80),
     });
     params.set('relevant_only', 'true');
-    params.set('publishable_only', 'true');
+    params.set('publishable_only', reviewQueueMode ? 'false' : 'true');
     if (state.filters.ip_type && state.filters.ip_type !== 'all') params.set('ip_type', state.filters.ip_type);
-    if (state.filters.editorial_lane && state.filters.editorial_lane !== 'all') params.set('editorial_lane', state.filters.editorial_lane);
+    if (!reviewQueueMode && state.filters.editorial_lane && state.filters.editorial_lane !== 'all') params.set('editorial_lane', state.filters.editorial_lane);
     if (state.filters.category && state.filters.category !== 'all') params.set('category', state.filters.category);
     if (state.filters.scope && state.filters.scope !== 'all') params.set('scope', state.filters.scope);
     if (state.filters.q) params.set('q', state.filters.q);
@@ -2809,11 +2842,11 @@ async function renderNewsPage(container) {
     }
     const todayParams = new URLSearchParams({ page: 1, limit: 60 });
     todayParams.set('relevant_only', 'true');
-    todayParams.set('publishable_only', 'true');
+    todayParams.set('publishable_only', reviewQueueMode ? 'false' : 'true');
     if (state.lang === 'en') {
       todayParams.set('has_ai', 'true');
     }
-    if (state.filters.editorial_lane && state.filters.editorial_lane !== 'all') todayParams.set('editorial_lane', state.filters.editorial_lane);
+    if (!reviewQueueMode && state.filters.editorial_lane && state.filters.editorial_lane !== 'all') todayParams.set('editorial_lane', state.filters.editorial_lane);
     todayParams.set('date_from', todayStart);
     todayParams.set('date_to', todayEnd);
 
@@ -4664,6 +4697,10 @@ function isFocusedNewsMode() {
     Boolean(state.filters.has_ai) ||
     state.filters.scope !== 'eu'
   );
+}
+
+function isReviewQueueMode() {
+  return state.currentPage === 'news' && state.filters.editorial_lane === 'review';
 }
 
 function isSepTimelineMode() {
@@ -6590,8 +6627,18 @@ function isHardSignalHomeItem(item) {
 function isRelevantDisplayItem(item) {
   if (!item) return false;
   if (item.ai_is_relevant === 0) return false;
-  if (state.lang === 'en' && !hasCompleteEnglishAnalysis(item)) return false;
+  if (state.lang === 'en' && !hasCompleteEnglishAnalysis(item)) {
+    return isReviewQueueMode() && hasEnglishSourceFallback(item);
+  }
   return true;
+}
+
+function hasEnglishSourceFallback(item) {
+  if (!item) return false;
+  if (String(item.language || '').toLowerCase() !== 'en') return false;
+  const title = String(item.title || item.title_en || '').trim();
+  const summary = String(item.summary || '').trim();
+  return Boolean(title && !containsHanText(title) && !containsHanText(summary));
 }
 
 function hasCompleteEnglishAnalysis(item) {
@@ -6851,25 +6898,51 @@ function isStreamItem(item) {
   return true;
 }
 
+function getVerificationStatusKey(item) {
+  if (isPublishableNewsItem(item)) return 'pass';
+  const status = String(item?.verification_status || '').trim().toLowerCase();
+  if (status === 'fail') return 'fail';
+  if (status === 'review') return 'review';
+  return 'pending';
+}
+
+function renderVerificationBadge(item) {
+  if (isPublishableNewsItem(item)) return '';
+  const key = getVerificationStatusKey(item);
+  return `<span class="signal-pill verification ${key} compact">${escapeHtml(t(`verification_${key}`))}</span>`;
+}
+
+function getVerificationDisplayNote(item) {
+  const key = getVerificationStatusKey(item);
+  return t(`verification_note_${key}`);
+}
+
 function renderNewsCard(item, tier = 'scan') {
   const ipType = item.ip_type || 'general';
   const date = buildPrimaryDateLabel(item);
   const aiDone = item.ai_status === 'done';
+  const isPublishable = isPublishableNewsItem(item);
   const primaryTitle = item.title_zh || item.title || '—';
   const englishTitle = item.title && item.title !== primaryTitle ? item.title : '';
-  const synopsis = item.ai_summary_zh || item.summary || '';
-  const insight = item.ai_insight_zh || '';
   const fallbackSummary = buildFallbackBrief(item, 'summary');
   const fallbackInsight = buildFallbackBrief(item, 'signal');
+  const synopsis = isPublishable ? (item.ai_summary_zh || item.summary || '') : (item.summary || item.ai_summary_zh || '');
+  const insight = isPublishable ? (item.ai_insight_zh || '') : getVerificationDisplayNote(item);
   const summaryLimit = state.lang === 'en' ? (tier === 'must-read' ? 132 : 118) : (tier === 'must-read' ? 78 : 68);
   const insightLimit = state.lang === 'en' ? 150 : 72;
-  const summaryPoints = resolvePointList(item.ai_core_points_zh, synopsis || fallbackSummary, 2, summaryLimit);
-  const insightPoints = resolvePointList(item.ai_insight_points_zh, insight || fallbackInsight, state.lang === 'en' ? 2 : 1, insightLimit);
-  const primaryInsight = state.lang === 'en'
-    ? truncateText(insight || insightPoints.join(' ') || fallbackInsight, insightLimit)
-    : (insightPoints[0] || truncateText(insight || fallbackInsight, insightLimit) || '');
+  const summaryPoints = isPublishable
+    ? resolvePointList(item.ai_core_points_zh, synopsis || fallbackSummary, 2, summaryLimit)
+    : [truncateText(synopsis || fallbackSummary || primaryTitle, summaryLimit)].filter(Boolean);
+  const insightPoints = isPublishable
+    ? resolvePointList(item.ai_insight_points_zh, insight || fallbackInsight, state.lang === 'en' ? 2 : 1, insightLimit)
+    : [];
+  const primaryInsight = isPublishable
+    ? (state.lang === 'en'
+      ? truncateText(insight || insightPoints.join(' ') || fallbackInsight, insightLimit)
+      : (insightPoints[0] || truncateText(insight || fallbackInsight, insightLimit) || ''))
+    : truncateText(insight, insightLimit);
 
-  const card = el('div', `news-card news-card--latest-style tier-${tier}${aiDone ? ' has-ai' : ''}`);
+  const card = el('div', `news-card news-card--latest-style tier-${tier}${aiDone ? ' has-ai' : ''}${isPublishable ? '' : ' is-review-queue'}`);
   card.dataset.type = ipType;
   card.dataset.id = item.id;
   card.innerHTML = `
@@ -6877,6 +6950,7 @@ function renderNewsCard(item, tier = 'scan') {
       <span class="ip-badge ${ipType}">${getIpTypeLabel(ipType)}</span>
       ${renderGeoBadges(item, true, 1)}
       ${renderReaderEventBadge(item)}
+      ${renderVerificationBadge(item)}
       <span class="news-card-date">${date}</span>
     </div>
     <div class="news-card-rubric">${escapeHtml(compactSourceName(item.source_name || ''))}</div>
@@ -7904,14 +7978,19 @@ function showNewsDetail(item) {
   const linkDateMeta = buildOriginalLinkDateMeta(item);
   const hostname = (() => { try { return new URL(item.url).hostname; } catch { return item.url; } })();
   const aiDone = item.ai_status === 'done';
+  const isPublishable = isPublishableNewsItem(item);
   const primaryTitle = state.lang === 'zh' && item.title_zh ? item.title_zh : item.title;
   const secondaryTitle = item.title_zh ? item.title : '';
   const fallbackSummary = buildFallbackBrief(item, 'summary');
   const fallbackInsight = buildFallbackBrief(item, 'signal');
-  const summaryText = (item.ai_summary_zh || item.summary || fallbackSummary || '').trim();
-  const insightText = (item.ai_insight_zh || fallbackInsight || '').trim();
-  const summaryPoints = resolvePointList(item.ai_core_points_zh, summaryText, 4, state.lang === 'en' ? 240 : 180);
-  const insightPoints = resolvePointList(item.ai_insight_points_zh, insightText, 3, state.lang === 'en' ? 230 : 170);
+  const summaryText = (isPublishable ? (item.ai_summary_zh || item.summary || fallbackSummary || '') : (item.summary || fallbackSummary || '')).trim();
+  const insightText = (isPublishable ? (item.ai_insight_zh || fallbackInsight || '') : getVerificationDisplayNote(item)).trim();
+  const summaryPoints = isPublishable
+    ? resolvePointList(item.ai_core_points_zh, summaryText, 4, state.lang === 'en' ? 240 : 180)
+    : [summaryText].filter(Boolean);
+  const insightPoints = isPublishable
+    ? resolvePointList(item.ai_insight_points_zh, insightText, 3, state.lang === 'en' ? 230 : 170)
+    : [insightText].filter(Boolean);
 
   const overlay = el('div', 'modal-overlay');
   overlay.innerHTML = `
@@ -7923,6 +8002,7 @@ function showNewsDetail(item) {
             <span class="source-badge ${item.category}">${item.source_name || ''}</span>
             ${renderGeoBadges(item, true, 1)}
             ${renderReaderEventBadge(item)}
+            ${renderVerificationBadge(item)}
           </div>
           <div class="modal-header-caption">${t('section_priority')}</div>
         </div>

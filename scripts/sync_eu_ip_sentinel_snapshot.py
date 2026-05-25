@@ -170,7 +170,6 @@ def fetch_all_news():
             "page": page,
             "limit": limit,
             "relevant_only": "true",
-            "publishable_only": "true",
         })
         payload = fetch_json(f"/news?{query}")
         items.extend(payload.get("items", []))

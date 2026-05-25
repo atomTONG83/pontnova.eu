@@ -799,6 +799,21 @@ img { max-width: 100%; display: block; }
   color: #21675f;
 }
 
+.signal-pill.verification.review,
+.signal-pill.verification.pending {
+  background: rgba(181, 109, 24, 0.12);
+  color: #8a5a16;
+}
+
+.signal-pill.verification.fail {
+  background: rgba(190, 63, 63, 0.12);
+  color: #9d2f2f;
+}
+
+.news-card.is-review-queue {
+  border-color: rgba(181, 109, 24, 0.22);
+}
+
 .news-card-date {
   font-size: 11px;
   color: var(--color-text-3);
