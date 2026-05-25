@@ -2943,7 +2943,7 @@ async function renderNewsPage(container) {
     }
     const featuredItems = sortBySignalPriority(mergedItems.filter(isPresentationItem), 'brief');
     const streamItems = mergedItems.filter(isStreamItem);
-    const streamSourceItems = streamItems.length ? streamItems : mergedItems;
+    const streamSourceItems = reviewQueueMode ? mergedItems : (streamItems.length ? streamItems : mergedItems);
     const visibleItems = sepTimelineMode
       ? selectChronologyWindow(streamSourceItems, sepTimelineWindowLimit, { showAll: true })
       : selectChronologyWindow(streamSourceItems, state.pagination.limit, { showAll: focusedMode });
