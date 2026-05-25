@@ -2224,6 +2224,25 @@ function filterEnglishPoints(value) {
   return parseLocalizedPointArray(value).filter(part => !containsHanText(part));
 }
 
+function buildEnglishSourceName(sourceId = '', fallback = 'Source') {
+  const id = String(sourceId || '').trim().toLowerCase();
+  const overrides = {
+    cjeu: 'CJEU',
+    dpma: 'DPMA',
+    epo: 'EPO',
+    euipo: 'EUIPO',
+    ukipo: 'UKIPO',
+    upc: 'UPC',
+  };
+  if (overrides[id]) return overrides[id];
+  if (!id) return fallback;
+  return id
+    .split(/[_-]+/)
+    .filter(Boolean)
+    .map((part) => part.length <= 4 ? part.toUpperCase() : `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(' ');
+}
+
 function localizeEnglishPayload(value) {
   if (state.lang !== 'en' || value == null) return value;
   if (Array.isArray(value)) return value.map(localizeEnglishPayload);
@@ -2232,6 +2251,9 @@ function localizeEnglishPayload(value) {
   Object.entries(value).forEach(([key, child]) => {
     copy[key] = localizeEnglishPayload(child);
   });
+  if ('source_name' in value && containsHanText(value.source_name)) {
+    copy.source_name = buildEnglishSourceName(value.source_id, 'Source');
+  }
   const originalLanguage = String(value.language || '').toLowerCase();
   const originalTitle = originalLanguage === 'en' && !containsHanText(value.title) ? (value.title || '') : '';
   const originalSummary = originalLanguage === 'en' && !containsHanText(value.summary) ? (value.summary || '') : '';
