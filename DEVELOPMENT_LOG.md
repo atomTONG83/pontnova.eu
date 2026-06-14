@@ -614,6 +614,152 @@
   - `migrations/0002_workbench_atom_parity.sql`
   - `DEVELOPMENT_LOG.md`
 
+## 2026-06-14 Workbench v4.6 align project and task detail flow
+
+### Request
+
+- User reported that Pontnova project/task editing still did not match the Atom workbench interaction model.
+- Atom behavior to copy:
+  - Click a project or task to enter a full-page detail view.
+  - Detail content is fixed/read-only for browsing.
+  - Click `编辑` from the detail page to open the edit dialog.
+- User emphasized that the Atom layout feels clearer and more user-friendly.
+
+### Changes
+
+- Added full-page project and task detail views:
+  - `projectDetailView`
+  - `taskDetailView`
+- Changed all project/task open actions to route into detail pages instead of opening the side drawer.
+- Kept the side drawer for secondary records only:
+  - deadlines
+  - documents
+  - objectives
+  - time entries
+  - activity records
+  - calendar day agenda
+- Project detail page now shows fixed project fields first:
+  - project number
+  - business line
+  - stage
+  - health
+  - priority
+  - progress
+  - owner
+  - client/contact
+  - opened/due dates
+  - package/budget
+  - goal
+  - next step
+- Task detail page now shows fixed task fields first:
+  - task title
+  - linked project number/name
+  - owner
+  - due date
+  - status
+  - priority
+  - notes
+- Added `编辑项目` and `编辑任务` actions on detail pages.
+- Reused the existing entry dialog for edit mode:
+  - create mode still opens blank/new forms.
+  - edit mode pre-fills the current project/task values.
+  - save returns to the full-page detail view.
+- Expanded the project edit form to include stage, health, and progress.
+- Added responsive detail-page styling:
+  - desktop uses clear metrics and field grids.
+  - mobile collapses detail fields, metrics, and linked panels to one column.
+- Bumped workbench asset query version to `20260614-v4-6`.
+
+### Local verification
+
+- `node --check workbench/app.js`
+- `node --check _worker.js`
+- `git diff --check`
+- Local static preview:
+  - `http://127.0.0.1:4316/workbench/`
+- Browser local project flow:
+  - Clicked `PN-CONS-2026-001`.
+  - Confirmed `document.body.dataset.view === "projectDetail"`.
+  - Confirmed the drawer stayed closed.
+  - Confirmed the detail page had read-only field grid and `编辑项目`.
+  - Opened edit dialog and confirmed pre-filled project number/name plus stage field.
+  - Saved and confirmed the dialog closed while staying on project detail.
+- Browser local task flow:
+  - Opened `task-1` from the project detail page.
+  - Confirmed `document.body.dataset.view === "taskDetail"`.
+  - Confirmed the drawer stayed closed.
+  - Confirmed the detail page had read-only field grid and `编辑任务`.
+  - Opened edit dialog and confirmed pre-filled task title/status.
+  - Saved and confirmed the dialog closed while staying on task detail.
+- Browser mobile verification at `390 x 844`:
+  - No horizontal overflow.
+  - Detail fields collapsed to one column.
+  - Metrics collapsed to one column.
+  - Linked sections collapsed to one column.
+- Browser console:
+  - No application errors.
+
+### Deployment note
+
+- No D1 migration required.
+- Cloud database binding remains `WORKBENCH_DB`.
+
+### Production deployment
+
+- Source commit:
+  - `118a5a112be98211684bfcd4ba02f90a1fccbda5`
+- Commit message:
+  - `Align workbench project task detail flow`
+- Pushed to:
+  - `origin/main`
+- Cloudflare Pages deploy:
+  - `https://cb6f6295.pontnova.pages.dev`
+- Production URL:
+  - `https://pontnova.eu/workbench/`
+
+### Production verification
+
+- Login API:
+  - `302`
+- Authenticated workbench HTML:
+  - `200`
+- Authenticated state API:
+  - `200`
+- Production HTML confirmed:
+  - `/workbench/styles.css?v=20260614-v4-6`
+  - `/workbench/app.js?v=20260614-v4-6`
+- Production D1 state confirmed:
+  - 4 projects
+  - 4 tasks
+  - 3 deadlines
+  - 3 objectives
+- Browser production verification:
+  - Workbench loaded with `/workbench/app.js?v=20260614-v4-6`.
+  - Clicking `PN-CONS-2026-001` entered `projectDetail`.
+  - Project drawer stayed closed.
+  - Project detail showed read-only field grid and `编辑项目`.
+  - Opening `task-1` entered `taskDetail`.
+  - Task drawer stayed closed.
+  - Task detail showed read-only field grid and `编辑任务`.
+  - Browser console had no errors.
+
+### Local retained copy v4.6
+
+- Local copy:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v4-6-118a5a1`
+- Archive:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v4-6-118a5a1.tar.gz`
+- SHA-256:
+  - `9586a6ce26f133495e71c70ee3987c27aba3523d13bfddd0b555b9f69128b572`
+- Manifest:
+  - `LOCAL_BACKUP_MANIFEST.md`
+- Archive content spot-check:
+  - `workbench/index.html`
+  - `workbench/app.js`
+  - `workbench/styles.css`
+  - `_worker.js`
+  - `DEVELOPMENT_LOG.md`
+
 ## 2026-06-14 Workbench v4.5 apply UX review low-risk fixes
 
 ### Request
