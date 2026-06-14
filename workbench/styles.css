@@ -343,8 +343,11 @@ h3 {
 }
 
 .dashboard-board {
-  display: grid;
   gap: 18px;
+}
+
+.dashboard-board.is-active {
+  display: grid;
 }
 
 .hero-board,

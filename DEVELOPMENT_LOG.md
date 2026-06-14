@@ -614,6 +614,49 @@
   - `migrations/0002_workbench_atom_parity.sql`
   - `DEVELOPMENT_LOG.md`
 
+## 2026-06-14 Workbench v4.2 fix sidebar view switching
+
+### Request
+
+- User reported that clicking sidebar items did not jump to the corresponding workbench sections.
+
+### Root cause
+
+- Sidebar click handlers were firing, and `body[data-view]`, active nav state, and the title were changing.
+- However, `.dashboard-board { display: grid; }` appeared after `.view { display: none; }`, so the dashboard view stayed visible even when it was not active.
+- This made other sections appear not to open.
+
+### Changes
+
+- Changed dashboard display CSS:
+  - `.dashboard-board` now only provides layout gap.
+  - `.dashboard-board.is-active` now owns `display: grid`.
+- Added `window.scrollTo({ top: 0, behavior: "auto" })` inside `setView()` so sidebar navigation always jumps to the top of the selected section.
+- Bumped workbench asset query version to `20260614-v4-2`.
+
+### Local verification
+
+- `node --check workbench/app.js`
+- `node --check _worker.js`
+- Local static preview:
+  - `http://127.0.0.1:3006/workbench/`
+- Browser sidebar verification:
+  - `项目` -> only `projectsView` visible.
+  - `日程` -> only `calendarView` visible.
+  - `OKR` -> only `objectivesView` visible.
+  - `任务` -> only `tasksView` visible.
+  - `投入分析` -> only `workloadView` visible.
+  - `资料索引` -> only `documentsView` visible.
+  - `活动日志` -> only `auditView` visible.
+  - `平台图谱` -> only `mapView` visible.
+  - `看板` -> only `dashboardView` visible.
+  - Each sidebar click returned `scrollY = 0`.
+  - Browser console had no warnings or errors.
+
+### Deployment note
+
+- No D1 migration required.
+
 ## 2026-06-14 Workbench v4.1 remove Newsdesk dashboard card
 
 ### Request

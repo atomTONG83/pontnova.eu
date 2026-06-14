@@ -1062,6 +1062,7 @@
     Object.entries(views).forEach(([name, element]) => element?.classList.toggle("is-active", name === view));
     document.querySelectorAll(".nav-item").forEach((button) => button.classList.toggle("is-active", button.dataset.view === view));
     document.getElementById("viewTitle").textContent = titles[view];
+    window.scrollTo({ top: 0, behavior: "auto" });
     if (view === "dashboard") renderDashboard();
     if (view === "calendar") renderCalendar();
     if (view === "map") renderMap();
