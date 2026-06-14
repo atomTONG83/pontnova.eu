@@ -614,6 +614,123 @@
   - `migrations/0002_workbench_atom_parity.sql`
   - `DEVELOPMENT_LOG.md`
 
+## 2026-06-15 Workbench v5.5 editable program categories and refined marks
+
+### User request
+
+- The program/category logo blocks on the project portfolio cards looked poor.
+- Project categories themselves should be editable.
+
+### Changes
+
+- Bumped workbench asset query version to `20260615-v5-5`.
+- Added a persisted `programs` configuration layer to the workbench state.
+- Program categories now keep editable fields:
+  - filter/sidebar label
+  - category title
+  - project-number prefix
+  - visual mark
+  - theme color
+  - English kicker
+  - category description
+- Existing project type IDs stay stable, so existing project assignments and project numbers are not broken.
+- Updated program/category cards:
+  - replaced crowded all-caps logo blocks with a two-line mark: Chinese mark + small code
+  - restored `Active` as a compact status pill instead of a stretched strip
+  - separated `open`, `编辑大类`, and `新建项目` actions to avoid nested-button behavior
+- Added `编辑大类` actions:
+  - on dashboard/project portfolio program cards
+  - on program detail hero pages
+- Project create/edit forms now use the editable program labels.
+- Project filter chips now update from editable program labels.
+- Program detail and project detail hero marks now use the same refined mark style.
+
+### Local verification
+
+- `node --check workbench/app.js`
+- `node --check _worker.js`
+- `git diff --check`
+- Local static preview:
+  - `http://127.0.0.1:4322/workbench/`
+- Browser local verification:
+  - v5.5 CSS and JS assets loaded.
+  - 5 program cards displayed.
+  - 5 `编辑大类` buttons displayed.
+  - Marks render as:
+    - `咨 CONS`
+    - `融 FUND`
+    - `训 TRN`
+    - `坊 WS`
+    - `营 OPS`
+  - Status pill width is compact, not full-card width.
+  - Editing `consulting` locally saved:
+    - label `咨询服务`
+    - title `咨询服务项目`
+    - mark `策`
+  - The dashboard card, mark, and filter chip updated immediately after save.
+  - Program detail reflected the edited title and mark.
+  - Mobile viewport `390 x 844` had no horizontal overflow and program actions wrapped.
+  - Browser console had no errors.
+
+### Deployment note
+
+- No D1 migration required.
+- State shape adds optional `programs`; old cloud state is normalized with default category configuration on load.
+
+### Production deployment
+
+- Source commit:
+  - `b4c4b246b9bca6e1555dc493320276f7af5e90fc`
+- Commit message:
+  - `Make workbench program categories editable`
+- Pushed to:
+  - `origin/main`
+- Cloudflare Pages deploy:
+  - `https://d5fcfd1d.pontnova.pages.dev`
+- Production URL:
+  - `https://pontnova.eu/workbench/`
+
+### Production verification
+
+- Login API:
+  - `302`
+- Authenticated workbench HTML:
+  - `200`
+- Authenticated state API:
+  - `200`
+- Production HTML confirmed:
+  - `/workbench/styles.css?v=20260615-v5-5`
+  - `/workbench/app.js?v=20260615-v5-5`
+- Production state API bytes:
+  - `8348`
+- Browser production verification:
+  - v5.5 CSS and JS assets loaded.
+  - 5 program cards displayed.
+  - 5 `编辑大类` buttons displayed.
+  - Program marks render as `咨 CONS`, `融 FUND`, `训 TRN`, `坊 WS`, `营 OPS`.
+  - `Active` status pills are compact.
+  - Editing dialog opened for `consulting` with fields for label, title, prefix, mark, color, kicker, and description.
+  - Production edit dialog was closed without saving, so production data was not altered during verification.
+  - No horizontal overflow.
+  - Browser console had no errors.
+
+### Local retained copy v5.5
+
+- Local copy:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260615-v5-5-b4c4b24`
+- Archive:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260615-v5-5-b4c4b24.tar.gz`
+- SHA-256:
+  - `7e43c4bbb0ff17ab902308a66e04f1282446b8e5b8af26991f8dddfdf6d4f6c1`
+- Manifest:
+  - `LOCAL_BACKUP_MANIFEST.md`
+- Archive content spot-check:
+  - `workbench/index.html`
+  - `workbench/app.js`
+  - `workbench/styles.css`
+  - `_worker.js`
+  - `DEVELOPMENT_LOG.md`
+
 ## 2026-06-14 Workbench v5.4 remove data import/export controls
 
 ### User request
