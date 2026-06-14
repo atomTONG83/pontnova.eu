@@ -614,6 +614,157 @@
   - `migrations/0002_workbench_atom_parity.sql`
   - `DEVELOPMENT_LOG.md`
 
+## 2026-06-14 Workbench v5.1 match Atom program detail layout
+
+### Request
+
+- User shared an Atom workbench screenshot showing the detail page after entering a project/program section.
+- Feedback: Pontnova still did not replicate Atom closely enough, especially the way a project/program section opens and displays.
+- Direction: study Atom more carefully and make Pontnova closer in font, layout, structure, and logic.
+
+### Atom reference reviewed
+
+- Screenshot provided by user:
+  - `/var/folders/98/zqg0lt5s2m12vjctp_x1mbfw0000gn/T/codex-clipboard-5bed77a5-b6f8-4091-8b0b-1f596f7bf27a.png`
+- Atom source files reviewed:
+  - `/Volumes/LaCie/Codex/20260514 atom 工作台/src/app/app/programs/[slug]/page.tsx`
+  - `/Volumes/LaCie/Codex/20260514 atom 工作台/src/app/app/cases/[id]/page.tsx`
+  - `/Volumes/LaCie/Codex/20260514 atom 工作台/src/app/app/page.tsx`
+  - `/Volumes/LaCie/Codex/20260514 atom 工作台/src/components/workbench-nav.tsx`
+  - `/Volumes/LaCie/Codex/20260514 atom 工作台/src/app/globals.css`
+- Key Atom pattern identified:
+  - Program card opens a standalone program detail page.
+  - Program detail page starts with breadcrumb, no top search/header bar.
+  - Hero card has top accent stripe, icon, uppercase kicker, serif title, description, actions, and four metrics.
+  - Below the hero is a table-style case list.
+  - Clicking a row opens a standalone case/project detail page with the same hero/metric rhythm.
+
+### Changes
+
+- Updated workbench asset version to `20260614-v5-1`.
+- Added a new `programDetailView` for Pontnova business-line detail pages.
+- Changed project-combination cards from simple filter shortcuts into full page entries:
+  - `咨询项目`
+  - `投融资项目`
+  - `培训项目`
+  - `Workshop 项目`
+  - `运营项目`
+- Program/detail card now includes:
+  - program accent color
+  - prefix icon block
+  - Active status
+  - title and arrow
+  - description
+  - project / active / deadline mini metrics
+- New Atom-style business-line detail page includes:
+  - breadcrumb `返回项目组合 / 业务线`
+  - top accent stripe
+  - program icon
+  - uppercase kicker
+  - serif heading
+  - four metrics: project count, active count, pending deadlines, total hours
+  - table-style project list with columns for project number, title/type, status, next deadline, risk, and arrow
+- Business-line detail has `+ 新建项目`; the form defaults to that business line and next project number.
+- Single project detail hero was reshaped to match Atom case detail:
+  - breadcrumb `返回 业务线 / 项目号`
+  - no top search/header bar
+  - top accent stripe
+  - prefix icon block
+  - project number + type kicker
+  - serif project title
+  - status/health/client badges
+  - metrics inside the hero card
+- Added serif font stack variable aligned with Atom's `Source Serif / Iowan / Georgia` approach.
+- Added responsive behavior:
+  - mobile detail pages do not create page-level horizontal overflow
+  - table scroll is contained inside the table wrapper
+  - metrics collapse cleanly on narrow screens
+
+### Local verification
+
+- Syntax and diff checks:
+  - `node --check workbench/app.js`
+  - `node --check _worker.js`
+  - `git diff --check`
+- Local static preview:
+  - `http://127.0.0.1:4318/workbench/`
+- Browser local verification:
+  - v5.1 assets loaded:
+    - `/workbench/styles.css?v=20260614-v5-1`
+    - `/workbench/app.js?v=20260614-v5-1`
+  - Clicking dashboard `咨询项目` opens `programDetail`.
+  - Program detail shows:
+    - breadcrumb `← 返回项目组合 / 咨询项目`
+    - hidden topbar
+    - hero title `咨询项目`
+    - four metrics
+    - table row for `PN-CONS-2026-001`
+  - Clicking the program table row opens project detail.
+  - Project detail shows:
+    - breadcrumb `← 返回 咨询项目 / PN-CONS-2026-001`
+    - hidden topbar
+    - hero title `中欧 IP 市场进入策略`
+    - metrics: task, deadline, document, hours
+    - edit button available
+  - `+ 新建项目` inside `咨询项目` opens a prefilled create dialog:
+    - type `consulting`
+    - project number `PN-CONS-2026-002`
+  - Mobile viewport `390 x 844` has no page-level horizontal overflow.
+  - Browser console had no errors.
+
+### Deployment note
+
+- No D1 migration was required.
+- Cloud data remains in the existing `WORKBENCH_DB` binding.
+- Deployment was run with `SKIP_SYNC=1`.
+
+### Production deployment
+
+- Source commit:
+  - `2d37c718e5da0d673bdf977daf76604de0d54cfc`
+- Commit message:
+  - `Match Atom program detail layout`
+- Pushed to:
+  - `origin/main`
+- Cloudflare Pages deploy:
+  - `https://d2919f81.pontnova.pages.dev`
+- Production URL:
+  - `https://pontnova.eu/workbench/`
+
+### Production verification
+
+- Login API with password `atomerin2026`:
+  - `302`
+- Authenticated workbench HTML:
+  - `200`
+- Authenticated state API:
+  - `200`
+- Production HTML confirmed:
+  - `/workbench/styles.css?v=20260614-v5-1`
+  - `/workbench/app.js?v=20260614-v5-1`
+- Browser production verification:
+  - Dashboard still loads as `项目看板`.
+  - `专利申请` is not visible.
+  - Clicking `咨询项目` opens the new `programDetail` page.
+  - Program detail title is `咨询项目`.
+  - Program detail topbar is hidden.
+  - Program table shows `PN-CONS-2026-001`.
+  - Project row opens the full `projectDetail` page.
+  - Project detail breadcrumb is `← 返回 咨询项目 / PN-CONS-2026-001`.
+  - Project detail title is `PN-CONS-2026-001 · 中欧 IP 市场进入策略`.
+  - Browser console had no errors.
+
+### Local retained copy v5.1
+
+- Local copy:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v5-1-2d37c71`
+- Archive:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v5-1-2d37c71.tar.gz`
+- SHA-256:
+  - `e76c6c0227140746c85813ebfe26996095e51e9b95efce66e7f834ea555d78bf`
+- Manifest:
+  - `LOCAL_BACKUP_MANIFEST.md`
+
 ## 2026-06-14 Workbench v5.0 replicate Atom-style workbench UI
 
 ### Request
