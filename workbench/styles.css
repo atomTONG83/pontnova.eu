@@ -1933,6 +1933,219 @@ th {
   background: #fbf6ec;
 }
 
+.project-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.75fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.project-section-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.project-panel {
+  overflow: hidden;
+  border: 1px solid rgba(42, 26, 16, 0.10);
+  border-radius: 24px;
+  background: rgba(255, 250, 242, 0.94);
+  box-shadow: 0 18px 42px rgba(73, 50, 29, 0.08);
+}
+
+.project-panel-primary {
+  background: #ffffff;
+}
+
+.project-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid rgba(42, 26, 16, 0.08);
+  padding: 18px 20px;
+}
+
+.project-panel-head.compact {
+  padding-bottom: 12px;
+}
+
+.project-panel-head h3 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.project-panel-head span {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.project-task-list,
+.project-list {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.project-task-row,
+.project-list-row {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  border: 1px solid rgba(42, 26, 16, 0.09);
+  border-radius: 16px;
+  background: #ffffff;
+  color: inherit;
+  text-align: left;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+
+.project-task-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 16px;
+}
+
+.project-list-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 13px 14px;
+}
+
+.project-task-row:hover,
+.project-list-row:hover {
+  border-color: rgba(189, 96, 69, 0.22);
+  background: #fbf6ec;
+  transform: translateY(-1px);
+}
+
+.task-main,
+.project-list-row > span:first-child {
+  min-width: 0;
+}
+
+.task-main strong,
+.task-main small,
+.project-list-row strong,
+.project-list-row small {
+  display: block;
+}
+
+.task-main strong,
+.project-list-row strong {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.task-main small,
+.project-list-row small {
+  overflow: hidden;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.task-meta > span:not(.atom-status):not(.due-pill) {
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: #fbf6ec;
+}
+
+.project-brief-panel {
+  position: sticky;
+  top: 24px;
+  background: #fbf6ec;
+}
+
+.brief-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  padding: 0 18px 14px;
+}
+
+.brief-progress span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.brief-progress strong {
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.brief-progress .progress {
+  grid-column: 1 / -1;
+}
+
+.project-brief-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 14px 14px;
+}
+
+.brief-item {
+  border: 1px solid rgba(42, 26, 16, 0.08);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: #ffffff;
+}
+
+.brief-item.full {
+  grid-column: 1 / -1;
+}
+
+.brief-item.highlight {
+  border-color: rgba(47, 118, 107, 0.18);
+  background: rgba(47, 118, 107, 0.07);
+}
+
+.brief-item span,
+.brief-item strong {
+  display: block;
+}
+
+.brief-item span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.brief-item strong {
+  margin-top: 5px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.project-time-panel {
+  grid-column: 1 / -1;
+}
+
 .atom-program-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2632,8 +2845,13 @@ th {
 
   .bottom-board-grid,
   .analytics-splits,
-  .detail-columns {
+  .detail-columns,
+  .project-workspace {
     grid-template-columns: 1fr;
+  }
+
+  .project-brief-panel {
+    position: static;
   }
 
   .detail-page > .detail-metrics {
@@ -2656,6 +2874,10 @@ th {
 
   .atom-program-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .project-section-grid {
+    grid-template-columns: 1fr;
   }
 
   .atom-record-head {
@@ -2752,6 +2974,23 @@ th {
   }
 
   .atom-program-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .project-task-row,
+  .project-list-row {
+    grid-template-columns: 1fr;
+  }
+
+  .task-meta {
+    justify-content: flex-start;
+  }
+
+  .project-panel-head {
+    display: grid;
+  }
+
+  .project-brief-grid {
     grid-template-columns: 1fr;
   }
 

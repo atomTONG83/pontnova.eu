@@ -1567,45 +1567,194 @@
           </div>
         </section>
 
-        <section class="detail-section">
-          <div class="section-title-row">
-            <div>
-              <p class="eyebrow">Project Fields</p>
-              <h3>固定项目内容</h3>
-            </div>
-            <span class="status">${escapeHtml(project.openedAt || "未设开启日期")}</span>
-          </div>
-          <div class="read-grid">
-            ${readField("项目号", project.projectNo)}
-            ${readField("业务线", typeLabel(project.type))}
-            ${readField("状态", stageLabel(project.stage))}
-            ${readField("健康度", healthLabel(project.health))}
-            ${readField("优先级", priorityLabel(project.priority))}
-            ${readField("进度", `${project.progress}%`)}
-            ${readField("负责人", project.owner || "未设置")}
-            ${readField("客户 / 委托方", project.client || "未设置")}
-            ${readField("客户联系人", project.contact || "未设置")}
-            ${readField("开启日期", project.openedAt || "未设置")}
-            ${readField("目标完成日", project.dueDate || "未设置")}
-            ${readField("项目包 / 预算", project.budget || "未设置")}
-            ${readField("项目目标", project.goal || "暂无项目目标。", "full")}
-            ${readField("下一步", project.next || "暂无下一步。", "full")}
-          </div>
-        </section>
-
-        <div class="detail-columns">
-          ${linkedList("任务", rel.tasks.sort(sortTasks), "task")}
-          ${linkedList("关键节点", upcomingDeadlines, "deadline")}
+        <div class="project-workspace">
+          ${projectTasksPanel(rel.tasks.sort(sortTasks), id)}
+          ${projectBriefPanel(project)}
         </div>
 
-        <div class="detail-columns">
-          ${linkedList("资料", rel.documents, "document")}
-          ${linkedList("目标", rel.objectives, "objective")}
+        <div class="project-section-grid">
+          ${projectDeadlinesPanel(upcomingDeadlines, id)}
+          ${projectDocumentsPanel(rel.documents, id)}
+          ${projectObjectivesPanel(rel.objectives, id)}
+          ${projectTimePanel(rel.timeEntries, id)}
         </div>
-        ${timeList(rel.timeEntries)}
       </div>
     `;
     if (currentView === "projectDetail") setDetailTitle(project.projectNo, project.name);
+  }
+
+  function projectTasksPanel(tasks, projectId) {
+    const openCount = tasks.filter((task) => task.status !== "done").length;
+    return `
+      <section class="project-panel project-panel-primary">
+        <div class="project-panel-head">
+          <div>
+            <p class="atom-program-kicker">Tasks</p>
+            <h3>任务推进</h3>
+            <span>${openCount} 个未完成 · 按状态和期限排序</span>
+          </div>
+          <button class="primary-button small" data-add-related="task" data-project-id="${escapeAttr(projectId)}" type="button">新增任务</button>
+        </div>
+        <div class="project-task-list">
+          ${tasks.length ? tasks.map((task) => projectTaskRow(task)).join("") : `<p class="muted-copy">暂无任务。先新增一个可执行动作。</p>`}
+        </div>
+      </section>
+    `;
+  }
+
+  function projectTaskRow(task) {
+    return `
+      <button class="project-task-row" data-open-task="${escapeAttr(task.id)}" type="button">
+        <span class="task-main">
+          <strong>${escapeHtml(task.title)}</strong>
+          <small>${escapeHtml(task.notes || "暂无备注。")}</small>
+        </span>
+        <span class="task-meta">
+          <span class="atom-status ${escapeAttr(task.status)}">${statusLabel(task.status)}</span>
+          <span class="due-pill ${daysUntil(task.due) <= 3 ? "urgent" : ""}">${escapeHtml(relativeDay(task.due))}</span>
+          <span>${priorityLabel(task.priority)}</span>
+        </span>
+      </button>
+    `;
+  }
+
+  function projectBriefPanel(project) {
+    return `
+      <aside class="project-panel project-brief-panel">
+        <div class="project-panel-head compact">
+          <div>
+            <p class="atom-program-kicker">Project Brief</p>
+            <h3>项目摘要</h3>
+          </div>
+          <button class="ghost-button compact" data-edit-project="${escapeAttr(project.id)}" type="button">编辑</button>
+        </div>
+        <div class="brief-progress">
+          <span>进度</span>
+          <strong>${project.progress}%</strong>
+          <div class="progress large"><span style="width:${project.progress}%"></span></div>
+        </div>
+        <div class="project-brief-grid">
+          ${briefItem("负责人", project.owner || "未设置")}
+          ${briefItem("客户", project.client || "未设置")}
+          ${briefItem("联系人", project.contact || "未设置")}
+          ${briefItem("目标日", project.dueDate || "未设置")}
+          ${briefItem("项目包", project.budget || "未设置", "full")}
+          ${briefItem("项目目标", project.goal || "暂无项目目标。", "full")}
+          ${briefItem("下一步", project.next || "暂无下一步。", "full highlight")}
+        </div>
+      </aside>
+    `;
+  }
+
+  function briefItem(label, value, klass = "") {
+    return `
+      <article class="brief-item ${klass}">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value || "—")}</strong>
+      </article>
+    `;
+  }
+
+  function projectDeadlinesPanel(deadlines, projectId) {
+    return `
+      <section class="project-panel">
+        <div class="project-panel-head">
+          <div>
+            <p class="atom-program-kicker">Deadlines</p>
+            <h3>关键节点</h3>
+          </div>
+          <button class="ghost-button compact" data-add-related="deadline" data-project-id="${escapeAttr(projectId)}" type="button">新增节点</button>
+        </div>
+        <div class="project-list">
+          ${deadlines.length ? deadlines.map((deadline) => `
+            <button class="project-list-row" data-open-deadline="${escapeAttr(deadline.id)}" type="button">
+              <span>
+                <strong>${escapeHtml(deadline.title)}</strong>
+                <small>${escapeHtml(deadline.kind || "节点")} · ${escapeHtml(deadline.date || "未设日期")}</small>
+              </span>
+              <span class="due-pill ${daysUntil(deadline.date) <= 3 ? "urgent" : ""}">${escapeHtml(relativeDay(deadline.date))}</span>
+            </button>
+          `).join("") : `<p class="muted-copy">暂无关键节点。</p>`}
+        </div>
+      </section>
+    `;
+  }
+
+  function projectDocumentsPanel(documents, projectId) {
+    return `
+      <section class="project-panel">
+        <div class="project-panel-head">
+          <div>
+            <p class="atom-program-kicker">Documents</p>
+            <h3>资料</h3>
+          </div>
+          <button class="ghost-button compact" data-add-related="document" data-project-id="${escapeAttr(projectId)}" type="button">新增资料</button>
+        </div>
+        <div class="project-list">
+          ${documents.length ? documents.map((documentItem) => `
+            <button class="project-list-row" data-open-document="${escapeAttr(documentItem.id)}" type="button">
+              <span>
+                <strong>${escapeHtml(documentItem.title)}</strong>
+                <small>${escapeHtml(documentItem.type || "资料")} · ${escapeHtml(documentItem.note || documentItem.path || "未补充说明")}</small>
+              </span>
+              <span class="row-arrow">›</span>
+            </button>
+          `).join("") : `<p class="muted-copy">暂无资料。</p>`}
+        </div>
+      </section>
+    `;
+  }
+
+  function projectObjectivesPanel(objectives, projectId) {
+    return `
+      <section class="project-panel">
+        <div class="project-panel-head">
+          <div>
+            <p class="atom-program-kicker">OKR</p>
+            <h3>目标</h3>
+          </div>
+          <button class="ghost-button compact" data-add-related="objective" data-project-id="${escapeAttr(projectId)}" type="button">新增目标</button>
+        </div>
+        <div class="project-list">
+          ${objectives.length ? objectives.map((objective) => `
+            <button class="project-list-row objective-row" data-open-objective="${escapeAttr(objective.id)}" type="button">
+              <span>
+                <strong>${escapeHtml(objective.title)}</strong>
+                <small>${escapeHtml(objective.quarter || "目标")} · ${escapeHtml(objective.signal || "暂无信号")}</small>
+              </span>
+              <span class="okr-score ${escapeAttr(objective.status)}">${objective.progress}%</span>
+            </button>
+          `).join("") : `<p class="muted-copy">暂无目标。</p>`}
+        </div>
+      </section>
+    `;
+  }
+
+  function projectTimePanel(entries, projectId) {
+    const total = sumHours(entries);
+    return `
+      <section class="project-panel project-time-panel">
+        <div class="project-panel-head">
+          <div>
+            <p class="atom-program-kicker">Time</p>
+            <h3>投入记录</h3>
+            <span>累计 ${total.toFixed(1)} h · 最近 ${Math.min(entries.length, 6)} 条</span>
+          </div>
+          <button class="ghost-button compact" data-add-related="time" data-project-id="${escapeAttr(projectId)}" type="button">记录投入</button>
+        </div>
+        <div class="project-list">
+          ${entries.length ? entries.slice(0, 6).map((entry) => `
+            <button class="project-list-row" data-open-time="${escapeAttr(entry.id)}" type="button">
+              <span>
+                <strong>${escapeHtml(entry.description || "投入记录")}</strong>
+                <small>${escapeHtml(entry.date)} · ${escapeHtml(entry.tags || "未设标签")}</small>
+              </span>
+              <span>${Number(entry.hours || 0).toFixed(1)} h</span>
+            </button>
+          `).join("") : `<p class="muted-copy">暂无投入记录。</p>`}
+        </div>
+      </section>
+    `;
   }
 
   function readField(label, value, klass = "") {
