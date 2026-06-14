@@ -657,6 +657,66 @@
 
 - No D1 migration required.
 
+### Production deployment
+
+- Source commit:
+  - `22ff54014da4624c9ea31272589017cd257b335b`
+- Commit message:
+  - `Fix Pontnova sidebar view switching`
+- Pushed to:
+  - `origin/main`
+- Cloudflare Pages deploy:
+  - `https://6e569cff.pontnova.pages.dev`
+- Production URL:
+  - `https://pontnova.eu/workbench/`
+
+### Production verification
+
+- Login API:
+  - `302`
+- Authenticated workbench HTML:
+  - `200`
+- Authenticated state API:
+  - `200`
+- Production HTML confirmed:
+  - `/workbench/styles.css?v=20260614-v4-2`
+  - `/workbench/app.js?v=20260614-v4-2`
+- Production D1 state confirmed:
+  - 4 projects
+  - 4 tasks
+  - 3 deadlines
+  - 3 objectives
+- Browser production sidebar verification:
+  - `项目` -> only `projectsView` visible.
+  - `日程` -> only `calendarView` visible.
+  - `OKR` -> only `objectivesView` visible.
+  - `任务` -> only `tasksView` visible.
+  - `投入分析` -> only `workloadView` visible.
+  - `资料索引` -> only `documentsView` visible.
+  - `活动日志` -> only `auditView` visible.
+  - `平台图谱` -> only `mapView` visible.
+  - `看板` -> only `dashboardView` visible.
+  - Each sidebar click returned `scrollY = 0`.
+  - Browser console had no warnings or errors.
+
+### Local retained copy v4.2
+
+- Local copy:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v4-2-22ff540`
+- Archive:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v4-2-22ff540.tar.gz`
+- SHA-256:
+  - `e269747c12c6c717293335c5a137f17554e245279afc82db51be8440508462a0`
+- Manifest:
+  - `LOCAL_BACKUP_MANIFEST.md`
+- Archive content spot-check:
+  - `workbench/index.html`
+  - `workbench/app.js`
+  - `workbench/styles.css`
+  - `_worker.js`
+  - `migrations/0002_workbench_atom_parity.sql`
+  - `DEVELOPMENT_LOG.md`
+
 ## 2026-06-14 Workbench v4.1 remove Newsdesk dashboard card
 
 ### Request
