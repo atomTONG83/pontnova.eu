@@ -613,3 +613,39 @@
   - `_worker.js`
   - `migrations/0002_workbench_atom_parity.sql`
   - `DEVELOPMENT_LOG.md`
+
+## 2026-06-14 Workbench v4.1 remove Newsdesk dashboard card
+
+### Request
+
+- User marked the dashboard `Newsdesk / UPC / EU IP 资讯台` card as no longer needed.
+
+### Changes
+
+- Removed the `Newsdesk` card from the dashboard bottom section.
+- Removed the `UPC / EU IP 资讯台` text and `查看资料索引` button from the dashboard.
+- Removed unused `.newsdesk-card` styles.
+- Changed the bottom dashboard section from 3 cards to 2 equal-width cards:
+  - `数据完整性`
+  - `平台地图`
+- Bumped workbench asset query version to `20260614-v4-1`.
+
+### Local verification
+
+- `node --check workbench/app.js`
+- `node --check _worker.js`
+- Local static preview:
+  - `http://127.0.0.1:3005/workbench/`
+- Browser verification:
+  - Dashboard bottom cards are now only:
+    - `数据完整性`
+    - `平台地图`
+  - `Newsdesk`, `UPC / EU IP 资讯台`, and `查看资料索引` no longer appear in the workbench HTML/CSS/JS.
+  - Desktop bottom grid renders as two columns.
+  - Mobile viewport `390 x 844` renders as one column.
+  - Mobile viewport had no horizontal overflow.
+  - Browser console had no warnings or errors.
+
+### Deployment note
+
+- No D1 migration required.

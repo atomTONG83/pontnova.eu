@@ -793,40 +793,11 @@ h3 {
 }
 
 .bottom-board-grid {
-  grid-template-columns: 1.1fr 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.compact-panel,
-.newsdesk-card {
+.compact-panel {
   min-height: 210px;
-}
-
-.newsdesk-card {
-  display: grid;
-  align-content: start;
-  gap: 12px;
-  border-radius: 8px;
-  padding: 18px;
-  background: var(--brown);
-  color: #fff8ed;
-}
-
-.newsdesk-card .section-kicker {
-  border-color: rgba(255, 250, 242, 0.18);
-  background: rgba(255, 250, 242, 0.08);
-  color: #f4b391;
-}
-
-.newsdesk-card p {
-  color: rgba(255, 248, 237, 0.76);
-  line-height: 1.65;
-}
-
-.newsdesk-card .ghost-button {
-  width: fit-content;
-  border-color: rgba(255, 250, 242, 0.18);
-  background: rgba(255, 250, 242, 0.08);
-  color: #fff8ed;
 }
 
 .map-teaser {
