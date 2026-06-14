@@ -614,6 +614,149 @@
   - `migrations/0002_workbench_atom_parity.sql`
   - `DEVELOPMENT_LOG.md`
 
+## 2026-06-14 Workbench v5.0 replicate Atom-style workbench UI
+
+### Request
+
+- User felt the Pontnova workbench still did not look or operate as well as the Atom workbench.
+- Direction: replicate most of the Atom workbench UI and logic as completely as practical, while removing patent application / patent prosecution management and related functions.
+- Keep Pontnova scope focused on consulting, fundraising, training, Workshop, and related project coordination.
+
+### Atom reference reviewed
+
+- Confirmed the active Atom workbench app was running from:
+  - `/Volumes/LaCie/Codex/20260514 atom 工作台`
+- Reviewed the relevant Atom source files:
+  - `src/app/app/page.tsx`
+  - `src/components/workbench-nav.tsx`
+  - `src/components/workload-analytics.tsx`
+  - `src/app/app/cases/[id]/page.tsx`
+  - `src/app/app/layout.tsx`
+  - `src/app/globals.css`
+- Copied the product logic pattern, not the patent-specific business:
+  - dashboard first
+  - sidebar switches to full independent sections
+  - project/task detail opens as full-page read view
+  - editing happens only after pressing the edit button
+  - portfolio, deadlines, OKR, workload, activity log, map remain first-class workbench sections
+
+### Changes
+
+- Updated workbench asset version to `20260614-v5-0`.
+- Rebuilt the sidebar to match Atom workbench's non-patent group:
+  - `总览`
+  - `项目`
+  - `日历`
+  - `OKR`
+  - `近期期限`
+  - `活动日志`
+  - `计时器`
+  - `平台地图`
+- Removed sidebar-level `任务`, `投入分析`, and `资料索引` entries from the primary Atom-style navigation to reduce clutter.
+  - Existing task/document data and related detail surfaces remain available from projects, dashboard rows, and related actions.
+- Added a dedicated full-page `近期期限` view.
+- Renamed and reshaped workload as `计时器 / 工时`, including a focus timer card with:
+  - today's recorded hours
+  - `记录投入`
+  - `继续当前任务`
+- Updated dashboard copy so the first screen is explicitly a project workbench board.
+- Reworked the visual layer toward Atom's warm, card-based workbench style:
+  - translucent fixed sidebar
+  - stronger active nav treatment
+  - warm radial page background
+  - rounded white work panels
+  - hero card with key metrics
+  - Atom-like task, deadline, program, objective, detail, and workload surfaces
+- Kept patent application / prosecution modules out of Pontnova.
+- Preserved project numbers as first-class identifiers in cards and detail pages.
+- Strengthened detail-page title restoration:
+  - closing an edit dialog now keeps the specific project number / task title in the page header.
+  - confirmed the top-right close button works for project and task edit dialogs.
+- Added mobile layout adjustments for the timer card.
+
+### Local verification
+
+- Syntax and diff checks:
+  - `node --check workbench/app.js`
+  - `node --check _worker.js`
+  - `git diff --check`
+- Local static preview:
+  - `http://127.0.0.1:4317/workbench/`
+- Browser verification on local preview:
+  - Dashboard loads as `项目看板`.
+  - Sidebar entries are exactly:
+    - `总览`
+    - `项目`
+    - `日历`
+    - `OKR`
+    - `近期期限`
+    - `活动日志`
+    - `计时器`
+    - `平台地图`
+  - `专利申请` text is not present.
+  - Every sidebar entry switches to a standalone section; the dashboard is hidden outside `总览`.
+  - `近期期限` shows a full deadline radar list.
+  - `计时器 / 工时` shows the focus timer card and workload rows.
+  - Opening project `PN-CONS-2026-001` goes to a full-page detail view, not a modal.
+  - Project edit dialog is pre-filled and its top-right close button closes correctly.
+  - After closing project edit, the page title remains `PN-CONS-2026-001 · 中欧 IP 市场进入策略`.
+  - Opening task `补齐三家竞品欧洲专利族摘要` goes to a full-page task detail view.
+  - Task edit dialog is pre-filled and its top-right close button closes correctly.
+  - After closing task edit, the page title remains `任务 · 补齐三家竞品欧洲专利族摘要`.
+  - Mobile viewport `390 x 844` has no horizontal overflow.
+  - Browser console had no errors.
+
+### Deployment note
+
+- No D1 migration was required.
+- Cloud data remains in the existing `WORKBENCH_DB` binding.
+- Deployment was run with `SKIP_SYNC=1` so local files did not overwrite cloud data.
+
+### Production deployment
+
+- Source commit:
+  - `766f87a932be1c9e5c732d78bfb2ed0720e85f3b`
+- Commit message:
+  - `Replicate Atom-style workbench UI`
+- Pushed to:
+  - `origin/main`
+- Cloudflare Pages deploy:
+  - `https://ecc2aa6f.pontnova.pages.dev`
+- Production URL:
+  - `https://pontnova.eu/workbench/`
+
+### Production verification
+
+- Login API with password `atomerin2026`:
+  - `302`
+- Authenticated workbench HTML:
+  - `200`
+- Authenticated state API:
+  - `200`
+- Production HTML confirmed:
+  - `/workbench/styles.css?v=20260614-v5-0`
+  - `/workbench/app.js?v=20260614-v5-0`
+- Browser production verification:
+  - Dashboard title is `项目看板`.
+  - Production sidebar matches the new Atom-style non-patent workbench group.
+  - `专利申请` is not visible.
+  - `近期期限` opens as a standalone page with 3 deadline rows.
+  - Opening project `PN-CONS-2026-001` goes to the full-page project detail view.
+  - Project edit dialog opens pre-filled and the top-right close button closes it.
+  - After closing project edit, the page title remains `PN-CONS-2026-001 · 中欧 IP 市场进入策略`.
+  - Browser console had no errors.
+
+### Local retained copy v5.0
+
+- Local copy:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v5-0-766f87a`
+- Archive:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v5-0-766f87a.tar.gz`
+- SHA-256:
+  - `7aec06eddc73e4486742ae280ec438ea9e6fb2ceb7ffafa1eecb00a38c761cce`
+- Manifest:
+  - `LOCAL_BACKUP_MANIFEST.md`
+
 ## 2026-06-14 Workbench v4.6 align project and task detail flow
 
 ### Request
