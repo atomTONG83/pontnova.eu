@@ -325,6 +325,7 @@
 - Files changed:
   - `workbench/index.html`
     - added map nav/view, calendar toolbar, detail drawer markup
+    - added versioned CSS/JS URLs to prevent stale browser cache after deployment
   - `workbench/app.js`
     - replaced the original list-only rendering with record-level drawers, calendar modes, map rendering, and richer event delegation
     - retained D1-backed state loading and saving via `/workbench/api/state`
@@ -347,6 +348,7 @@
 - Notes:
   - Local preview D1 binding can create a temporary local database name in Wrangler; production remains bound to `WORKBENCH_DB` / `pontnova-workbench`.
   - Production D1 is the intended source of truth after deployment.
+  - After production smoke testing, CSS/JS URLs were versioned as `20260614-v2` so existing browser sessions fetch the new interaction code.
 
 - Follow-up:
   - Add drag/drop task ordering if daily task planning becomes important.
