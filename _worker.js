@@ -1,6 +1,58 @@
 const SESSION_COOKIE = "pn_workbench_session";
 const SESSION_TTL_SECONDS = 12 * 60 * 60;
 const WORKBENCH_PREFIX = "/workbench";
+const DEFAULT_PROGRAMS = [
+  {
+    type: "consulting",
+    label: "咨询",
+    prefix: "CONS",
+    accent: "#1d6b5e",
+    kicker: "CONS · CONSULTING",
+    title: "咨询项目",
+    description: "市场进入、竞争风险、IP 策略与跨境业务判断。",
+    mark: "咨",
+  },
+  {
+    type: "fundraising",
+    label: "投融资",
+    prefix: "FUND",
+    accent: "#547a9b",
+    kicker: "FUND · FINANCE",
+    title: "投融资项目",
+    description: "技术尽调、投资人材料、商业叙事和壁垒表达。",
+    mark: "融",
+  },
+  {
+    type: "training",
+    label: "培训",
+    prefix: "TRN",
+    accent: "#8b6f2f",
+    kicker: "TRN · TRAINING",
+    title: "培训项目",
+    description: "管理层课程、案例设计、内部 IP 能力建设。",
+    mark: "训",
+  },
+  {
+    type: "workshop",
+    label: "Workshop",
+    prefix: "WS",
+    accent: "#7f466d",
+    kicker: "WS · WORKSHOP",
+    title: "Workshop 项目",
+    description: "公开活动、主题策划、嘉宾协同和报名转化。",
+    mark: "坊",
+  },
+  {
+    type: "operations",
+    label: "运营",
+    prefix: "OPS",
+    accent: "#667d51",
+    kicker: "OPS · OPERATIONS",
+    title: "运营项目",
+    description: "内部运营、资料建设、流程优化和长期维护。",
+    mark: "营",
+  },
+];
 const SECURITY_HEADERS = {
   "Content-Security-Policy":
     "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
@@ -77,6 +129,7 @@ async function handleWorkbenchState(request, env) {
     return jsonResponse({
       ok: true,
       counts: {
+        programs: nextState.programs.length,
         projects: nextState.projects.length,
         tasks: nextState.tasks.length,
         deadlines: nextState.deadlines.length,
@@ -93,6 +146,7 @@ async function handleWorkbenchState(request, env) {
 }
 
 async function readWorkbenchState(db) {
+  const programs = await readPrograms(db);
   const [projects, tasks, deadlines, documents, objectives, keyResults, timeEntries, activities] = await db.batch([
     db.prepare("SELECT * FROM projects ORDER BY sort_order ASC, updated_at DESC"),
     db.prepare("SELECT * FROM tasks ORDER BY sort_order ASC, due_date ASC, updated_at DESC"),
@@ -105,6 +159,7 @@ async function readWorkbenchState(db) {
   ]);
 
   return {
+    programs,
     projects: (projects.results || []).map((row) => ({
       id: row.id,
       projectNo: row.project_no || "",
@@ -132,6 +187,7 @@ async function readWorkbenchState(db) {
       due: row.due_date,
       priority: row.priority,
       status: row.status,
+      notes: row.notes || "",
     })),
     deadlines: (deadlines.results || []).map((row) => ({
       id: row.id,
@@ -195,6 +251,8 @@ async function readWorkbenchState(db) {
 }
 
 async function writeWorkbenchState(db, state) {
+  const supportsPrograms = await tableExists(db, "programs");
+  const supportsTaskNotes = await tableColumnExists(db, "tasks", "notes");
   const statements = [
     db.prepare("DELETE FROM activities"),
     db.prepare("DELETE FROM time_entries"),
@@ -205,6 +263,30 @@ async function writeWorkbenchState(db, state) {
     db.prepare("DELETE FROM tasks"),
     db.prepare("DELETE FROM projects"),
   ];
+  if (supportsPrograms) statements.push(db.prepare("DELETE FROM programs"));
+
+  if (supportsPrograms) {
+    state.programs.forEach((program, index) => {
+      statements.push(
+        db
+          .prepare(
+            `INSERT INTO programs (type, label, prefix, accent, kicker, title, description, mark, sort_order, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+          )
+          .bind(
+            program.type,
+            program.label,
+            program.prefix,
+            program.accent,
+            program.kicker,
+            program.title,
+            program.description,
+            program.mark,
+            index
+          )
+      );
+    });
+  }
 
   state.projects.forEach((project, index) => {
     statements.push(
@@ -237,13 +319,18 @@ async function writeWorkbenchState(db, state) {
   });
 
   state.tasks.forEach((task, index) => {
+    const query = supportsTaskNotes
+      ? `INSERT INTO tasks (id, project_id, title, owner, due_date, priority, status, notes, sort_order, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+      : `INSERT INTO tasks (id, project_id, title, owner, due_date, priority, status, sort_order, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
+    const values = supportsTaskNotes
+      ? [task.id, task.projectId, task.title, task.owner, task.due, task.priority, task.status, task.notes, index]
+      : [task.id, task.projectId, task.title, task.owner, task.due, task.priority, task.status, index];
     statements.push(
       db
-        .prepare(
-          `INSERT INTO tasks (id, project_id, title, owner, due_date, priority, status, sort_order, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
-        )
-        .bind(task.id, task.projectId, task.title, task.owner, task.due, task.priority, task.status, index)
+        .prepare(query)
+        .bind(...values)
     );
   });
 
@@ -361,6 +448,7 @@ async function writeWorkbenchState(db, state) {
       .bind(
         "state_replace",
         JSON.stringify({
+          programs: state.programs.length,
           projects: state.projects.length,
           tasks: state.tasks.length,
           deadlines: state.deadlines.length,
@@ -376,14 +464,67 @@ async function writeWorkbenchState(db, state) {
   await db.batch(statements);
 }
 
+async function readPrograms(db) {
+  if (!(await tableExists(db, "programs"))) return cloneDefaults(DEFAULT_PROGRAMS);
+  const result = await db.prepare("SELECT * FROM programs ORDER BY sort_order ASC, type ASC").all();
+  const rows = result.results || [];
+  if (!rows.length) return cloneDefaults(DEFAULT_PROGRAMS);
+  const byType = new Map(rows.map((row) => [row.type, row]));
+  return DEFAULT_PROGRAMS.map((defaults) => {
+    const row = byType.get(defaults.type) || {};
+    return {
+      type: defaults.type,
+      label: sanitizeText(row.label, 80) || defaults.label,
+      prefix: sanitizePrefix(row.prefix) || defaults.prefix,
+      accent: sanitizeColor(row.accent) || defaults.accent,
+      kicker: sanitizeText(row.kicker, 120) || defaults.kicker,
+      title: sanitizeText(row.title, 120) || defaults.title,
+      description: sanitizeText(row.description, 600) || defaults.description,
+      mark: sanitizeText(row.mark, 8) || defaults.mark,
+    };
+  });
+}
+
+async function tableExists(db, tableName) {
+  try {
+    const row = await db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+      .bind(tableName)
+      .first();
+    return Boolean(row);
+  } catch (error) {
+    return false;
+  }
+}
+
+async function tableColumnExists(db, tableName, columnName) {
+  try {
+    const result = await db.prepare(`PRAGMA table_info(${sqlIdentifier(tableName)})`).all();
+    return (result.results || []).some((row) => row.name === columnName);
+  } catch (error) {
+    return false;
+  }
+}
+
+function sqlIdentifier(value) {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(value)) throw new Error("Unsafe SQL identifier");
+  return value;
+}
+
+function cloneDefaults(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
 function sanitizeWorkbenchState(payload) {
+  const programs = sanitizePrograms(payload?.programs);
+  const programTypes = programs.map((program) => program.type);
   const projects = sanitizeArray(payload?.projects, 200).map((rawItem, index) => {
     const item = rawItem && typeof rawItem === "object" ? rawItem : {};
     return {
     id: sanitizeId(item.id, `project-${index}`),
     projectNo: sanitizeText(item.projectNo || item.project_no || buildProjectNumber(item.type, index), 80),
     name: sanitizeText(item.name, 160) || "未命名项目",
-    type: sanitizeChoice(item.type, ["consulting", "fundraising", "training", "workshop", "operations"], "consulting"),
+    type: sanitizeChoice(item.type, programTypes, "consulting"),
     client: sanitizeText(item.client, 160),
     owner: sanitizeText(item.owner, 120),
     stage: sanitizeChoice(item.stage, ["planning", "active", "waiting", "complete"], "planning"),
@@ -439,6 +580,7 @@ function sanitizeWorkbenchState(payload) {
   const objectiveIds = new Set(objectiveSource.map((objective) => objective.id));
 
   return {
+    programs,
     projects,
     tasks: sanitizeArray(payload?.tasks, 1000).map((rawItem, index) => {
       const item = rawItem && typeof rawItem === "object" ? rawItem : {};
@@ -450,6 +592,7 @@ function sanitizeWorkbenchState(payload) {
       due: sanitizeDate(item.due),
       priority: sanitizeChoice(item.priority, ["high", "medium", "low"], "medium"),
       status: sanitizeChoice(item.status, ["next", "in_progress", "waiting", "done"], "next"),
+      notes: sanitizeText(item.notes, 800),
       };
     }),
     deadlines: sanitizeArray(payload?.deadlines, 1000).map((rawItem, index) => {
@@ -520,6 +663,31 @@ function sanitizeWorkbenchState(payload) {
   };
 }
 
+function sanitizePrograms(value) {
+  const source = new Map(
+    sanitizeArray(value, 20)
+      .map((rawItem) => {
+        const item = rawItem && typeof rawItem === "object" ? rawItem : {};
+        return [sanitizeText(item.type, 40), item];
+      })
+      .filter(([type]) => type)
+  );
+
+  return DEFAULT_PROGRAMS.map((defaults) => {
+    const item = source.get(defaults.type) || {};
+    return {
+      type: defaults.type,
+      label: sanitizeText(item.label, 80) || defaults.label,
+      prefix: sanitizePrefix(item.prefix) || defaults.prefix,
+      accent: sanitizeColor(item.accent) || defaults.accent,
+      kicker: sanitizeText(item.kicker, 120) || defaults.kicker,
+      title: sanitizeText(item.title, 120) || defaults.title,
+      description: sanitizeText(item.description, 600) || defaults.description,
+      mark: sanitizeText(item.mark, 8) || defaults.mark,
+    };
+  });
+}
+
 function sanitizeArray(value, limit) {
   return Array.isArray(value) ? value.slice(0, limit) : [];
 }
@@ -547,6 +715,15 @@ function sanitizeNumber(value, min, max, fallback) {
   const number = Number.parseFloat(value);
   if (!Number.isFinite(number)) return fallback;
   return Math.max(min, Math.min(max, number));
+}
+
+function sanitizePrefix(value) {
+  return sanitizeText(value, 12).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+}
+
+function sanitizeColor(value) {
+  const text = sanitizeText(value, 20);
+  return /^#[0-9A-Fa-f]{6}$/.test(text) ? text : "";
 }
 
 function sanitizeDate(value) {

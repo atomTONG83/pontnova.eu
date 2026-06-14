@@ -1381,10 +1381,15 @@
     const dialog = document.getElementById("entryDialog");
     const form = document.getElementById("entryForm");
     const fields = document.getElementById("formFields");
+    const safeDefaults = { ...defaults };
+    if (["task", "deadline", "document", "time"].includes(kind) && !state.projects.some((project) => project.id === safeDefaults.projectId)) {
+      safeDefaults.projectId = state.projects[0]?.id || "";
+    }
+    const dialogProject = safeDefaults.projectId ? projectById(safeDefaults.projectId) : null;
     form.dataset.kind = kind;
     form.dataset.mode = "create";
     form.dataset.editId = "";
-    form.dataset.projectId = defaults.projectId || "";
+    form.dataset.projectId = safeDefaults.projectId || "";
     document.getElementById("saveEntryButton").textContent = "保存";
     document.getElementById("dialogTitle").textContent = {
       project: "新增项目档案",
@@ -1395,8 +1400,8 @@
       time: "新增投入",
       activity: "新增动态"
     }[kind];
-    document.getElementById("dialogKicker").textContent = defaults.projectId ? projectById(defaults.projectId).projectNo : "Pontnova";
-    fields.innerHTML = formFor(kind, defaults);
+    document.getElementById("dialogKicker").textContent = dialogProject?.projectNo || "Pontnova";
+    fields.innerHTML = formFor(kind, safeDefaults);
     dialog.showModal();
   }
 
@@ -1542,6 +1547,7 @@
   function handleCreate(kind, form) {
     const data = Object.fromEntries(new FormData(form).entries());
     const id = `${kind}-${Date.now()}`;
+    let returnProjectId = "";
     if (kind === "project") {
       const project = normalizeState({ projects: [{ id, ...data }], tasks: [], deadlines: [], documents: [], objectives: [], keyResults: [], timeEntries: [], activities: [] }).projects[0];
       state.projects.unshift(project);
@@ -1549,28 +1555,38 @@
     }
     if (kind === "task") {
       state.tasks.unshift({ id, projectId: data.projectId, title: data.title, owner: data.owner, due: data.due, priority: data.priority, status: data.status, notes: data.notes });
+      returnProjectId = data.projectId;
       trackActivity({ projectId: data.projectId, entity: "Task", entityId: id, action: "create", title: `新增任务：${data.title}` });
     }
     if (kind === "deadline") {
       state.deadlines.unshift({ id, projectId: data.projectId, title: data.title, date: data.date, kind: data.kind, risk: data.risk });
+      returnProjectId = data.projectId;
       trackActivity({ projectId: data.projectId, entity: "Deadline", entityId: id, action: "create", title: `新增节点：${data.title}` });
     }
     if (kind === "document") {
       state.documents.unshift({ id, projectId: data.projectId, title: data.title, type: data.type, path: data.path, note: data.note });
+      returnProjectId = data.projectId;
       trackActivity({ projectId: data.projectId, entity: "Document", entityId: id, action: "create", title: `新增资料：${data.title}` });
     }
     if (kind === "objective") {
       state.objectives.unshift({ id, projectId: data.projectId, title: data.title, owner: data.owner, quarter: data.quarter, progress: clamp(Number(data.progress) || 0, 0, 100), status: data.status, signal: data.signal });
+      returnProjectId = data.projectId;
       trackActivity({ projectId: data.projectId, entity: "Objective", entityId: id, action: "create", title: `新增目标：${data.title}` });
     }
     if (kind === "time") {
       state.timeEntries.unshift({ id, projectId: data.projectId, taskId: data.taskId, description: data.description, date: data.date, hours: Number(data.hours) || 0, billable: true, tags: data.tags });
+      returnProjectId = data.projectId;
       trackActivity({ projectId: data.projectId, entity: "TimeEntry", entityId: id, action: "create", title: `记录投入：${data.description}` });
     }
     if (kind === "activity") {
       state.activities.unshift({ id, projectId: data.projectId, entity: data.entity, entityId: data.projectId, action: data.action, title: data.title, actor: data.actor, date: data.date, note: data.note });
     }
     replaceState(state);
+    if (returnProjectId && currentView === "projectDetail" && state.projects.some((project) => project.id === returnProjectId)) {
+      activeDetail = { kind: "project", id: returnProjectId };
+      document.body.dataset.detailKind = "project";
+      document.body.dataset.detailId = returnProjectId;
+    }
     saveState();
     renderAll();
   }
@@ -2665,10 +2681,16 @@
       return;
     }
     const form = event.currentTarget;
-    if (form.dataset.mode === "edit") {
-      handleEdit(form.dataset.kind, form.dataset.editId, form);
-    } else {
-      handleCreate(form.dataset.kind, form);
+    try {
+      if (form.dataset.mode === "edit") {
+        handleEdit(form.dataset.kind, form.dataset.editId, form);
+      } else {
+        handleCreate(form.dataset.kind, form);
+      }
+    } catch (error) {
+      console.error(error);
+      setSyncStatus("保存失败，请检查内容后再试", "warn");
+      return;
     }
     document.getElementById("entryDialog").close();
     form.reset();
