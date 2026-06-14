@@ -15,6 +15,7 @@
   --accent: #bd6045;
   --sidebar: #f7ecdd;
   --shadow: 0 18px 46px rgba(73, 50, 29, 0.12);
+  --serif: "Source Serif 4", "Source Serif Pro", "Iowan Old Style", "Apple Garamond", Georgia, "Times New Roman", serif;
   color-scheme: light;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
@@ -48,6 +49,16 @@ textarea:focus-visible,
 a:focus-visible {
   outline: 3px solid rgba(189, 96, 69, 0.24);
   outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
 }
 
 .shell {
@@ -206,6 +217,12 @@ a:focus-visible {
 }
 
 body[data-view="dashboard"] .topbar {
+  display: none;
+}
+
+body[data-view="programDetail"] .topbar,
+body[data-view="projectDetail"] .topbar,
+body[data-view="taskDetail"] .topbar {
   display: none;
 }
 
@@ -917,6 +934,83 @@ h3 {
 .program-card strong,
 .program-card span {
   display: block;
+}
+
+.program-card.atom-program-card {
+  position: relative;
+  min-height: 190px;
+  overflow: hidden;
+  border-radius: 18px;
+  padding: 18px;
+  background: #fdf6e8;
+}
+
+.program-card.atom-program-card::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: var(--program-accent, var(--teal));
+  content: "";
+}
+
+.program-card-head,
+.program-card-title {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.program-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 16px;
+  background: var(--program-accent, var(--teal));
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.program-card-title strong {
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.program-card-copy {
+  position: relative;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.program-card-stats {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.program-card-stats span {
+  border-radius: 12px;
+  padding: 9px 10px;
+  background: #ffffff;
+}
+
+.program-card-stats em {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.program-card-stats b {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 18px;
 }
 
 .program-prefix,
@@ -1720,6 +1814,306 @@ th {
   justify-content: flex-end;
 }
 
+.atom-program-page {
+  display: grid;
+  gap: 22px;
+}
+
+.atom-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.atom-breadcrumb strong {
+  color: var(--ink);
+}
+
+.atom-program-hero,
+.atom-case-panel {
+  overflow: hidden;
+  border: 1px solid rgba(42, 26, 16, 0.10);
+  border-radius: 28px;
+  background: #ffffff;
+  box-shadow: 0 18px 42px rgba(73, 50, 29, 0.10);
+}
+
+.atom-program-stripe {
+  height: 8px;
+  background: var(--program-accent, var(--teal));
+}
+
+.atom-program-hero-body {
+  display: grid;
+  gap: 28px;
+  padding: 28px;
+}
+
+.atom-program-main {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.program-hero-icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border-radius: 18px;
+  background: var(--program-accent, var(--teal));
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.atom-program-kicker {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.atom-program-main h2,
+.atom-case-panel h3 {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.atom-program-main h2 {
+  font-size: 40px;
+}
+
+.atom-program-main p:not(.atom-program-kicker) {
+  max-width: 720px;
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.atom-program-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.atom-record-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.atom-record-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.atom-record-badges > span:not(.atom-status) {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #fbf6ec;
+}
+
+.atom-program-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.atom-program-metrics article {
+  border: 1px solid rgba(42, 26, 16, 0.10);
+  border-radius: 18px;
+  padding: 16px;
+  background: #fbf8f1;
+}
+
+.atom-program-metrics span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.atom-program-metrics strong {
+  display: block;
+  margin-top: 10px;
+  font-family: var(--serif);
+  font-size: 34px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.atom-program-metrics small {
+  margin-left: 4px;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.atom-program-metrics .forest {
+  color: var(--green);
+}
+
+.atom-program-metrics .signal,
+.atom-case-table .signal {
+  color: var(--rose);
+}
+
+.atom-case-panel-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid rgba(42, 26, 16, 0.10);
+  padding: 22px 26px;
+}
+
+.atom-case-panel h3 {
+  font-size: 28px;
+}
+
+.atom-case-panel-head > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.atom-table-scroll {
+  overflow-x: auto;
+}
+
+.atom-case-table {
+  width: 100%;
+  min-width: 780px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.atom-case-table th {
+  padding: 13px 26px;
+  background: rgba(244, 230, 212, 0.44);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.atom-case-table th:nth-last-child(-n + 2),
+.atom-case-table td:nth-last-child(-n + 2) {
+  text-align: center;
+}
+
+.atom-case-table tr {
+  border-top: 1px solid rgba(42, 26, 16, 0.08);
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+
+.atom-case-table tbody tr:hover {
+  background: #fbf6ec;
+}
+
+.atom-case-table td {
+  padding: 15px 26px;
+  vertical-align: middle;
+}
+
+.atom-case-table td strong,
+.atom-case-table td small {
+  display: block;
+}
+
+.atom-case-table td small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.atom-mono {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 13px;
+}
+
+.atom-status {
+  display: inline-flex;
+  border: 1px solid rgba(42, 26, 16, 0.10);
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: #ffffff;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.atom-status.active,
+.atom-status.review,
+.atom-status.needs_review {
+  border-color: rgba(189, 96, 69, 0.24);
+  background: rgba(189, 96, 69, 0.10);
+  color: var(--accent);
+}
+
+.atom-status.complete {
+  border-color: rgba(47, 118, 107, 0.20);
+  background: rgba(47, 118, 107, 0.09);
+  color: var(--teal);
+}
+
+.atom-status.at_risk,
+.atom-status.blocked {
+  border-color: rgba(189, 96, 69, 0.26);
+  background: rgba(189, 96, 69, 0.12);
+  color: var(--rose);
+}
+
+.risk-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--green);
+}
+
+.risk-dot.medium {
+  background: #e0a04e;
+}
+
+.risk-dot.high {
+  background: var(--rose);
+}
+
+.atom-empty-panel {
+  display: grid;
+  gap: 6px;
+  border-top: 1px dashed rgba(42, 26, 16, 0.10);
+  padding: 42px;
+  text-align: center;
+}
+
+.atom-empty-panel span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .detail-page-hero {
   background: linear-gradient(135deg, #fff9ef 0%, #ffffff 64%, #eef7f0 100%);
 }
@@ -2260,6 +2654,14 @@ th {
     grid-template-columns: 1fr;
   }
 
+  .atom-program-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .atom-record-head {
+    display: grid;
+  }
+
   .dashboard-task-row {
     grid-template-columns: 22px minmax(0, 1fr);
   }
@@ -2329,9 +2731,28 @@ th {
 
   .detail-toolbar,
   .detail-actions,
-  .section-title-row {
+  .section-title-row,
+  .atom-record-head,
+  .atom-program-actions {
     display: grid;
     width: 100%;
+  }
+
+  .atom-program-hero-body,
+  .atom-case-panel-head {
+    padding: 18px;
+  }
+
+  .atom-program-main {
+    display: grid;
+  }
+
+  .atom-program-main h2 {
+    font-size: 30px;
+  }
+
+  .atom-program-metrics {
+    grid-template-columns: 1fr;
   }
 
   .detail-page-hero h2 {

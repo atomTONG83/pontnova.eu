@@ -5,11 +5,11 @@
   const isoDate = (offset) => toIsoDate(new Date(today.getTime() + offset * dayMs));
 
   const typeOptions = [
-    ["consulting", "咨询", "CONS"],
-    ["fundraising", "投融资", "FUND"],
-    ["training", "培训", "TRN"],
-    ["workshop", "Workshop", "WS"],
-    ["operations", "运营", "OPS"]
+    ["consulting", "咨询", "CONS", "#1d6b5e", "CONS · CONSULTING", "咨询项目", "市场进入、竞争风险、IP 策略与跨境业务判断。"],
+    ["fundraising", "投融资", "FUND", "#547a9b", "FUND · FINANCE", "投融资项目", "技术尽调、投资人材料、商业叙事和壁垒表达。"],
+    ["training", "培训", "TRN", "#8b6f2f", "TRN · TRAINING", "培训项目", "管理层课程、案例设计、内部 IP 能力建设。"],
+    ["workshop", "Workshop", "WS", "#7f466d", "WS · WORKSHOP", "Workshop 项目", "公开活动、主题策划、嘉宾协同和报名转化。"],
+    ["operations", "运营", "OPS", "#667d51", "OPS · OPERATIONS", "运营项目", "内部运营、资料建设、流程优化和长期维护。"]
   ];
   const stageOptions = [
     ["planning", "规划"],
@@ -153,6 +153,7 @@
   const state = clone(seed);
   let currentView = "dashboard";
   let currentFilter = "all";
+  let activeProgramType = "";
   let dashboardRange = "30";
   let query = "";
   let calendarMode = "month";
@@ -166,6 +167,7 @@
   const views = {
     dashboard: document.getElementById("dashboardView"),
     projects: document.getElementById("projectsView"),
+    programDetail: document.getElementById("programDetailView"),
     tasks: document.getElementById("tasksView"),
     projectDetail: document.getElementById("projectDetailView"),
     taskDetail: document.getElementById("taskDetailView"),
@@ -180,6 +182,7 @@
   const titles = {
     dashboard: "项目看板",
     projects: "项目组合",
+    programDetail: "项目组合",
     tasks: "任务清单",
     projectDetail: "项目详情",
     taskDetail: "任务详情",
@@ -462,6 +465,7 @@
   function renderAll() {
     renderDashboard();
     renderPrograms();
+    renderProgramDetailPage(activeProgramType);
     renderProjects();
     renderTasks();
     renderDeadlines();
@@ -730,11 +734,24 @@
       const active = projects.filter((project) => !["complete", "paused"].includes(project.stage)).length;
       const taskCount = state.tasks.filter((task) => projects.some((project) => project.id === task.projectId) && task.status !== "done").length;
       const deadlineCount = state.deadlines.filter((deadline) => projects.some((project) => project.id === deadline.projectId) && daysUntil(deadline.date) >= 0 && daysUntil(deadline.date) <= 30).length;
+      const info = programInfo(type);
       return `
-        <button class="program-card" data-filter-jump="${escapeAttr(type)}" type="button">
-          <span class="program-prefix">${escapeHtml(prefix)}</span>
-          <strong>${escapeHtml(label)}</strong>
-          <span>${active} 个活跃项目 · ${taskCount} 个任务 · ${deadlineCount} 个近期节点</span>
+        <button class="program-card atom-program-card" data-open-program="${escapeAttr(type)}" style="--program-accent:${escapeAttr(info.accent)}" type="button">
+          <span class="program-card-head">
+            <span class="program-icon">${escapeHtml(prefix)}</span>
+            <span class="status">Active</span>
+          </span>
+          <span class="program-card-title">
+            <strong>${escapeHtml(info.title)}</strong>
+            <span class="row-arrow">›</span>
+          </span>
+          <span class="program-card-copy">${escapeHtml(info.description)}</span>
+          <span class="program-card-stats">
+            <span><em>项目</em><b>${projects.length}</b></span>
+            <span><em>活跃</em><b>${active}</b></span>
+            <span><em>期限</em><b>${deadlineCount}</b></span>
+          </span>
+          <span class="sr-only">${taskCount} 个未完成任务</span>
         </button>
       `;
     }).join("");
@@ -742,6 +759,135 @@
     const dashboardPrograms = document.getElementById("dashboardPrograms");
     if (programGrid) programGrid.innerHTML = cards;
     if (dashboardPrograms) dashboardPrograms.innerHTML = cards;
+  }
+
+  function openProgram(type) {
+    const info = programInfo(type);
+    if (!info) return;
+    closeDrawerIfOpen();
+    activeProgramType = type;
+    renderProgramDetailPage(type);
+    setView("programDetail");
+    setDetailTitle(info.title);
+  }
+
+  function renderProgramDetailPage(type) {
+    const container = document.getElementById("programDetailPage");
+    if (!container) return;
+    if (!type) {
+      container.innerHTML = "";
+      return;
+    }
+    const info = programInfo(type);
+    if (!info) {
+      container.innerHTML = "";
+      return;
+    }
+    const projects = state.projects
+      .filter((project) => project.type === type)
+      .sort((a, b) => String(b.openedAt || "").localeCompare(String(a.openedAt || "")));
+    const projectIds = new Set(projects.map((project) => project.id));
+    const active = projects.filter((project) => !["complete", "paused"].includes(project.stage)).length;
+    const deadlines = state.deadlines.filter((deadline) => projectIds.has(deadline.projectId));
+    const openDeadlines = deadlines.filter((deadline) => !deadline.done && daysUntil(deadline.date) >= 0);
+    const hours = sumHours(state.timeEntries.filter((entry) => projectIds.has(entry.projectId)));
+    container.innerHTML = `
+      <div class="atom-program-page">
+        <div class="atom-breadcrumb">
+          <button class="ghost-button compact" data-view-jump="projects" type="button">← 返回项目组合</button>
+          <span>/</span>
+          <strong>${escapeHtml(info.title)}</strong>
+        </div>
+
+        <section class="atom-program-hero" style="--program-accent:${escapeAttr(info.accent)}">
+          <div class="atom-program-stripe" aria-hidden="true"></div>
+          <div class="atom-program-hero-body">
+            <div class="atom-program-main">
+              <div class="program-hero-icon">${escapeHtml(info.prefix)}</div>
+              <div>
+                <p class="atom-program-kicker">${escapeHtml(info.kicker)}</p>
+                <h2>${escapeHtml(info.title)}</h2>
+                <p>${escapeHtml(info.description)}</p>
+              </div>
+            </div>
+            <div class="atom-program-actions">
+              <button class="icon-button quiet" data-filter-program="${escapeAttr(type)}" type="button" aria-label="筛选项目">✎</button>
+              <button class="primary-button small" data-new-program-project="${escapeAttr(type)}" type="button">+ 新建项目</button>
+            </div>
+            <div class="atom-program-metrics">
+              <article><span>项目总数</span><strong>${projects.length}</strong></article>
+              <article><span>活跃</span><strong class="forest">${active}</strong></article>
+              <article><span>待办期限</span><strong class="${openDeadlines.length ? "signal" : ""}">${openDeadlines.length}</strong></article>
+              <article><span>累计工时</span><strong>${hours.toFixed(1)}<small>h</small></strong></article>
+            </div>
+          </div>
+        </section>
+
+        <section class="atom-case-panel">
+          <div class="atom-case-panel-head">
+            <div>
+              <p class="atom-program-kicker">Projects</p>
+              <h3>项目列表</h3>
+            </div>
+            <span>按开启时间倒序</span>
+          </div>
+          ${projects.length ? programProjectTable(projects) : `
+            <div class="atom-empty-panel">
+              <strong>还没有项目</strong>
+              <span>点击右上角「新建项目」开始第一个项目档案。</span>
+            </div>
+          `}
+        </section>
+      </div>
+    `;
+    if (currentView === "programDetail") setDetailTitle(info.title);
+  }
+
+  function programProjectTable(projects) {
+    return `
+      <div class="atom-table-scroll">
+        <table class="atom-case-table">
+          <thead>
+            <tr>
+              <th>项目号</th>
+              <th>标题 / 类型</th>
+              <th>状态</th>
+              <th>下一期限</th>
+              <th>风险</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${projects.map((project) => programProjectRow(project)).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function programProjectRow(project) {
+    const nextDeadline = state.deadlines
+      .filter((deadline) => deadline.projectId === project.id && deadline.date && daysUntil(deadline.date) >= 0)
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)))[0];
+    const risk = programRiskTone(project);
+    return `
+      <tr data-open-project="${escapeAttr(project.id)}">
+        <td><span class="atom-mono">${escapeHtml(project.projectNo)}</span></td>
+        <td>
+          <strong>${escapeHtml(project.name)}</strong>
+          <small>${escapeHtml(typeLabel(project.type))}${project.client ? ` · ${escapeHtml(project.client)}` : ""}</small>
+        </td>
+        <td><span class="atom-status ${escapeAttr(project.stage)}">${stageLabel(project.stage)}</span></td>
+        <td>
+          ${nextDeadline ? `
+            <strong class="${daysUntil(nextDeadline.date) <= 5 ? "signal" : ""}">${escapeHtml(relativeDay(nextDeadline.date))}</strong>
+            <small>${escapeHtml(nextDeadline.kind || "节点")}：${escapeHtml(nextDeadline.title)}</small>
+          ` : `<span class="muted-copy">—</span>`}
+        </td>
+        <td><span class="risk-dot ${escapeAttr(risk)}" title="${escapeAttr(healthLabel(project.health))}"></span></td>
+        <td><span class="row-arrow">›</span></td>
+      </tr>
+    `;
   }
 
   function renderProjects() {
@@ -1124,6 +1270,7 @@
 
   function setView(view) {
     currentView = view;
+    if (view !== "programDetail") activeProgramType = "";
     if (!["projectDetail", "taskDetail"].includes(view)) {
       activeDetail = null;
       delete document.body.dataset.detailKind;
@@ -1131,12 +1278,13 @@
     }
     document.body.dataset.view = view;
     Object.entries(views).forEach(([name, element]) => element?.classList.toggle("is-active", name === view));
-    const navView = view === "projectDetail" ? "projects" : view === "taskDetail" ? "tasks" : view;
+    const navView = view === "projectDetail" || view === "programDetail" ? "projects" : view === "taskDetail" ? "tasks" : view;
     document.querySelectorAll(".nav-item").forEach((button) => button.classList.toggle("is-active", button.dataset.view === navView));
     document.getElementById("viewTitle").textContent = titles[view];
     if (["projectDetail", "taskDetail"].includes(view)) restoreDetailTitle();
     window.scrollTo({ top: 0, behavior: "auto" });
     if (view === "dashboard") renderDashboard();
+    if (view === "programDetail") renderProgramDetailPage(activeProgramType);
     if (view === "deadlines") renderDeadlinesView();
     if (view === "calendar") renderCalendar();
     if (view === "map") renderMap();
@@ -1377,38 +1525,46 @@
     const rel = related(id);
     const openTasks = rel.tasks.filter((task) => task.status !== "done");
     const upcomingDeadlines = rel.deadlines.filter((deadline) => daysUntil(deadline.date) >= 0).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    const info = programInfo(project.type);
     container.innerHTML = `
       <div class="detail-page">
-        <div class="detail-toolbar">
-          <button class="ghost-button compact" data-view-jump="projects" type="button">返回项目</button>
-          <div class="detail-actions">
-            <button class="ghost-button compact" data-add-related="task" data-project-id="${escapeAttr(id)}" type="button">新增任务</button>
-            <button class="ghost-button compact" data-add-related="deadline" data-project-id="${escapeAttr(id)}" type="button">新增节点</button>
-            <button class="primary-button small" data-edit-project="${escapeAttr(id)}" type="button">编辑项目</button>
-          </div>
+        <div class="atom-breadcrumb">
+          <button class="ghost-button compact" data-open-program="${escapeAttr(project.type)}" type="button">← 返回 ${escapeHtml(info.title)}</button>
+          <span>/</span>
+          <strong class="atom-mono">${escapeHtml(project.projectNo)}</strong>
         </div>
 
-        <section class="detail-hero detail-page-hero">
-          <div>
-            <span class="case-number">${escapeHtml(project.projectNo)}</span>
-            <h2>${escapeHtml(project.name)}</h2>
-            <p>${escapeHtml(project.summary || "暂无项目说明。")}</p>
+        <section class="atom-program-hero atom-record-hero" style="--program-accent:${escapeAttr(info.accent)}">
+          <div class="atom-program-stripe" aria-hidden="true"></div>
+          <div class="atom-program-hero-body">
+            <div class="atom-record-head">
+              <div class="atom-program-main">
+                <div class="program-hero-icon">${escapeHtml(info.prefix)}</div>
+                <div>
+                  <p class="atom-program-kicker">${escapeHtml(project.projectNo)} · ${escapeHtml(typeLabel(project.type))}</p>
+                  <h2>${escapeHtml(project.name)}</h2>
+                  <p>${escapeHtml(project.summary || "暂无项目说明。")}</p>
+                  <div class="atom-record-badges">
+                    <span class="atom-status ${escapeAttr(project.stage)}">${stageLabel(project.stage)}</span>
+                    <span class="atom-status ${escapeAttr(project.health)}">${healthLabel(project.health)}</span>
+                    <span>${priorityLabel(project.priority)}优先级</span>
+                    ${project.client ? `<span>客户 ${escapeHtml(project.client)}</span>` : ""}
+                  </div>
+                </div>
+              </div>
+              <div class="atom-program-actions">
+                <button class="ghost-button compact" data-add-related="task" data-project-id="${escapeAttr(id)}" type="button">新增任务</button>
+                <button class="ghost-button compact" data-add-related="deadline" data-project-id="${escapeAttr(id)}" type="button">新增节点</button>
+                <button class="primary-button small" data-edit-project="${escapeAttr(id)}" type="button">编辑项目</button>
+              </div>
+            </div>
+            <div class="atom-program-metrics">
+              <article><span>任务</span><strong>${openTasks.length}<small>/ ${rel.tasks.length}</small></strong></article>
+              <article><span>期限</span><strong>${upcomingDeadlines.length}<small>/ ${rel.deadlines.length}</small></strong></article>
+              <article><span>资料</span><strong>${rel.documents.length}</strong></article>
+              <article><span>工时</span><strong>${sumHours(rel.timeEntries).toFixed(1)}<small>h</small></strong></article>
+            </div>
           </div>
-          <span class="badge ${escapeAttr(project.priority)}">${priorityLabel(project.priority)}</span>
-          <div class="progress large"><span style="width:${project.progress}%"></span></div>
-          <div class="meta-row">
-            <span class="status">${typeLabel(project.type)}</span>
-            <span class="status">${stageLabel(project.stage)}</span>
-            <span class="status ${escapeAttr(project.health)}">${healthLabel(project.health)}</span>
-            <span class="status">${escapeHtml(project.client || "未设客户")}</span>
-          </div>
-        </section>
-
-        <section class="detail-metrics">
-          <article class="metric"><span>未完成任务</span><strong>${openTasks.length}</strong><small>${rel.tasks.length} 总数</small></article>
-          <article class="metric"><span>未来节点</span><strong>${upcomingDeadlines.length}</strong><small>${rel.deadlines.length} 总数</small></article>
-          <article class="metric"><span>资料</span><strong>${rel.documents.length}</strong><small>索引链接</small></article>
-          <article class="metric"><span>投入</span><strong>${sumHours(rel.timeEntries).toFixed(1)} h</strong><small>${rel.timeEntries.length} 条记录</small></article>
         </section>
 
         <section class="detail-section">
@@ -1989,6 +2145,19 @@
     return labelFrom(typeOptions, value, "运营");
   }
 
+  function programInfo(type) {
+    const found = typeOptions.find(([value]) => value === type) || typeOptions.find(([value]) => value === "operations");
+    if (!found) return null;
+    const [value, label, prefix, accent, kicker, title, description] = found;
+    return { type: value, label, prefix, accent, kicker, title, description };
+  }
+
+  function programRiskTone(project) {
+    if (project.health === "blocked" || project.health === "at_risk") return "high";
+    if (project.health === "needs_review" || project.priority === "high") return "medium";
+    return "low";
+  }
+
   function stageLabel(value) {
     return labelFrom(stageOptions, value, "规划");
   }
@@ -2169,9 +2338,10 @@
     saveAndRender();
   });
   document.body.addEventListener("click", (event) => {
-    const target = event.target.closest("[data-open-project], [data-open-task], [data-open-deadline], [data-open-document], [data-open-objective], [data-open-time], [data-open-activity], [data-open-day], [data-add-related], [data-edit-project], [data-edit-task], [data-view-jump], [data-save-project], [data-save-task], [data-save-deadline], [data-save-document], [data-save-objective], [data-save-time], [data-filter-jump]");
+    const target = event.target.closest("[data-open-program], [data-open-project], [data-open-task], [data-open-deadline], [data-open-document], [data-open-objective], [data-open-time], [data-open-activity], [data-open-day], [data-add-related], [data-new-program-project], [data-filter-program], [data-edit-project], [data-edit-task], [data-view-jump], [data-save-project], [data-save-task], [data-save-deadline], [data-save-document], [data-save-objective], [data-save-time], [data-filter-jump]");
     if (!target) return;
     if (target.dataset.viewJump) setView(target.dataset.viewJump);
+    if (target.dataset.openProgram) openProgram(target.dataset.openProgram);
     if (target.dataset.openProject) openProject(target.dataset.openProject);
     if (target.dataset.openTask) openTask(target.dataset.openTask);
     if (target.dataset.openDeadline) openDeadline(target.dataset.openDeadline);
@@ -2181,6 +2351,13 @@
     if (target.dataset.openActivity) openActivity(target.dataset.openActivity);
     if (target.dataset.openDay) openDay(target.dataset.openDay);
     if (target.dataset.addRelated) openDialog(target.dataset.addRelated, { projectId: target.dataset.projectId || "" });
+    if (target.dataset.newProgramProject) openDialog("project", { type: target.dataset.newProgramProject });
+    if (target.dataset.filterProgram) {
+      currentFilter = target.dataset.filterProgram;
+      document.querySelectorAll("[data-filter]").forEach((item) => item.classList.toggle("is-active", item.dataset.filter === currentFilter));
+      setView("projects");
+      renderProjects();
+    }
     if (target.dataset.editProject) openEditDialog("project", target.dataset.editProject);
     if (target.dataset.editTask) openEditDialog("task", target.dataset.editTask);
     if (target.dataset.saveProject) saveProject(target.dataset.saveProject);
