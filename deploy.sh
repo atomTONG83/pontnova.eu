@@ -16,6 +16,8 @@ PUBLIC_PATHS=(
   "ae-trace.html"
   "workload.html"
   "atom_ip_workload.html"
+  "workbench"
+  "_worker.js"
   "robots.txt"
   "eu_ip_sentinel_assets"
 )

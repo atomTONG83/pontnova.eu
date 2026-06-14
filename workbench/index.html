@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
+  <title>Pontnova 工作台</title>
+  <link rel="stylesheet" href="/workbench/styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="/workbench/" aria-label="Pontnova 工作台首页">
+        <span class="brand-mark">PN</span>
+        <span>
+          <strong>Pontnova</strong>
+          <small>工作台</small>
+        </span>
+      </a>
+      <nav class="nav" aria-label="工作台导航">
+        <button class="nav-item is-active" data-view="dashboard" type="button">总览</button>
+        <button class="nav-item" data-view="projects" type="button">项目</button>
+        <button class="nav-item" data-view="tasks" type="button">任务</button>
+        <button class="nav-item" data-view="calendar" type="button">日程</button>
+        <button class="nav-item" data-view="documents" type="button">资料</button>
+      </nav>
+      <div class="sidebar-foot">
+        <button class="ghost-button" id="exportDataButton" type="button">导出 JSON</button>
+        <label class="ghost-button file-button">
+          导入
+          <input id="importDataInput" type="file" accept="application/json">
+        </label>
+        <form action="/workbench/api/logout" method="post">
+          <button class="ghost-button" type="submit">退出</button>
+        </form>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Consulting / Fundraising / Training / Workshop</p>
+          <h1 id="viewTitle">项目总览</h1>
+        </div>
+        <div class="top-actions">
+          <label class="search">
+            <span>搜索</span>
+            <input id="searchInput" type="search" placeholder="项目、客户、任务、资料">
+          </label>
+          <button class="primary-button" id="newProjectButton" type="button">新增项目</button>
+        </div>
+      </header>
+
+      <section class="view is-active" id="dashboardView" aria-labelledby="viewTitle">
+        <div class="metric-grid" id="metricGrid"></div>
+        <div class="layout-two">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>正在推进</h2>
+              <button class="text-button" data-view-jump="projects" type="button">查看全部</button>
+            </div>
+            <div class="project-list compact" id="dashboardProjects"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>未来 14 天</h2>
+              <button class="text-button" id="newDeadlineButton" type="button">新增节点</button>
+            </div>
+            <div class="timeline" id="dashboardTimeline"></div>
+          </section>
+        </div>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>下一步动作</h2>
+            <button class="text-button" id="newTaskButton" type="button">新增任务</button>
+          </div>
+          <div class="task-board" id="dashboardTasks"></div>
+        </section>
+      </section>
+
+      <section class="view" id="projectsView">
+        <div class="filter-row">
+          <button class="chip is-active" data-filter="all" type="button">全部</button>
+          <button class="chip" data-filter="consulting" type="button">咨询</button>
+          <button class="chip" data-filter="fundraising" type="button">投融资</button>
+          <button class="chip" data-filter="training" type="button">培训</button>
+          <button class="chip" data-filter="workshop" type="button">Workshop</button>
+        </div>
+        <div class="project-grid" id="projectGrid"></div>
+      </section>
+
+      <section class="view" id="tasksView">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>任务清单</h2>
+            <button class="primary-button small" id="newTaskButtonSecondary" type="button">新增任务</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>状态</th>
+                  <th>任务</th>
+                  <th>项目</th>
+                  <th>负责人</th>
+                  <th>截止</th>
+                  <th>优先级</th>
+                </tr>
+              </thead>
+              <tbody id="taskTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="calendarView">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>关键节点</h2>
+            <button class="primary-button small" id="newDeadlineButtonSecondary" type="button">新增节点</button>
+          </div>
+          <div class="calendar-list" id="calendarList"></div>
+        </div>
+      </section>
+
+      <section class="view" id="documentsView">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>资料索引</h2>
+            <button class="primary-button small" id="newDocumentButton" type="button">新增资料</button>
+          </div>
+          <div class="document-grid" id="documentGrid"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog class="dialog" id="entryDialog">
+    <form method="dialog" id="entryForm">
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow" id="dialogKicker">新增</p>
+          <h2 id="dialogTitle">新增项目</h2>
+        </div>
+        <button class="icon-button" value="cancel" type="submit" aria-label="关闭">×</button>
+      </div>
+      <div class="form-grid" id="formFields"></div>
+      <div class="dialog-actions">
+        <button class="ghost-button" value="cancel" type="submit">取消</button>
+        <button class="primary-button" id="saveEntryButton" value="default" type="submit">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <template id="emptyTemplate">
+    <div class="empty-state">
+      <strong>还没有内容</strong>
+      <span>从右上角新增一条记录即可开始。</span>
+    </div>
+  </template>
+
+  <script src="/workbench/app.js" defer></script>
+</body>
+</html>
