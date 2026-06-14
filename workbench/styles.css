@@ -936,14 +936,24 @@ h3 {
   text-align: left;
 }
 
+.program-card-open {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
 .program-card:hover {
   border-color: rgba(0, 127, 131, 0.4);
   box-shadow: 0 10px 28px rgba(24, 38, 45, 0.08);
   transform: translateY(-1px);
 }
 
-.program-card strong,
-.program-card span {
+.program-card strong {
   display: block;
 }
 
@@ -975,14 +985,35 @@ h3 {
 
 .program-icon {
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: 54px;
+  height: 54px;
+  align-content: center;
+  gap: 4px;
   place-items: center;
-  border-radius: 16px;
+  border-radius: 18px;
   background: var(--program-accent, var(--teal));
   color: #ffffff;
-  font-size: 12px;
+  box-shadow: 0 12px 24px rgba(42, 26, 16, 0.12);
+}
+
+.program-icon b,
+.program-hero-icon b {
+  display: block;
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.program-icon small,
+.program-hero-icon small {
+  display: block;
+  margin-top: -6px;
+  font-size: 9px;
   font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  opacity: 0.84;
 }
 
 .program-card-title strong {
@@ -1022,6 +1053,19 @@ h3 {
   margin-top: 4px;
   color: var(--ink);
   font-size: 18px;
+}
+
+.program-card-actions {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.program-card .status {
+  display: inline-flex;
+  width: fit-content;
 }
 
 .program-prefix,
@@ -1920,14 +1964,23 @@ th {
 .program-hero-icon {
   display: grid;
   flex: 0 0 auto;
-  width: 58px;
-  height: 58px;
+  width: 64px;
+  height: 64px;
+  align-content: center;
+  gap: 5px;
   place-items: center;
-  border-radius: 18px;
+  border-radius: 20px;
   background: var(--program-accent, var(--teal));
   color: #ffffff;
-  font-size: 13px;
-  font-weight: 900;
+  box-shadow: 0 16px 30px rgba(42, 26, 16, 0.12);
+}
+
+.program-hero-icon b {
+  font-size: 28px;
+}
+
+.program-hero-icon small {
+  font-size: 10px;
 }
 
 .atom-program-kicker {

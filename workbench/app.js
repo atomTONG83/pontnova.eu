@@ -11,6 +11,23 @@
     ["workshop", "Workshop", "WS", "#7f466d", "WS · WORKSHOP", "Workshop 项目", "公开活动、主题策划、嘉宾协同和报名转化。"],
     ["operations", "运营", "OPS", "#667d51", "OPS · OPERATIONS", "运营项目", "内部运营、资料建设、流程优化和长期维护。"]
   ];
+  const programMarks = {
+    consulting: "咨",
+    fundraising: "融",
+    training: "训",
+    workshop: "坊",
+    operations: "营"
+  };
+  const defaultPrograms = typeOptions.map(([type, label, prefix, accent, kicker, title, description]) => ({
+    type,
+    label,
+    prefix,
+    accent,
+    kicker,
+    title,
+    description,
+    mark: programMarks[type] || label.slice(0, 1)
+  }));
   const stageOptions = [
     ["planning", "规划"],
     ["active", "推进中"],
@@ -33,6 +50,7 @@
   ];
 
   const seed = {
+    programs: defaultPrograms,
     projects: [
       {
         id: "pn-consult-001",
@@ -210,12 +228,14 @@
   }
 
   function normalizeState(nextState) {
+    const programs = normalizePrograms(nextState.programs);
+    const programTypes = programs.map((program) => program.type);
     const sourceProjects = Array.isArray(nextState.projects) ? nextState.projects : [];
     const projects = sourceProjects.map((project, index) => ({
       id: text(project.id) || `project-${index}`,
-      projectNo: text(project.projectNo || project.project_no) || buildProjectNo(project.type, index),
+      projectNo: text(project.projectNo || project.project_no) || buildProjectNoFor(project.type, index, programs),
       name: text(project.name) || "未命名项目",
-      type: choice(project.type, typeOptions.map(([value]) => value), "consulting"),
+      type: choice(project.type, programTypes, "consulting"),
       client: text(project.client),
       contact: text(project.contact),
       owner: text(project.owner),
@@ -305,7 +325,24 @@
       note: text(activity.note)
     }));
 
-    return { projects, tasks, deadlines, documents, objectives, keyResults, timeEntries, activities };
+    return { programs, projects, tasks, deadlines, documents, objectives, keyResults, timeEntries, activities };
+  }
+
+  function normalizePrograms(value) {
+    const source = new Map(asArray(value).map((program) => [text(program.type), program]));
+    return defaultPrograms.map((defaults) => {
+      const program = source.get(defaults.type) || {};
+      return {
+        type: defaults.type,
+        label: text(program.label) || defaults.label,
+        prefix: normalizePrefix(program.prefix) || defaults.prefix,
+        accent: validColor(program.accent) || defaults.accent,
+        kicker: text(program.kicker) || defaults.kicker,
+        title: text(program.title) || defaults.title,
+        description: text(program.description) || defaults.description,
+        mark: normalizeMark(program.mark) || defaults.mark
+      };
+    });
   }
 
   function replaceState(nextState) {
@@ -464,6 +501,7 @@
 
   function renderAll() {
     renderDashboard();
+    renderFilterLabels();
     renderPrograms();
     renderProgramDetailPage(activeProgramType);
     renderProjects();
@@ -478,6 +516,16 @@
     renderMap();
     refreshDetailPage();
     refreshDrawer();
+  }
+
+  function renderFilterLabels() {
+    document.querySelectorAll("[data-filter]").forEach((button) => {
+      if (button.dataset.filter === "all") {
+        button.textContent = "全部";
+        return;
+      }
+      button.textContent = typeLabel(button.dataset.filter);
+    });
   }
 
   function renderDashboard() {
@@ -733,16 +781,17 @@
   }
 
   function renderPrograms() {
-    const cards = typeOptions.map(([type, label, prefix]) => {
+    const cards = state.programs.map((info) => {
+      const { type } = info;
       const projects = state.projects.filter((project) => project.type === type);
       const active = projects.filter((project) => !["complete", "paused"].includes(project.stage)).length;
       const taskCount = state.tasks.filter((task) => projects.some((project) => project.id === task.projectId) && task.status !== "done").length;
       const deadlineCount = state.deadlines.filter((deadline) => projects.some((project) => project.id === deadline.projectId) && daysUntil(deadline.date) >= 0 && daysUntil(deadline.date) <= 30).length;
-      const info = programInfo(type);
       return `
-        <button class="program-card atom-program-card" data-open-program="${escapeAttr(type)}" style="--program-accent:${escapeAttr(info.accent)}" type="button">
+        <article class="program-card atom-program-card" style="--program-accent:${escapeAttr(info.accent)}">
+          <button class="program-card-open" data-open-program="${escapeAttr(type)}" type="button">
           <span class="program-card-head">
-            <span class="program-icon">${escapeHtml(prefix)}</span>
+            ${programMark(info)}
             <span class="status">Active</span>
           </span>
           <span class="program-card-title">
@@ -756,13 +805,27 @@
             <span><em>期限</em><b>${deadlineCount}</b></span>
           </span>
           <span class="sr-only">${taskCount} 个未完成任务</span>
-        </button>
+          </button>
+          <span class="program-card-actions">
+            <button class="ghost-button compact" data-edit-program="${escapeAttr(type)}" type="button">编辑大类</button>
+            <button class="ghost-button compact" data-new-program-project="${escapeAttr(type)}" type="button">新建项目</button>
+          </span>
+        </article>
       `;
     }).join("");
     const programGrid = document.getElementById("programGrid");
     const dashboardPrograms = document.getElementById("dashboardPrograms");
     if (programGrid) programGrid.innerHTML = cards;
     if (dashboardPrograms) dashboardPrograms.innerHTML = cards;
+  }
+
+  function programMark(info, klass = "program-icon") {
+    return `
+      <span class="${escapeAttr(klass)}" aria-hidden="true">
+        <b>${escapeHtml(info.mark || info.label.slice(0, 1))}</b>
+        <small>${escapeHtml(info.prefix)}</small>
+      </span>
+    `;
   }
 
   function openProgram(type) {
@@ -807,7 +870,7 @@
           <div class="atom-program-stripe" aria-hidden="true"></div>
           <div class="atom-program-hero-body">
             <div class="atom-program-main">
-              <div class="program-hero-icon">${escapeHtml(info.prefix)}</div>
+              ${programMark(info, "program-hero-icon")}
               <div>
                 <p class="atom-program-kicker">${escapeHtml(info.kicker)}</p>
                 <h2>${escapeHtml(info.title)}</h2>
@@ -815,7 +878,7 @@
               </div>
             </div>
             <div class="atom-program-actions">
-              <button class="icon-button quiet" data-filter-program="${escapeAttr(type)}" type="button" aria-label="筛选项目">✎</button>
+              <button class="ghost-button compact" data-edit-program="${escapeAttr(type)}" type="button">编辑大类</button>
               <button class="primary-button small" data-new-program-project="${escapeAttr(type)}" type="button">+ 新建项目</button>
             </div>
             <div class="atom-program-metrics">
@@ -1356,6 +1419,23 @@
     dialog.showModal();
   }
 
+  function openEditProgram(type) {
+    const item = programInfo(type);
+    if (!item) return;
+    const dialog = document.getElementById("entryDialog");
+    const form = document.getElementById("entryForm");
+    const fields = document.getElementById("formFields");
+    form.dataset.kind = "program";
+    form.dataset.mode = "edit";
+    form.dataset.editId = type;
+    form.dataset.projectId = "";
+    document.getElementById("dialogTitle").textContent = "编辑项目大类";
+    document.getElementById("dialogKicker").textContent = item.type;
+    document.getElementById("saveEntryButton").textContent = "保存大类";
+    fields.innerHTML = formFor("program", item);
+    dialog.showModal();
+  }
+
   function closeEntryDialog() {
     const dialog = document.getElementById("entryDialog");
     const form = document.getElementById("entryForm");
@@ -1369,10 +1449,19 @@
   }
 
   function formFor(kind, defaults) {
+    if (kind === "program") return `
+      ${field("label", "侧栏/筛选名称", "text", defaults.label || "", true)}
+      ${field("title", "大类名称", "text", defaults.title || "", true)}
+      ${field("prefix", "项目号前缀", "text", defaults.prefix || "", true)}
+      ${field("mark", "标识字", "text", defaults.mark || "", true)}
+      ${field("accent", "主题色", "color", defaults.accent || "#1d6b5e")}
+      ${field("kicker", "英文标识", "text", defaults.kicker || "", false, "full")}
+      ${textareaField("description", "大类说明", defaults.description || "")}
+    `;
     if (kind === "project") return `
       ${field("projectNo", "项目号", "text", defaults.projectNo || nextProjectNo(defaults.type || "consulting"))}
       ${field("name", "项目名称", "text", defaults.name || "", true)}
-      ${selectField("type", "业务线", typeOptions.map(([value, label]) => [value, label]), defaults.type || "consulting")}
+      ${selectField("type", "业务线", programOptions(), defaults.type || "consulting")}
       ${selectField("stage", "状态", stageOptions, defaults.stage || "planning")}
       ${selectField("priority", "优先级", [["high", "高"], ["medium", "中"], ["low", "低"]], defaults.priority || "medium")}
       ${selectField("health", "健康度", healthOptions, defaults.health || "on_track")}
@@ -1488,12 +1577,24 @@
 
   function handleEdit(kind, id, form) {
     const data = Object.fromEntries(new FormData(form).entries());
+    if (kind === "program") {
+      const program = state.programs.find((item) => item.type === id);
+      if (!program) return;
+      program.label = text(data.label) || program.label;
+      program.title = text(data.title) || program.title;
+      program.prefix = normalizePrefix(data.prefix) || program.prefix;
+      program.mark = normalizeMark(data.mark) || program.mark;
+      program.accent = validColor(data.accent) || program.accent;
+      program.kicker = text(data.kicker) || program.kicker;
+      program.description = text(data.description) || program.description;
+      trackActivity({ projectId: "", entity: "Project", entityId: id, action: "update", title: `更新项目大类：${program.title}`, note: program.description });
+    }
     if (kind === "project") {
       const project = state.projects.find((item) => item.id === id);
       if (!project) return;
       project.projectNo = text(data.projectNo) || project.projectNo;
       project.name = text(data.name) || project.name;
-      project.type = choice(data.type, typeOptions.map(([value]) => value), project.type);
+      project.type = choice(data.type, state.programs.map((program) => program.type), project.type);
       project.stage = choice(data.stage, stageOptions.map(([value]) => value), project.stage);
       project.priority = choice(data.priority, ["high", "medium", "low"], project.priority);
       project.health = choice(data.health, healthOptions.map(([value]) => value), project.health);
@@ -1563,7 +1664,7 @@
           <div class="atom-program-hero-body">
             <div class="atom-record-head">
               <div class="atom-program-main">
-                <div class="program-hero-icon">${escapeHtml(info.prefix)}</div>
+                ${programMark(info, "program-hero-icon")}
                 <div>
                   <p class="atom-program-kicker">${escapeHtml(project.projectNo)} · ${escapeHtml(typeLabel(project.type))}</p>
                   <h2>${escapeHtml(project.name)}</h2>
@@ -2346,6 +2447,10 @@
     return state.projects.map((project) => [project.id, `${project.projectNo} · ${project.name}`]);
   }
 
+  function programOptions() {
+    return state.programs.map((program) => [program.type, program.label]);
+  }
+
   function taskOptions(projectId) {
     return state.tasks
       .filter((task) => !projectId || task.projectId === projectId)
@@ -2358,7 +2463,11 @@
   }
 
   function buildProjectNo(type, index) {
-    const prefix = Object.fromEntries(typeOptions.map(([value, , code]) => [value, code]))[type] || "OPS";
+    return buildProjectNoFor(type, index, state.programs || defaultPrograms);
+  }
+
+  function buildProjectNoFor(type, index, programs) {
+    const prefix = programFromList(type, programs)?.prefix || "OPS";
     return `PN-${prefix}-2026-${String(index + 1).padStart(3, "0")}`;
   }
 
@@ -2371,14 +2480,15 @@
   }
 
   function typeLabel(value) {
-    return labelFrom(typeOptions, value, "运营");
+    return programInfo(value)?.label || "运营";
   }
 
   function programInfo(type) {
-    const found = typeOptions.find(([value]) => value === type) || typeOptions.find(([value]) => value === "operations");
-    if (!found) return null;
-    const [value, label, prefix, accent, kicker, title, description] = found;
-    return { type: value, label, prefix, accent, kicker, title, description };
+    return programFromList(type, state.programs) || programFromList(type, defaultPrograms) || programFromList("operations", state.programs) || null;
+  }
+
+  function programFromList(type, programs) {
+    return asArray(programs).find((program) => program.type === type) || null;
   }
 
   function programRiskTone(project) {
@@ -2476,6 +2586,19 @@
     return /^\d{4}-\d{2}-\d{2}$/.test(next) ? next : "";
   }
 
+  function validColor(value) {
+    const next = text(value);
+    return /^#[0-9a-fA-F]{6}$/.test(next) ? next : "";
+  }
+
+  function normalizePrefix(value) {
+    return text(value).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+  }
+
+  function normalizeMark(value) {
+    return Array.from(text(value)).slice(0, 2).join("");
+  }
+
   function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
   }
@@ -2567,7 +2690,7 @@
     saveAndRender();
   });
   document.body.addEventListener("click", (event) => {
-    const target = event.target.closest("[data-open-program], [data-open-project], [data-open-task], [data-open-deadline], [data-open-document], [data-open-objective], [data-open-time], [data-open-activity], [data-open-day], [data-add-related], [data-new-program-project], [data-filter-program], [data-edit-project], [data-edit-task], [data-delete-project], [data-delete-task], [data-view-jump], [data-save-project], [data-save-task], [data-save-deadline], [data-save-document], [data-save-objective], [data-save-time], [data-filter-jump]");
+    const target = event.target.closest("[data-open-program], [data-open-project], [data-open-task], [data-open-deadline], [data-open-document], [data-open-objective], [data-open-time], [data-open-activity], [data-open-day], [data-add-related], [data-new-program-project], [data-filter-program], [data-edit-program], [data-edit-project], [data-edit-task], [data-delete-project], [data-delete-task], [data-view-jump], [data-save-project], [data-save-task], [data-save-deadline], [data-save-document], [data-save-objective], [data-save-time], [data-filter-jump]");
     if (!target) return;
     if (target.dataset.viewJump) setView(target.dataset.viewJump);
     if (target.dataset.openProgram) openProgram(target.dataset.openProgram);
@@ -2587,6 +2710,7 @@
       setView("projects");
       renderProjects();
     }
+    if (target.dataset.editProgram) openEditProgram(target.dataset.editProgram);
     if (target.dataset.editProject) openEditDialog("project", target.dataset.editProject);
     if (target.dataset.editTask) openEditDialog("task", target.dataset.editTask);
     if (target.dataset.deleteProject) deleteProject(target.dataset.deleteProject);
