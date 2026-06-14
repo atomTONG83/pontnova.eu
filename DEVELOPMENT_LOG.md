@@ -668,6 +668,74 @@
 
 - No D1 migration required.
 
+### Production deployment
+
+- Source commit:
+  - `80c19f63aa93d6b3bd930dc5ce0c8210c0f35c20`
+- Commit message:
+  - `Apply Pontnova workbench UX review fixes`
+- Pushed to:
+  - `origin/main`
+- Cloudflare Pages deploy:
+  - `https://0aee7bdd.pontnova.pages.dev`
+- Production URL:
+  - `https://pontnova.eu/workbench/`
+
+### Production verification
+
+- Login page:
+  - `200`
+- Login API:
+  - `302`
+- Authenticated workbench HTML:
+  - `200`
+- Authenticated state API:
+  - `200`
+- Production HTML confirmed:
+  - `/workbench/styles.css?v=20260614-v4-5`
+  - `/workbench/app.js?v=20260614-v4-5`
+- Login page visual tokens confirmed:
+  - warm background `#f2eadf`
+  - warm accent `#bd6045`
+- Security headers confirmed on `/workbench/login`, `/workbench/`, and `/workbench/api/state`:
+  - `Content-Security-Policy`
+  - `Strict-Transport-Security`
+  - `X-Frame-Options`
+  - `X-Content-Type-Options`
+  - `Cache-Control: no-store`
+- Production D1 state confirmed:
+  - 4 projects
+  - 4 tasks
+  - 3 deadlines
+  - 3 objectives
+- Browser production drawer verification:
+  - Opened `task-2` drawer from the task section.
+  - Confirmed drawer open state, `aria-hidden="false"`, `.shell[inert]`, and focus on `closeDrawerButton`.
+  - Pressed Esc and confirmed drawer closed, `aria-hidden="true"`, and shell inert was removed.
+- Browser production mobile calendar verification at `390 x 844`:
+  - Calendar weekday header stayed visible as grid.
+  - Month grid kept 7 columns.
+  - Calendar board had horizontal overflow (`scrollWidth 560 > clientWidth 316`).
+  - Browser console had no errors.
+
+### Local retained copy v4.5
+
+- Local copy:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v4-5-80c19f6`
+- Archive:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v4-5-80c19f6.tar.gz`
+- SHA-256:
+  - `222c226a0f42adaf1cd81a3dbc52e01f3737877efc487407beb442005ea0a921`
+- Manifest:
+  - `LOCAL_BACKUP_MANIFEST.md`
+- Archive content spot-check:
+  - `workbench/index.html`
+  - `workbench/app.js`
+  - `workbench/styles.css`
+  - `_worker.js`
+  - `migrations/0002_workbench_atom_parity.sql`
+  - `DEVELOPMENT_LOG.md`
+
 ## 2026-06-14 Workbench v4.4 improve task editing feedback
 
 ### Request
