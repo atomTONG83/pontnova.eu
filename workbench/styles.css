@@ -216,10 +216,6 @@ a:focus-visible {
   color: var(--ink);
 }
 
-.file-button input {
-  display: none;
-}
-
 .main {
   width: min(100%, 1180px);
   min-width: 0;

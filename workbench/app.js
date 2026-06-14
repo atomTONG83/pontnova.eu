@@ -2612,33 +2612,6 @@
     const drawer = document.getElementById("detailDrawer");
     if (drawer.classList.contains("is-open")) closeDrawer();
   });
-  document.getElementById("exportDataButton").addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `pontnova-workbench-${new Date().toISOString().slice(0, 10)}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  });
-  document.getElementById("importDataInput").addEventListener("change", async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    try {
-      const imported = JSON.parse(await file.text());
-      if (!imported || typeof imported !== "object") throw new Error("Invalid workbench JSON");
-      replaceState(imported);
-      trackActivity({ title: "导入 JSON 数据", entity: "Project", action: "update" });
-      saveState();
-      renderAll();
-      setSyncStatus("已导入并保存，正在同步云端", "ok");
-    } catch (error) {
-      setSyncStatus("导入失败：文件不是有效的工作台 JSON", "warn");
-    } finally {
-      event.target.value = "";
-    }
-  });
-
   replaceState(loadLocalState());
   renderAll();
   loadCloudState();
