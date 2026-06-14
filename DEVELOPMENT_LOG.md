@@ -614,6 +614,131 @@
   - `migrations/0002_workbench_atom_parity.sql`
   - `DEVELOPMENT_LOG.md`
 
+## 2026-06-15 Workbench v5.6 task creation stability and D1 state parity
+
+### User request
+
+- Creating a new task from a project detail page appeared to crash or jump away.
+- The project task area needs to stay in the same project context after adding work.
+
+### Root cause
+
+- The v5.5 frontend introduced editable `programs` / project-category state, but the Cloudflare D1 state API still returned and wrote only the older project/task/deadline/document/objective/time/activity tables.
+- Task notes were editable in the UI, but the remote `tasks` table did not yet have a `notes` column.
+- Creating a task triggers a full state save. With the cloud state shape incomplete, the page could be repainted from a reduced state after save, which made the interaction feel like a flash/crash.
+
+### Changes
+
+- Bumped workbench asset query version to `20260615-v5-6`.
+- Added D1 migration:
+  - `migrations/0003_workbench_programs_and_task_notes.sql`
+  - adds `tasks.notes`
+  - adds the `programs` table for editable project categories
+  - seeds the five Pontnova program categories
+- Updated `_worker.js` state API:
+  - returns `programs`
+  - sanitizes and writes `programs`
+  - reads/writes task `notes`
+  - keeps backward-compatible checks for deployments where the new table/column is not present yet
+- Updated new-entry form behavior:
+  - validates related project defaults before opening the dialog
+  - preserves project detail context after creating a task, node, document, objective, or time entry
+  - wraps create/edit submit handling so an unexpected save error shows a warning instead of collapsing the flow
+
+### Local verification
+
+- `node --check workbench/app.js`
+- `node --check _worker.js`
+- `git diff --check`
+- Local static preview:
+  - `http://127.0.0.1:4323/workbench/`
+- Browser local verification:
+  - Opened `PN-CONS-2026-001`.
+  - Opened `新增任务` from the project task panel.
+  - Saved `本地新增任务回归测试`.
+  - Dialog closed normally.
+  - View stayed on `projectDetail`.
+  - Detail id stayed `pn-consult-001`.
+  - New task appeared in `任务推进`.
+  - Browser console had no errors.
+
+### Database migration
+
+- Wrangler version:
+  - `4.100.0`
+- Remote migration applied:
+  - `0003_workbench_programs_and_task_notes.sql`
+- Remote D1 verification:
+  - `programs` table contains 5 rows:
+    - `consulting / 咨询 / CONS`
+    - `fundraising / 投融资 / FUND`
+    - `training / 培训 / TRN`
+    - `workshop / Workshop / WS`
+    - `operations / 运营 / OPS`
+  - `tasks` table includes the new `notes` column.
+  - Remote migration list after apply: no pending migrations.
+
+### Production deployment
+
+- Source commit:
+  - `362a394e7d4e49f3c6cb5e1e4d4f58cf0d917f25`
+- Commit message:
+  - `Fix workbench task creation persistence`
+- Pushed to:
+  - `origin/main`
+- Cloudflare Pages deploy:
+  - `https://2fe7ed83.pontnova.pages.dev`
+- Production URL:
+  - `https://pontnova.eu/workbench/`
+
+### Production verification
+
+- Login API:
+  - `302`
+- Production HTML confirmed:
+  - `/workbench/app.js?v=20260615-v5-6`
+- Production state API:
+  - `programs: 5`
+  - `tasks: 4`
+  - all task objects include `notes`
+- Production state PUT using the current state without adding records:
+  - `ok: true`
+  - counts returned:
+    - `programs: 5`
+    - `projects: 5`
+    - `tasks: 4`
+    - `deadlines: 3`
+    - `documents: 3`
+    - `objectives: 3`
+    - `keyResults: 4`
+    - `timeEntries: 3`
+    - `activities: 9`
+- Browser production verification:
+  - Opened `PN-CONS-2026-002 · 中车欧洲IP申请`.
+  - Opened `新增任务` from the project task panel.
+  - Dialog selected project `project-1781474182971`.
+  - Closed the dialog without saving, so no test task was added to production.
+  - View stayed on `projectDetail`.
+  - Detail id stayed `project-1781474182971`.
+  - Browser console had no errors.
+
+### Local retained copy v5.6
+
+- Local copy:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260615-v5-6-362a394`
+- Archive:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260615-v5-6-362a394.tar.gz`
+- SHA-256:
+  - `011492b9d7843219a05b008148f223c1e0840688ea21ea9d7a88c48e3978592f`
+- Manifest:
+  - `LOCAL_BACKUP_MANIFEST.md`
+- Archive content spot-check:
+  - `workbench/index.html`
+  - `workbench/app.js`
+  - `_worker.js`
+  - `migrations/0003_workbench_programs_and_task_notes.sql`
+  - `DEVELOPMENT_LOG.md`
+
 ## 2026-06-15 Workbench v5.5 editable program categories and refined marks
 
 ### User request
