@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
   <title>Pontnova 工作台</title>
-  <link rel="stylesheet" href="/workbench/styles.css?v=20260614-v4-6">
+  <link rel="stylesheet" href="/workbench/styles.css?v=20260614-v5-0">
 </head>
 <body data-view="dashboard">
   <div class="shell">
@@ -17,22 +17,21 @@
           <small>工作台</small>
         </span>
       </a>
-      <button class="sidebar-create" id="newProjectButtonSidebar" type="button">+ 新增项目</button>
+      <button class="sidebar-create" id="newProjectButtonSidebar" type="button">+ 新建项目</button>
       <nav class="nav" aria-label="工作台导航">
-        <button class="nav-item is-active" data-view="dashboard" type="button">看板</button>
-        <button class="nav-item" data-view="projects" type="button">项目</button>
-        <button class="nav-item" data-view="calendar" type="button">日程</button>
-        <button class="nav-item" data-view="objectives" type="button">OKR</button>
-        <button class="nav-item" data-view="tasks" type="button">任务</button>
-        <button class="nav-item" data-view="workload" type="button">投入分析</button>
-        <button class="nav-item" data-view="documents" type="button">资料索引</button>
-        <button class="nav-item" data-view="audit" type="button">活动日志</button>
-        <button class="nav-item" data-view="map" type="button">平台图谱</button>
+        <button class="nav-item is-active" data-icon="▦" data-view="dashboard" type="button">总览</button>
+        <button class="nav-item" data-icon="▣" data-view="projects" type="button">项目</button>
+        <button class="nav-item" data-icon="◴" data-view="calendar" type="button">日历</button>
+        <button class="nav-item" data-icon="◎" data-view="objectives" type="button">OKR</button>
+        <button class="nav-item" data-icon="!" data-view="deadlines" type="button">近期期限</button>
+        <button class="nav-item" data-icon="↯" data-view="audit" type="button">活动日志</button>
+        <button class="nav-item" data-icon="◷" data-view="workload" type="button">计时器</button>
+        <button class="nav-item" data-icon="◇" data-view="map" type="button">平台地图</button>
       </nav>
       <div class="sidebar-foot">
         <div class="sidebar-note">
           <strong>工作原则</strong>
-          <span>先看期限，再看项目；每个动作都绑定项目号。</span>
+          <span>期限优先 · 事项留痕 · 关键判断人工复核。</span>
         </div>
         <button class="ghost-button" id="exportDataButton" type="button">导出 JSON</button>
         <label class="ghost-button file-button">
@@ -49,7 +48,7 @@
       <header class="topbar">
         <div>
           <p class="eyebrow">Consulting / Fundraising / Training / Workshop</p>
-          <h1 id="viewTitle">项目总览</h1>
+          <h1 id="viewTitle">项目看板</h1>
           <p class="sync-status" id="syncStatus" data-tone="pending">正在连接云端...</p>
         </div>
         <div class="top-actions">
@@ -66,7 +65,7 @@
           <div class="hero-copy">
             <p class="date-pill" id="todayPill">Pontnova</p>
             <h1>先看期限，再看项目，把今天的时间放到最重要的事上。</h1>
-            <p>咨询、投融资、培训和 Workshop 都按项目号归档；任务、资料、节点、投入和目标围绕项目流转。</p>
+            <p>所有咨询、投融资、培训和 Workshop 都按项目号归档；任务、期限、资料、目标与工时统一进入工作台。</p>
             <div class="hero-actions">
               <button class="primary-button" id="newTaskButton" type="button">新增任务</button>
               <button class="ghost-button compact" id="newDeadlineButton" type="button">新增节点</button>
@@ -172,7 +171,7 @@
             <p class="section-kicker">Platform Map</p>
             <h2>平台地图</h2>
             <p class="panel-subtitle">查看项目与任务、节点、目标、资料和投入之间的关系。</p>
-            <button class="text-button" data-view-jump="map" type="button">打开平台图谱</button>
+            <button class="text-button" data-view-jump="map" type="button">打开平台地图</button>
           </article>
         </section>
       </section>
@@ -229,6 +228,20 @@
         <div id="taskDetailPage"></div>
       </section>
 
+      <section class="view" id="deadlinesView">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Deadline Radar</p>
+              <h2>近期期限</h2>
+              <p class="panel-subtitle">按时间排序查看所有未完成任务期限和项目节点。</p>
+            </div>
+            <button class="primary-button small" id="newDeadlineButtonTertiary" type="button">新增节点</button>
+          </div>
+          <div class="deadline-radar-list full" id="deadlineList"></div>
+        </div>
+      </section>
+
       <section class="view" id="calendarView">
         <div class="panel">
           <div class="panel-head">
@@ -279,11 +292,13 @@
         <div class="panel">
           <div class="panel-head">
             <div>
-              <h2>投入 / 工时</h2>
-              <p class="panel-subtitle">按项目号汇总咨询、投融资、培训和 Workshop 的投入。</p>
+              <p class="section-kicker">Timer Workbench</p>
+              <h2>计时器 / 工时</h2>
+              <p class="panel-subtitle">按项目号记录每段投入，保留工时、内容和关联任务。</p>
             </div>
             <button class="primary-button small" id="newTimeEntryButton" type="button">新增投入</button>
           </div>
+          <div class="timer-workbench" id="timerWorkbench"></div>
           <div class="workload-layout">
             <div class="workload-chart" id="workloadChart"></div>
             <div class="table-wrap">
@@ -321,7 +336,7 @@
         <div class="panel">
           <div class="panel-head">
             <div>
-              <h2>项目图谱</h2>
+              <h2>平台地图</h2>
               <p class="panel-subtitle">从项目到任务、关键节点和资料的关系视图</p>
             </div>
             <button class="primary-button small" id="newProjectButtonSecondary" type="button">新增项目</button>
@@ -370,6 +385,6 @@
     </div>
   </template>
 
-  <script src="/workbench/app.js?v=20260614-v4-6" defer></script>
+  <script src="/workbench/app.js?v=20260614-v5-0" defer></script>
 </body>
 </html>

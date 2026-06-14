@@ -169,6 +169,7 @@
     tasks: document.getElementById("tasksView"),
     projectDetail: document.getElementById("projectDetailView"),
     taskDetail: document.getElementById("taskDetailView"),
+    deadlines: document.getElementById("deadlinesView"),
     calendar: document.getElementById("calendarView"),
     documents: document.getElementById("documentsView"),
     objectives: document.getElementById("objectivesView"),
@@ -182,12 +183,13 @@
     tasks: "任务清单",
     projectDetail: "项目详情",
     taskDetail: "任务详情",
+    deadlines: "近期期限",
     calendar: "日历",
     documents: "资料索引",
     objectives: "OKR / 目标",
-    workload: "投入 / 工时",
+    workload: "计时器 / 工时",
     audit: "活动日志",
-    map: "项目图谱"
+    map: "平台地图"
   };
 
   function clone(value) {
@@ -463,6 +465,7 @@
     renderProjects();
     renderTasks();
     renderDeadlines();
+    renderDeadlinesView();
     renderDocuments();
     renderObjectives();
     renderWorkload();
@@ -824,6 +827,16 @@
     if (!deadlines.length) renderEmpty(dash);
   }
 
+  function renderDeadlinesView() {
+    const target = document.getElementById("deadlineList");
+    if (!target) return;
+    const deadlines = filteredDeadlines()
+      .filter((deadline) => !deadline.done)
+      .sort((a, b) => String(a.date || "9999-12-31").localeCompare(String(b.date || "9999-12-31")));
+    target.innerHTML = deadlines.length ? deadlines.map(deadlineRadarRow).join("") : "";
+    if (!deadlines.length) renderEmpty(target);
+  }
+
   function deadlineRow(deadline) {
     const project = projectById(deadline.projectId);
     return `
@@ -891,6 +904,7 @@
   }
 
   function renderWorkload() {
+    const timer = document.getElementById("timerWorkbench");
     const chart = document.getElementById("workloadChart");
     const table = document.getElementById("timeEntryTable");
     const rows = state.timeEntries
@@ -898,6 +912,7 @@
       .sort((a, b) => String(b.date).localeCompare(String(a.date)));
     const totals = state.projects.map((project) => ({ project, hours: sumHours(state.timeEntries.filter((entry) => entry.projectId === project.id)) })).filter((item) => item.hours > 0);
     const max = Math.max(1, ...totals.map((item) => item.hours));
+    if (timer) timer.innerHTML = timerWorkbenchCard(rows, totals);
     chart.innerHTML = totals.length ? totals.map(({ project, hours }) => `
       <button class="workload-bar" data-open-project="${escapeAttr(project.id)}" type="button">
         <span><strong>${escapeHtml(project.projectNo)}</strong>${escapeHtml(project.name)}</span>
@@ -918,6 +933,30 @@
       `;
     }).join("");
     if (!rows.length) table.innerHTML = `<tr><td colspan="5">暂无投入记录。</td></tr>`;
+  }
+
+  function timerWorkbenchCard(rows, totals) {
+    const todayRows = rows.filter((entry) => entry.date === toIsoDate(today));
+    const todayHours = sumHours(todayRows);
+    const top = totals.slice().sort((a, b) => b.hours - a.hours)[0];
+    const currentTask = state.tasks.filter((task) => task.status !== "done").sort(sortTasks)[0];
+    return `
+      <section class="timer-card">
+        <div>
+          <p class="section-kicker">Focus Timer</p>
+          <h3>先选项目号，再记录投入</h3>
+          <p>按项目号、任务和标签记录每一段投入，方便复盘交付成本和注意力分布。</p>
+        </div>
+        <div class="timer-readout">
+          <strong>${todayHours.toFixed(1)} h</strong>
+          <span>今日已记录</span>
+        </div>
+        <div class="timer-actions">
+          <button class="primary-button small" data-add-related="time" data-project-id="${escapeAttr(top?.project?.id || state.projects[0]?.id || "")}" type="button">记录投入</button>
+          ${currentTask ? `<button class="ghost-button compact" data-open-task="${escapeAttr(currentTask.id)}" type="button">继续当前任务</button>` : ""}
+        </div>
+      </section>
+    `;
   }
 
   function renderActivity() {
@@ -1085,14 +1124,20 @@
 
   function setView(view) {
     currentView = view;
-    if (!["projectDetail", "taskDetail"].includes(view)) activeDetail = null;
+    if (!["projectDetail", "taskDetail"].includes(view)) {
+      activeDetail = null;
+      delete document.body.dataset.detailKind;
+      delete document.body.dataset.detailId;
+    }
     document.body.dataset.view = view;
     Object.entries(views).forEach(([name, element]) => element?.classList.toggle("is-active", name === view));
     const navView = view === "projectDetail" ? "projects" : view === "taskDetail" ? "tasks" : view;
     document.querySelectorAll(".nav-item").forEach((button) => button.classList.toggle("is-active", button.dataset.view === navView));
     document.getElementById("viewTitle").textContent = titles[view];
+    if (["projectDetail", "taskDetail"].includes(view)) restoreDetailTitle();
     window.scrollTo({ top: 0, behavior: "auto" });
     if (view === "dashboard") renderDashboard();
+    if (view === "deadlines") renderDeadlinesView();
     if (view === "calendar") renderCalendar();
     if (view === "map") renderMap();
   }
@@ -1147,6 +1192,8 @@
     form.dataset.mode = "create";
     form.dataset.editId = "";
     document.getElementById("saveEntryButton").textContent = "保存";
+    restoreDetailTitle();
+    window.setTimeout(restoreDetailTitle, 0);
   }
 
   function formFor(kind, defaults) {
@@ -1312,6 +1359,8 @@
     if (!project) return;
     closeDrawerIfOpen();
     activeDetail = { kind: "project", id };
+    document.body.dataset.detailKind = "project";
+    document.body.dataset.detailId = id;
     renderProjectDetailPage(id);
     setView("projectDetail");
     setDetailTitle(project.projectNo, project.name);
@@ -1452,6 +1501,8 @@
     if (!task) return;
     closeDrawerIfOpen();
     activeDetail = { kind: "task", id };
+    document.body.dataset.detailKind = "task";
+    document.body.dataset.detailId = id;
     renderTaskDetailPage(id);
     setView("taskDetail");
     setDetailTitle("任务", task.title);
@@ -1732,10 +1783,26 @@
     document.getElementById("viewTitle").textContent = secondary ? `${primary} · ${secondary}` : primary;
   }
 
+  function restoreDetailTitle() {
+    const detail = activeDetail || (document.body.dataset.detailKind && document.body.dataset.detailId
+      ? { kind: document.body.dataset.detailKind, id: document.body.dataset.detailId }
+      : null);
+    if (!detail) return;
+    if (detail.kind === "project") {
+      const project = state.projects.find((item) => item.id === detail.id);
+      if (project) setDetailTitle(project.projectNo, project.name);
+    }
+    if (detail.kind === "task") {
+      const task = state.tasks.find((item) => item.id === detail.id);
+      if (task) setDetailTitle("任务", task.title);
+    }
+  }
+
   function refreshDetailPage() {
     if (!activeDetail) return;
     if (activeDetail.kind === "project") renderProjectDetailPage(activeDetail.id);
     if (activeDetail.kind === "task") renderTaskDetailPage(activeDetail.id);
+    restoreDetailTitle();
   }
 
   function refreshDrawer() {
@@ -2059,6 +2126,7 @@
   document.getElementById("newTaskButtonSecondary").addEventListener("click", () => openDialog("task"));
   document.getElementById("newDeadlineButton").addEventListener("click", () => openDialog("deadline"));
   document.getElementById("newDeadlineButtonSecondary").addEventListener("click", () => openDialog("deadline"));
+  document.getElementById("newDeadlineButtonTertiary")?.addEventListener("click", () => openDialog("deadline"));
   document.getElementById("newDocumentButton").addEventListener("click", () => openDialog("document"));
   document.getElementById("newObjectiveButton").addEventListener("click", () => openDialog("objective"));
   document.getElementById("newTimeEntryButton").addEventListener("click", () => openDialog("time"));
