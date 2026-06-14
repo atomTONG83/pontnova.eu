@@ -614,6 +614,126 @@
   - `migrations/0002_workbench_atom_parity.sql`
   - `DEVELOPMENT_LOG.md`
 
+## 2026-06-14 Workbench v5.3 clarify project/task edit-delete actions
+
+### User request
+
+- Project and task edit/delete actions were hard to find.
+- Task detail pages had no obvious edit/delete buttons.
+- After opening a task from a project, returning to the original project was not clear enough.
+
+### Changes
+
+- Bumped workbench asset query version to `20260614-v5-3`.
+- Project list cards now separate:
+  - an information area for opening the project
+  - fixed action buttons for `打开`, `编辑`, and `删除`
+- Program detail project table now has an explicit `操作` column:
+  - `打开`
+  - `编辑`
+  - `删除`
+- Project detail hero now includes a visible `删除项目` button beside `编辑项目`.
+- Project detail task rows now include fixed row actions:
+  - `打开`
+  - `编辑`
+  - `删除`
+- Dashboard current-task rows now include visible `编辑` and `删除` task actions.
+- Task list table now includes an explicit `操作` column.
+- Task detail toolbar now prioritizes returning to the parent project:
+  - `← 返回 PN-...`
+  - `任务清单`
+  - `记录投入`
+  - `编辑任务`
+  - `删除任务`
+- Added guarded delete handlers:
+  - project deletion asks for confirmation and cascades project tasks, deadlines, documents, objectives, key results, time entries, and project activities
+  - task deletion asks for confirmation, removes the task, preserves time entries, and clears their task link
+  - deleting a task from task detail returns the user to its parent project
+- Added responsive styles for the new action clusters so mobile layouts wrap without horizontal overflow.
+
+### Local verification
+
+- `node --check workbench/app.js`
+- `node --check _worker.js`
+- `git diff --check`
+- Local static preview:
+  - `http://127.0.0.1:4320/workbench/`
+- Browser local verification:
+  - v5.3 CSS and JS assets loaded.
+  - Project list displayed 4 project cards with 4 edit buttons and 4 delete buttons.
+  - Project detail for `PN-CONS-2026-001` displayed:
+    - 1 project delete button
+    - 1 project task row
+    - 1 task edit button
+    - 1 task delete button
+  - Task edit dialog opened in edit mode with the existing task title and `保存任务`.
+  - Task detail displayed:
+    - `← 返回 PN-CONS-2026-001`
+    - `任务清单`
+    - `编辑任务`
+    - `删除任务`
+  - Returning from task detail reopened the original project detail page.
+  - Task list table displayed the new `操作` column with 4 edit buttons and 4 delete buttons.
+  - Project edit dialog opened in edit mode with the existing project number/name and `保存项目`.
+  - Mobile viewport `390 x 844` had no horizontal overflow; action buttons wrapped left.
+  - Browser console had no errors.
+
+### Deployment note
+
+- No D1 migration required.
+- Cloud D1 state shape is unchanged.
+
+### Production deployment
+
+- Source commit:
+  - `93ef635c8c5d2e69d6e7b3adf97c90c1a09f8fd0`
+- Commit message:
+  - `Clarify workbench edit delete actions`
+- Pushed to:
+  - `origin/main`
+- Cloudflare Pages deploy:
+  - `https://f56f58f8.pontnova.pages.dev`
+- Production URL:
+  - `https://pontnova.eu/workbench/`
+
+### Production verification
+
+- Login API:
+  - `302`
+- Authenticated workbench HTML:
+  - `200`
+- Authenticated state API:
+  - `200`
+- Production HTML confirmed:
+  - `/workbench/styles.css?v=20260614-v5-3`
+  - `/workbench/app.js?v=20260614-v5-3`
+- Production state API bytes:
+  - `6656`
+- Browser production verification:
+  - v5.3 CSS and JS assets loaded.
+  - Project list displayed edit/delete project actions.
+  - Project detail displayed `删除项目`, task edit, and task delete actions.
+  - Task detail displayed `← 返回 PN-CONS-2026-001`, `编辑任务`, and `删除任务`.
+  - No horizontal overflow.
+  - Browser console had no errors.
+
+### Local retained copy v5.3
+
+- Local copy:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v5-3-93ef635`
+- Archive:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v5-3-93ef635.tar.gz`
+- SHA-256:
+  - `c3d5992abcebd28941f1b275a0fc28e12013af9532375b48606b6aa518a5efb1`
+- Manifest:
+  - `LOCAL_BACKUP_MANIFEST.md`
+- Archive content spot-check:
+  - `workbench/index.html`
+  - `workbench/app.js`
+  - `workbench/styles.css`
+  - `_worker.js`
+  - `DEVELOPMENT_LOG.md`
+
 ## 2026-06-14 Workbench v5.2 prioritize project work items
 
 ### Request
