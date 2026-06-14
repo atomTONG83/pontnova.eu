@@ -649,3 +649,58 @@
 ### Deployment note
 
 - No D1 migration required.
+
+### Production deployment
+
+- Source commit:
+  - `16ee13ec9bc2819c68f937fe31a07c44b78a4c65`
+- Commit message:
+  - `Remove Pontnova dashboard newsdesk card`
+- Pushed to:
+  - `origin/main`
+- Cloudflare Pages deploy:
+  - `https://9bb69d9b.pontnova.pages.dev`
+- Production URL:
+  - `https://pontnova.eu/workbench/`
+
+### Production verification
+
+- Login API:
+  - `302`
+- Authenticated workbench HTML:
+  - `200`
+- Authenticated state API:
+  - `200`
+- Production HTML confirmed:
+  - `/workbench/styles.css?v=20260614-v4-1`
+  - `/workbench/app.js?v=20260614-v4-1`
+- Production D1 state confirmed:
+  - 4 projects
+  - 4 tasks
+  - 3 deadlines
+  - 3 objectives
+- Browser production verification:
+  - Dashboard bottom cards are now only:
+    - `数据完整性`
+    - `平台地图`
+  - `Newsdesk`, `UPC / EU IP 资讯台`, and `查看资料索引` are not visible.
+  - Sync status shows `已连接云端数据库`.
+  - Browser console had no warnings or errors.
+
+### Local retained copy v4.1
+
+- Local copy:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v4-1-16ee13e`
+- Archive:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v4-1-16ee13e.tar.gz`
+- SHA-256:
+  - `21de332703bc74048b3cc475249a580372ce4214a019123841777bcb55c21838`
+- Manifest:
+  - `LOCAL_BACKUP_MANIFEST.md`
+- Archive content spot-check:
+  - `workbench/index.html`
+  - `workbench/app.js`
+  - `workbench/styles.css`
+  - `_worker.js`
+  - `migrations/0002_workbench_atom_parity.sql`
+  - `DEVELOPMENT_LOG.md`
