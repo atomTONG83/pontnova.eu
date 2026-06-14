@@ -370,7 +370,9 @@ h3 {
 
 .project-list,
 .project-grid,
+.program-grid,
 .document-grid,
+.objective-grid,
 .task-board,
 .timeline {
   display: grid;
@@ -378,8 +380,56 @@ h3 {
 }
 
 .project-grid,
+.program-grid,
 .document-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+#projectsView > .panel {
+  margin-bottom: 16px;
+}
+
+.program-card {
+  display: grid;
+  min-height: 132px;
+  align-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+  color: inherit;
+  text-align: left;
+}
+
+.program-card:hover {
+  border-color: rgba(0, 127, 131, 0.4);
+  box-shadow: 0 10px 28px rgba(24, 38, 45, 0.08);
+  transform: translateY(-1px);
+}
+
+.program-card strong,
+.program-card span {
+  display: block;
+}
+
+.program-prefix,
+.case-number {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  border: 1px solid rgba(0, 127, 131, 0.22);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: rgba(0, 127, 131, 0.08);
+  color: var(--teal);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.case-number.inline {
+  margin-bottom: 4px;
 }
 
 .project-card,
@@ -488,6 +538,28 @@ h3 {
   border-color: rgba(54, 125, 90, 0.3);
   background: rgba(54, 125, 90, 0.1);
   color: var(--green);
+}
+
+.status.on_track,
+.okr-score.on_track {
+  border-color: rgba(54, 125, 90, 0.28);
+  background: rgba(54, 125, 90, 0.1);
+  color: var(--green);
+}
+
+.status.needs_review,
+.okr-score.needs_review {
+  border-color: rgba(182, 108, 32, 0.3);
+  background: rgba(182, 108, 32, 0.1);
+  color: var(--amber);
+}
+
+.status.at_risk,
+.status.blocked,
+.okr-score.at_risk {
+  border-color: rgba(169, 67, 89, 0.32);
+  background: rgba(169, 67, 89, 0.1);
+  color: var(--rose);
 }
 
 .progress {
@@ -613,6 +685,167 @@ th {
   color: var(--teal);
   font-weight: 700;
   text-decoration: none;
+}
+
+.objective-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.objective-grid.compact {
+  grid-template-columns: 1fr;
+}
+
+.objective-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+  color: inherit;
+  text-align: left;
+}
+
+.objective-card header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.okr-score {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-3);
+  font-weight: 800;
+}
+
+.linked-list.mini {
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.linked-list.mini span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workload-layout {
+  display: grid;
+  gap: 16px;
+}
+
+.workload-chart {
+  display: grid;
+  gap: 10px;
+}
+
+.workload-bar {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.36fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+  color: inherit;
+  text-align: left;
+}
+
+.workload-bar span,
+.workload-bar strong {
+  display: block;
+}
+
+.workload-bar strong {
+  color: var(--teal);
+  font-size: 12px;
+}
+
+.workload-bar i {
+  display: block;
+  min-width: 8px;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--teal), var(--blue));
+}
+
+.workload-bar b {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.activity-list {
+  display: grid;
+  gap: 10px;
+}
+
+.activity-list.full {
+  gap: 12px;
+}
+
+.activity-item {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+  color: inherit;
+  text-align: left;
+}
+
+.activity-item strong,
+.activity-item small,
+.activity-item em {
+  display: block;
+}
+
+.activity-item small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.activity-item em {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-style: normal;
+  line-height: 1.5;
+}
+
+.activity-dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: var(--blue);
+}
+
+.activity-dot.create {
+  background: var(--green);
+}
+
+.activity-dot.complete {
+  background: var(--teal);
+}
+
+.activity-dot.review {
+  background: var(--amber);
+}
+
+.activity-dot.delete {
+  background: var(--rose);
 }
 
 .calendar-board {
@@ -1015,6 +1248,8 @@ th {
 @media (max-width: 1180px) {
   .metric-grid,
   .project-grid,
+  .program-grid,
+  .objective-grid,
   .document-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1062,6 +1297,8 @@ th {
 
   .metric-grid,
   .project-grid,
+  .program-grid,
+  .objective-grid,
   .document-grid,
   .form-grid,
   .detail-metrics,
@@ -1084,6 +1321,10 @@ th {
 
   .calendar-cell {
     min-height: 96px;
+  }
+
+  .workload-bar {
+    grid-template-columns: 1fr;
   }
 
   .drawer-panel {

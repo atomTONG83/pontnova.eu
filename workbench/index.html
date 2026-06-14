@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
   <title>Pontnova 工作台</title>
-  <link rel="stylesheet" href="/workbench/styles.css?v=20260614-v2">
+  <link rel="stylesheet" href="/workbench/styles.css?v=20260614-v3">
 </head>
 <body>
   <div class="shell">
@@ -23,6 +23,9 @@
         <button class="nav-item" data-view="tasks" type="button">任务</button>
         <button class="nav-item" data-view="calendar" type="button">日程</button>
         <button class="nav-item" data-view="documents" type="button">资料</button>
+        <button class="nav-item" data-view="objectives" type="button">目标</button>
+        <button class="nav-item" data-view="workload" type="button">投入</button>
+        <button class="nav-item" data-view="audit" type="button">动态</button>
         <button class="nav-item" data-view="map" type="button">图谱</button>
       </nav>
       <div class="sidebar-foot">
@@ -47,7 +50,7 @@
         <div class="top-actions">
           <label class="search">
             <span>搜索</span>
-            <input id="searchInput" type="search" placeholder="项目、客户、任务、资料">
+            <input id="searchInput" type="search" placeholder="项目号、项目、客户、任务、资料">
           </label>
           <button class="primary-button" id="newProjectButton" type="button">新增项目</button>
         </div>
@@ -55,6 +58,16 @@
 
       <section class="view is-active" id="dashboardView" aria-labelledby="viewTitle">
         <div class="metric-grid" id="metricGrid"></div>
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>业务线</h2>
+              <p class="panel-subtitle">对应 Atom 工作台的项目组合层，Pontnova 版按业务类型归档。</p>
+            </div>
+            <button class="text-button" data-view-jump="projects" type="button">查看项目档案</button>
+          </div>
+          <div class="program-grid" id="dashboardPrograms"></div>
+        </section>
         <div class="layout-two">
           <section class="panel">
             <div class="panel-head">
@@ -78,9 +91,34 @@
           </div>
           <div class="task-board" id="dashboardTasks"></div>
         </section>
+        <div class="layout-two">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>季度目标</h2>
+              <button class="text-button" data-view-jump="objectives" type="button">查看全部</button>
+            </div>
+            <div class="objective-grid compact" id="dashboardObjectives"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>最近动态</h2>
+              <button class="text-button" data-view-jump="audit" type="button">查看日志</button>
+            </div>
+            <div class="activity-list" id="dashboardActivity"></div>
+          </section>
+        </div>
       </section>
 
       <section class="view" id="projectsView">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>项目组合</h2>
+              <p class="panel-subtitle">每个项目档案都有固定项目号，便于资料、任务、工时和沟通引用。</p>
+            </div>
+          </div>
+          <div class="program-grid" id="programGrid"></div>
+        </section>
         <div class="filter-row">
           <button class="chip is-active" data-filter="all" type="button">全部</button>
           <button class="chip" data-filter="consulting" type="button">咨询</button>
@@ -148,6 +186,61 @@
         </div>
       </section>
 
+      <section class="view" id="objectivesView">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>OKR / 目标</h2>
+              <p class="panel-subtitle">复刻 Atom 工作台的 OKR 层，用于管理本季度 Pontnova 重点。</p>
+            </div>
+            <button class="primary-button small" id="newObjectiveButton" type="button">新增目标</button>
+          </div>
+          <div class="objective-grid" id="objectiveGrid"></div>
+        </div>
+      </section>
+
+      <section class="view" id="workloadView">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>投入 / 工时</h2>
+              <p class="panel-subtitle">按项目号汇总咨询、投融资、培训和 Workshop 的投入。</p>
+            </div>
+            <button class="primary-button small" id="newTimeEntryButton" type="button">新增投入</button>
+          </div>
+          <div class="workload-layout">
+            <div class="workload-chart" id="workloadChart"></div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>日期</th>
+                    <th>项目号</th>
+                    <th>内容</th>
+                    <th>小时</th>
+                    <th>标签</th>
+                  </tr>
+                </thead>
+                <tbody id="timeEntryTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="auditView">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>活动日志</h2>
+              <p class="panel-subtitle">记录项目、任务、节点、资料、目标和投入的重要变更。</p>
+            </div>
+            <button class="primary-button small" id="newActivityButton" type="button">新增动态</button>
+          </div>
+          <div class="activity-list full" id="activityFeed"></div>
+        </div>
+      </section>
+
       <section class="view" id="mapView">
         <div class="panel">
           <div class="panel-head">
@@ -201,6 +294,6 @@
     </div>
   </template>
 
-  <script src="/workbench/app.js?v=20260614-v2" defer></script>
+  <script src="/workbench/app.js?v=20260614-v3" defer></script>
 </body>
 </html>

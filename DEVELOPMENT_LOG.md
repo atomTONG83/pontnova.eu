@@ -354,3 +354,79 @@
   - Add drag/drop task ordering if daily task planning becomes important.
   - Add record-level CRUD API before multi-user simultaneous editing.
   - Add calendar import/export only if Pontnova needs external calendar sync.
+
+### Pontnova workbench v3 Atom parity expansion
+
+- Date: 2026-06-14
+- Context:
+  - User feedback: Atom workbench projects/cases all have case numbers; Pontnova v2 still did not feel like a complete replication.
+  - Goal: replicate most non-patent-prosecution Atom workbench capabilities, while keeping Pontnova scoped to consulting, fundraising, training, workshops, and operations.
+  - Patent prosecution-specific blocks remain excluded.
+
+- Atom workbench concepts mapped:
+  - Atom `Program` -> Pontnova business line (`咨询`, `投融资`, `培训`, `Workshop`, `运营`)
+  - Atom `Case.caseNumber` -> Pontnova `projectNo`, e.g. `PN-CONS-2026-001`
+  - Atom case detail -> Pontnova project dossier drawer
+  - Atom tasks/deadlines/documents -> Pontnova tasks/nodes/materials
+  - Atom OKR -> Pontnova objectives and key results
+  - Atom time entries/workload -> Pontnova investment/workload records
+  - Atom audit trail -> Pontnova activity feed
+  - Atom calendar/map -> Pontnova calendar and project relationship map
+
+- Database changes:
+  - Added migration `migrations/0002_workbench_atom_parity.sql`.
+  - Extended `projects` with:
+    - `project_no`
+    - `opened_at`
+    - `due_date`
+    - `budget`
+    - `contact`
+    - `goal`
+    - `health`
+  - Added new tables:
+    - `objectives`
+    - `key_results`
+    - `time_entries`
+    - `activities`
+  - Seeded project numbers for the 4 existing projects.
+  - Seeded initial OKR, key results, workload, and activity records.
+
+- Application changes:
+  - `_worker.js`
+    - `/workbench/api/state` now reads/writes projects, tasks, deadlines, documents, objectives, key results, time entries, and activities.
+    - PUT sanitization now covers project numbers, project dates, health state, OKR fields, workload rows, and activity feed rows.
+  - `workbench/index.html`
+    - Added nav/views for `目标`, `投入`, and `动态`.
+    - Added business-line cards to overview and project pages.
+    - Versioned assets as `20260614-v3`.
+  - `workbench/app.js`
+    - Rebuilt state model around project dossiers with `projectNo`.
+    - Added business-line aggregation, OKR cards, workload chart/table, and activity feed.
+    - Project drawer now includes project number, contact, opened/due dates, budget/package, goal, health, linked objectives, workload, and activity actions.
+    - Added create/edit flows for objectives and time entries.
+    - Activity records are created when major project/task/node/document/objective/time changes happen.
+  - `workbench/styles.css`
+    - Added styles for project numbers, business-line cards, OKR cards, workload bars, activity feed, and health/status states.
+
+- Local verification:
+  - `node --check workbench/app.js`
+  - `node --check _worker.js`
+  - Applied local D1 migration 0002 successfully.
+  - Local Pages preview opened at `http://127.0.0.1:8788/workbench/`.
+  - Verified overview renders:
+    - 9 nav items
+    - business-line cards
+    - project numbers
+    - objective cards
+    - workload metrics
+    - activity feed
+  - Verified project dossier opens and includes project number plus quick-add time entry.
+  - Verified objective drawer opens and shows key results.
+  - Verified workload page shows bars/table.
+  - Verified activity page shows activity rows.
+  - Browser console error log was empty.
+  - Captured desktop and mobile screenshots for layout checks.
+
+- Notes:
+  - Local Wrangler Pages D1 binding may still use a temporary database namespace and show fallback sync in the browser, but migration 0002 applied successfully to the configured local D1 database.
+  - Production verification must run after applying remote migration 0002.

@@ -76,6 +76,10 @@ async function handleWorkbenchState(request, env) {
         tasks: nextState.tasks.length,
         deadlines: nextState.deadlines.length,
         documents: nextState.documents.length,
+        objectives: nextState.objectives.length,
+        keyResults: nextState.keyResults.length,
+        timeEntries: nextState.timeEntries.length,
+        activities: nextState.activities.length,
       },
     });
   }
@@ -84,16 +88,21 @@ async function handleWorkbenchState(request, env) {
 }
 
 async function readWorkbenchState(db) {
-  const [projects, tasks, deadlines, documents] = await db.batch([
+  const [projects, tasks, deadlines, documents, objectives, keyResults, timeEntries, activities] = await db.batch([
     db.prepare("SELECT * FROM projects ORDER BY sort_order ASC, updated_at DESC"),
     db.prepare("SELECT * FROM tasks ORDER BY sort_order ASC, due_date ASC, updated_at DESC"),
     db.prepare("SELECT * FROM deadlines ORDER BY due_date ASC, sort_order ASC"),
     db.prepare("SELECT * FROM documents ORDER BY sort_order ASC, updated_at DESC"),
+    db.prepare("SELECT * FROM objectives ORDER BY sort_order ASC, updated_at DESC"),
+    db.prepare("SELECT * FROM key_results ORDER BY sort_order ASC, updated_at DESC"),
+    db.prepare("SELECT * FROM time_entries ORDER BY entry_date DESC, sort_order ASC"),
+    db.prepare("SELECT * FROM activities ORDER BY activity_date DESC, sort_order ASC"),
   ]);
 
   return {
     projects: (projects.results || []).map((row) => ({
       id: row.id,
+      projectNo: row.project_no || "",
       name: row.name,
       type: row.type,
       client: row.client,
@@ -103,6 +112,12 @@ async function readWorkbenchState(db) {
       progress: row.progress,
       next: row.next_action,
       summary: row.summary,
+      openedAt: row.opened_at || "",
+      dueDate: row.due_date || "",
+      budget: row.budget || "",
+      contact: row.contact || "",
+      goal: row.goal || "",
+      health: row.health || "on_track",
     })),
     tasks: (tasks.results || []).map((row) => ({
       id: row.id,
@@ -129,11 +144,57 @@ async function readWorkbenchState(db) {
       path: row.path,
       note: row.note,
     })),
+    objectives: (objectives.results || []).map((row) => ({
+      id: row.id,
+      projectId: row.project_id || "",
+      title: row.title,
+      owner: row.owner,
+      quarter: row.quarter,
+      progress: row.progress,
+      status: row.status,
+      signal: row.signal,
+    })),
+    keyResults: (keyResults.results || []).map((row) => ({
+      id: row.id,
+      objectiveId: row.objective_id,
+      projectId: row.project_id || "",
+      label: row.label,
+      target: row.target,
+      current: row.current,
+      unit: row.unit,
+      progress: row.progress,
+      status: row.status,
+    })),
+    timeEntries: (timeEntries.results || []).map((row) => ({
+      id: row.id,
+      projectId: row.project_id,
+      taskId: row.task_id || "",
+      description: row.description,
+      date: row.entry_date,
+      hours: Number(row.hours || 0),
+      billable: Boolean(row.billable),
+      tags: row.tags,
+    })),
+    activities: (activities.results || []).map((row) => ({
+      id: row.id,
+      projectId: row.project_id || "",
+      entity: row.entity,
+      entityId: row.entity_id,
+      action: row.action,
+      title: row.title,
+      actor: row.actor,
+      date: row.activity_date,
+      note: row.note,
+    })),
   };
 }
 
 async function writeWorkbenchState(db, state) {
   const statements = [
+    db.prepare("DELETE FROM activities"),
+    db.prepare("DELETE FROM time_entries"),
+    db.prepare("DELETE FROM key_results"),
+    db.prepare("DELETE FROM objectives"),
     db.prepare("DELETE FROM documents"),
     db.prepare("DELETE FROM deadlines"),
     db.prepare("DELETE FROM tasks"),
@@ -144,11 +205,12 @@ async function writeWorkbenchState(db, state) {
     statements.push(
       db
         .prepare(
-          `INSERT INTO projects (id, name, type, client, owner, stage, priority, progress, next_action, summary, sort_order, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+          `INSERT INTO projects (id, project_no, name, type, client, owner, stage, priority, progress, next_action, summary, opened_at, due_date, budget, contact, goal, health, sort_order, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
         )
         .bind(
           project.id,
+          project.projectNo,
           project.name,
           project.type,
           project.client,
@@ -158,6 +220,12 @@ async function writeWorkbenchState(db, state) {
           project.progress,
           project.next,
           project.summary,
+          project.openedAt,
+          project.dueDate,
+          project.budget,
+          project.contact,
+          project.goal,
+          project.health,
           index
         )
     );
@@ -196,6 +264,92 @@ async function writeWorkbenchState(db, state) {
     );
   });
 
+  state.objectives.forEach((objective, index) => {
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO objectives (id, project_id, title, owner, quarter, progress, status, signal, sort_order, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+        )
+        .bind(
+          objective.id,
+          objective.projectId || null,
+          objective.title,
+          objective.owner,
+          objective.quarter,
+          objective.progress,
+          objective.status,
+          objective.signal,
+          index
+        )
+    );
+  });
+
+  state.keyResults.forEach((keyResult, index) => {
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO key_results (id, objective_id, project_id, label, target, current, unit, progress, status, sort_order, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+        )
+        .bind(
+          keyResult.id,
+          keyResult.objectiveId,
+          keyResult.projectId || null,
+          keyResult.label,
+          keyResult.target,
+          keyResult.current,
+          keyResult.unit,
+          keyResult.progress,
+          keyResult.status,
+          index
+        )
+    );
+  });
+
+  state.timeEntries.forEach((entry, index) => {
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO time_entries (id, project_id, task_id, description, entry_date, hours, billable, tags, sort_order, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+        )
+        .bind(
+          entry.id,
+          entry.projectId,
+          entry.taskId || null,
+          entry.description,
+          entry.date,
+          entry.hours,
+          entry.billable ? 1 : 0,
+          entry.tags,
+          index
+        )
+    );
+  });
+
+  state.activities.forEach((activity, index) => {
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO activities (id, project_id, entity, entity_id, action, title, actor, activity_date, note, sort_order, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+        )
+        .bind(
+          activity.id,
+          activity.projectId || null,
+          activity.entity,
+          activity.entityId,
+          activity.action,
+          activity.title,
+          activity.actor,
+          activity.date,
+          activity.note,
+          index
+        )
+    );
+  });
+
   statements.push(
     db
       .prepare("INSERT INTO audit_log (event_type, detail_json) VALUES (?, ?)")
@@ -206,6 +360,10 @@ async function writeWorkbenchState(db, state) {
           tasks: state.tasks.length,
           deadlines: state.deadlines.length,
           documents: state.documents.length,
+          objectives: state.objectives.length,
+          keyResults: state.keyResults.length,
+          timeEntries: state.timeEntries.length,
+          activities: state.activities.length,
         })
       )
   );
@@ -218,6 +376,7 @@ function sanitizeWorkbenchState(payload) {
     const item = rawItem && typeof rawItem === "object" ? rawItem : {};
     return {
     id: sanitizeId(item.id, `project-${index}`),
+    projectNo: sanitizeText(item.projectNo || item.project_no || buildProjectNumber(item.type, index), 80),
     name: sanitizeText(item.name, 160) || "未命名项目",
     type: sanitizeChoice(item.type, ["consulting", "fundraising", "training", "workshop", "operations"], "consulting"),
     client: sanitizeText(item.client, 160),
@@ -227,6 +386,12 @@ function sanitizeWorkbenchState(payload) {
     progress: sanitizeInteger(item.progress, 0, 100, 0),
     next: sanitizeText(item.next, 300),
     summary: sanitizeText(item.summary, 800),
+    openedAt: sanitizeDate(item.openedAt),
+    dueDate: sanitizeDate(item.dueDate),
+    budget: sanitizeText(item.budget, 160),
+    contact: sanitizeText(item.contact, 160),
+    goal: sanitizeText(item.goal, 800),
+    health: sanitizeChoice(item.health, ["on_track", "needs_review", "at_risk", "blocked"], "on_track"),
     };
   });
   const projectIds = new Set(projects.map((project) => project.id));
@@ -235,6 +400,7 @@ function sanitizeWorkbenchState(payload) {
     projects.push({
       id: fallbackProjectId,
       name: "Inbox",
+      projectNo: "PN-OPS-2026-000",
       type: "operations",
       client: "",
       owner: "Pontnova",
@@ -243,9 +409,29 @@ function sanitizeWorkbenchState(payload) {
       progress: 0,
       next: "",
       summary: "临时收件箱项目。",
+      openedAt: "",
+      dueDate: "",
+      budget: "",
+      contact: "",
+      goal: "",
+      health: "on_track",
     });
     projectIds.add(fallbackProjectId);
   }
+  const objectiveSource = sanitizeArray(payload?.objectives, 300).map((rawItem, index) => {
+    const item = rawItem && typeof rawItem === "object" ? rawItem : {};
+    return {
+      id: sanitizeId(item.id, `objective-${index}`),
+      projectId: projectIds.has(item.projectId) ? item.projectId : "",
+      title: sanitizeText(item.title, 240) || "未命名目标",
+      owner: sanitizeText(item.owner, 120),
+      quarter: sanitizeText(item.quarter, 40),
+      progress: sanitizeInteger(item.progress, 0, 100, 0),
+      status: sanitizeChoice(item.status, ["on_track", "needs_review", "at_risk", "archived"], "on_track"),
+      signal: sanitizeText(item.signal, 600),
+    };
+  });
+  const objectiveIds = new Set(objectiveSource.map((objective) => objective.id));
 
   return {
     projects,
@@ -283,6 +469,49 @@ function sanitizeWorkbenchState(payload) {
       note: sanitizeText(item.note, 800),
       };
     }),
+    objectives: objectiveSource,
+    keyResults: sanitizeArray(payload?.keyResults, 1000).map((rawItem, index) => {
+      const item = rawItem && typeof rawItem === "object" ? rawItem : {};
+      const fallbackObjectiveId = objectiveSource[0]?.id || "objective-inbox";
+      return {
+        id: sanitizeId(item.id, `key-result-${index}`),
+        objectiveId: objectiveIds.has(item.objectiveId) ? item.objectiveId : fallbackObjectiveId,
+        projectId: projectIds.has(item.projectId) ? item.projectId : "",
+        label: sanitizeText(item.label, 240) || "未命名关键结果",
+        target: sanitizeText(item.target, 80),
+        current: sanitizeText(item.current, 80),
+        unit: sanitizeText(item.unit, 40),
+        progress: sanitizeInteger(item.progress, 0, 100, 0),
+        status: sanitizeChoice(item.status, ["on_track", "needs_review", "at_risk"], "on_track"),
+      };
+    }).filter((item) => objectiveIds.has(item.objectiveId)),
+    timeEntries: sanitizeArray(payload?.timeEntries, 2000).map((rawItem, index) => {
+      const item = rawItem && typeof rawItem === "object" ? rawItem : {};
+      return {
+        id: sanitizeId(item.id, `time-${index}`),
+        projectId: projectIds.has(item.projectId) ? item.projectId : fallbackProjectId,
+        taskId: sanitizeText(item.taskId, 80),
+        description: sanitizeText(item.description, 300),
+        date: sanitizeDate(item.date),
+        hours: sanitizeNumber(item.hours, 0, 999, 0),
+        billable: Boolean(item.billable ?? true),
+        tags: sanitizeText(item.tags, 200),
+      };
+    }),
+    activities: sanitizeArray(payload?.activities, 2000).map((rawItem, index) => {
+      const item = rawItem && typeof rawItem === "object" ? rawItem : {};
+      return {
+        id: sanitizeId(item.id, `activity-${index}`),
+        projectId: projectIds.has(item.projectId) ? item.projectId : "",
+        entity: sanitizeChoice(item.entity, ["Project", "Task", "Deadline", "Document", "Objective", "TimeEntry"], "Project"),
+        entityId: sanitizeText(item.entityId, 80),
+        action: sanitizeChoice(item.action, ["create", "update", "complete", "review", "note", "delete"], "update"),
+        title: sanitizeText(item.title, 240) || "工作台更新",
+        actor: sanitizeText(item.actor, 120) || "Pontnova",
+        date: sanitizeDate(item.date),
+        note: sanitizeText(item.note, 800),
+      };
+    }),
   };
 }
 
@@ -309,9 +538,26 @@ function sanitizeInteger(value, min, max, fallback) {
   return Math.max(min, Math.min(max, number));
 }
 
+function sanitizeNumber(value, min, max, fallback) {
+  const number = Number.parseFloat(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(min, Math.min(max, number));
+}
+
 function sanitizeDate(value) {
   const text = sanitizeText(value, 20);
   return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
+}
+
+function buildProjectNumber(type, index) {
+  const prefix = {
+    consulting: "CONS",
+    fundraising: "FUND",
+    training: "TRN",
+    workshop: "WS",
+    operations: "OPS",
+  }[type] || "OPS";
+  return `PN-${prefix}-2026-${String(index + 1).padStart(3, "0")}`;
 }
 
 async function handleLogin(request, env) {
