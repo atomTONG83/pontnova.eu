@@ -614,6 +614,120 @@
   - `migrations/0002_workbench_atom_parity.sql`
   - `DEVELOPMENT_LOG.md`
 
+## 2026-06-14 Workbench v5.2 prioritize project work items
+
+### Request
+
+- User shared a production screenshot of a single project page.
+- Feedback: the `固定项目内容` section occupied too much space.
+- Direction: the most important content inside a project should be tasks, key deadlines, documents, objectives, and related records.
+
+### Changes
+
+- Updated workbench asset version to `20260614-v5-2`.
+- Reworked single project detail content hierarchy:
+  - Removed the large `固定项目内容` section from the main flow.
+  - Made `任务推进` the first main content panel after the hero.
+  - Moved project metadata into a compact `项目摘要` side panel.
+  - Kept key project metadata visible without letting it dominate the page.
+- Added focused project panels:
+  - `任务推进`
+  - `项目摘要`
+  - `关键节点`
+  - `资料`
+  - `目标`
+  - `投入记录`
+- Added direct add actions in context:
+  - add task from task panel
+  - add deadline from deadline panel
+  - add document from document panel
+  - add objective from objective panel
+  - add time entry from time panel
+- Added a compact project progress and brief grid:
+  - owner
+  - client
+  - contact
+  - target date
+  - package / budget
+  - project goal
+  - next step
+- Preserved the Atom-style hero from v5.1.
+- Added responsive behavior:
+  - desktop uses a main task area plus a compact project brief rail
+  - medium and mobile widths collapse to a single-column work view
+  - no page-level horizontal overflow
+
+### Local verification
+
+- Syntax and diff checks:
+  - `node --check workbench/app.js`
+  - `node --check _worker.js`
+  - `git diff --check`
+- Local static preview:
+  - `http://127.0.0.1:4319/workbench/`
+- Browser local verification:
+  - v5.2 assets loaded:
+    - `/workbench/styles.css?v=20260614-v5-2`
+    - `/workbench/app.js?v=20260614-v5-2`
+  - Opened `咨询项目`, then `PN-CONS-2026-001`.
+  - Single project detail shows:
+    - first main panel `任务推进`
+    - side panel `项目摘要`
+    - lower panels `关键节点`, `资料`, `目标`, `投入记录`
+  - Old `固定项目内容` text is not present.
+  - Mobile viewport `390 x 844` has no page-level horizontal overflow.
+  - Browser console had no errors.
+
+### Deployment note
+
+- No D1 migration was required.
+- Cloud data remains in the existing `WORKBENCH_DB` binding.
+- Deployment was run with `SKIP_SYNC=1`.
+
+### Production deployment
+
+- Source commit:
+  - `49e819b5a2e75bfb86584876c9777854c40bd2ee`
+- Commit message:
+  - `Prioritize project detail work items`
+- Pushed to:
+  - `origin/main`
+- Cloudflare Pages deploy:
+  - `https://eee678d4.pontnova.pages.dev`
+- Production URL:
+  - `https://pontnova.eu/workbench/`
+
+### Production verification
+
+- Login API with password `atomerin2026`:
+  - `302`
+- Authenticated workbench HTML:
+  - `200`
+- Authenticated state API:
+  - `200`
+- Production HTML confirmed:
+  - `/workbench/styles.css?v=20260614-v5-2`
+  - `/workbench/app.js?v=20260614-v5-2`
+- Browser production verification:
+  - Opened `咨询项目`, then `PN-CONS-2026-001`.
+  - Project detail title is `PN-CONS-2026-001 · 中欧 IP 市场进入策略`.
+  - Old `固定项目内容` section is not present.
+  - First panel is `任务推进`.
+  - Side panel is `项目摘要`.
+  - Lower panels are `关键节点`, `资料`, `目标`, `投入记录`.
+  - Browser console had no errors.
+
+### Local retained copy v5.2
+
+- Local copy:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v5-2-49e819b`
+- Archive:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v5-2-49e819b.tar.gz`
+- SHA-256:
+  - `a0f040ac606ec7c99cfa0ac672c5124fc8195f767914af42d2c73fc3ae42cc17`
+- Manifest:
+  - `LOCAL_BACKUP_MANIFEST.md`
+
 ## 2026-06-14 Workbench v5.1 match Atom program detail layout
 
 ### Request
