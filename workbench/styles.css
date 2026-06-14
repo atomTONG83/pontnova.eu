@@ -198,6 +198,17 @@ a:focus-visible {
   padding: 6px 10px;
 }
 
+.danger-button {
+  border-color: rgba(174, 61, 43, 0.24);
+  background: rgba(174, 61, 43, 0.07);
+  color: #a64031;
+}
+
+.danger-button:hover {
+  border-color: rgba(174, 61, 43, 0.38);
+  background: rgba(174, 61, 43, 0.12);
+}
+
 .sidebar .ghost-button {
   width: 100%;
   border-color: var(--line);
@@ -719,7 +730,7 @@ h3 {
 }
 
 .dashboard-task-row {
-  grid-template-columns: 22px minmax(220px, 1fr) auto auto auto;
+  grid-template-columns: 22px minmax(220px, 1fr) auto auto auto auto;
 }
 
 .dashboard-objective-row {
@@ -755,6 +766,10 @@ h3 {
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.dashboard-task-actions {
+  min-width: max-content;
 }
 
 .due-pill {
@@ -1050,6 +1065,53 @@ h3 {
   display: grid;
   gap: 12px;
   padding: 16px;
+}
+
+.project-card-body {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.project-card-body:hover .project-card-copy,
+.project-card-body:hover .project-next {
+  color: var(--ink);
+}
+
+.project-card-copy,
+.project-next {
+  display: block;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.record-actions,
+.table-actions,
+.row-actions,
+.project-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.record-actions,
+.table-actions,
+.project-row-actions {
+  align-items: center;
+}
+
+.record-actions {
+  padding-top: 4px;
+}
+
+.table-actions,
+.row-actions {
+  justify-content: flex-end;
 }
 
 .clickable-card,
@@ -2009,8 +2071,21 @@ th {
 
 .project-task-row {
   grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 8px;
+}
+
+.project-row-open {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 16px;
-  padding: 16px;
+  align-items: center;
+  border: 0;
+  padding: 8px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
 }
 
 .project-list-row {
@@ -2024,6 +2099,10 @@ th {
   border-color: rgba(189, 96, 69, 0.22);
   background: #fbf6ec;
   transform: translateY(-1px);
+}
+
+.project-row-actions {
+  justify-content: flex-end;
 }
 
 .task-main,
@@ -2895,6 +2974,7 @@ th {
   .dashboard-task-row .status,
   .dashboard-task-row .badge,
   .dashboard-task-row .due-pill,
+  .dashboard-task-row .dashboard-task-actions,
   .dashboard-objective-row .row-arrow {
     grid-column: 2;
     width: fit-content;
@@ -2978,11 +3058,16 @@ th {
   }
 
   .project-task-row,
-  .project-list-row {
+  .project-list-row,
+  .project-row-open {
     grid-template-columns: 1fr;
   }
 
-  .task-meta {
+  .task-meta,
+  .project-row-actions,
+  .table-actions,
+  .record-actions,
+  .row-actions {
     justify-content: flex-start;
   }
 

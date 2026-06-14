@@ -685,6 +685,10 @@
         <span class="status ${escapeAttr(task.status === "in_progress" ? "needs_review" : "")}">${statusLabel(task.status)}</span>
         <span class="badge ${escapeAttr(task.priority)}">${priorityLabel(task.priority)}</span>
         <span class="due-pill ${daysUntil(task.due) <= 2 ? "urgent" : ""}">${relativeDay(task.due)}</span>
+        <span class="row-actions dashboard-task-actions">
+          <button class="ghost-button compact" data-edit-task="${escapeAttr(task.id)}" type="button">编辑</button>
+          <button class="ghost-button compact danger-button" data-delete-task="${escapeAttr(task.id)}" type="button">删除</button>
+        </span>
       </article>
     `;
   }
@@ -854,7 +858,7 @@
               <th>状态</th>
               <th>下一期限</th>
               <th>风险</th>
-              <th></th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -871,8 +875,8 @@
       .sort((a, b) => String(a.date).localeCompare(String(b.date)))[0];
     const risk = programRiskTone(project);
     return `
-      <tr data-open-project="${escapeAttr(project.id)}">
-        <td><span class="atom-mono">${escapeHtml(project.projectNo)}</span></td>
+      <tr>
+        <td><button class="table-link atom-mono" data-open-project="${escapeAttr(project.id)}" type="button">${escapeHtml(project.projectNo)}</button></td>
         <td>
           <strong>${escapeHtml(project.name)}</strong>
           <small>${escapeHtml(typeLabel(project.type))}${project.client ? ` · ${escapeHtml(project.client)}` : ""}</small>
@@ -885,7 +889,13 @@
           ` : `<span class="muted-copy">—</span>`}
         </td>
         <td><span class="risk-dot ${escapeAttr(risk)}" title="${escapeAttr(healthLabel(project.health))}"></span></td>
-        <td><span class="row-arrow">›</span></td>
+        <td>
+          <span class="table-actions">
+            <button class="ghost-button compact" data-open-project="${escapeAttr(project.id)}" type="button">打开</button>
+            <button class="ghost-button compact" data-edit-project="${escapeAttr(project.id)}" type="button">编辑</button>
+            <button class="ghost-button compact danger-button" data-delete-project="${escapeAttr(project.id)}" type="button">删除</button>
+          </span>
+        </td>
       </tr>
     `;
   }
@@ -902,7 +912,7 @@
     const nextDeadline = rel.deadlines.filter((deadline) => deadline.date).sort((a, b) => a.date.localeCompare(b.date))[0];
     const hours = sumHours(rel.timeEntries);
     return `
-      <button class="project-card clickable-card" data-open-project="${escapeAttr(project.id)}" type="button">
+      <article class="project-card project-record-card">
         <header>
           <div>
             <span class="case-number">${escapeHtml(project.projectNo)}</span>
@@ -910,20 +920,27 @@
           </div>
           <span class="badge ${escapeAttr(project.priority)}">${priorityLabel(project.priority)}</span>
         </header>
-        <p>${escapeHtml(project.summary || "暂无项目说明。")}</p>
-        <div class="progress"><span style="width:${project.progress}%"></span></div>
-        <div class="meta-row">
-          <span class="status">${typeLabel(project.type)}</span>
-          <span class="status">${stageLabel(project.stage)}</span>
-          <span class="status ${escapeAttr(project.health)}">${healthLabel(project.health)}</span>
-          <span class="status">${escapeHtml(project.client || "未设客户")}</span>
+        <button class="project-card-body" data-open-project="${escapeAttr(project.id)}" type="button">
+          <span class="project-card-copy">${escapeHtml(project.summary || "暂无项目说明。")}</span>
+          <span class="progress"><span style="width:${project.progress}%"></span></span>
+          <span class="meta-row">
+            <span class="status">${typeLabel(project.type)}</span>
+            <span class="status">${stageLabel(project.stage)}</span>
+            <span class="status ${escapeAttr(project.health)}">${healthLabel(project.health)}</span>
+            <span class="status">${escapeHtml(project.client || "未设客户")}</span>
+          </span>
+          <span class="project-card-footer">
+            <span>${rel.tasks.filter((task) => task.status !== "done").length} 个未完成任务 · ${hours.toFixed(1)} h</span>
+            <span>${nextDeadline ? `${relativeDay(nextDeadline.date)} · ${escapeHtml(nextDeadline.title)}` : "暂无关键节点"}</span>
+          </span>
+          <span class="project-next"><strong>下一步：</strong>${escapeHtml(project.next || "待补充")}</span>
+        </button>
+        <div class="record-actions">
+          <button class="ghost-button compact" data-open-project="${escapeAttr(project.id)}" type="button">打开</button>
+          <button class="ghost-button compact" data-edit-project="${escapeAttr(project.id)}" type="button">编辑</button>
+          <button class="ghost-button compact danger-button" data-delete-project="${escapeAttr(project.id)}" type="button">删除</button>
         </div>
-        <div class="project-card-footer">
-          <span>${rel.tasks.filter((task) => task.status !== "done").length} 个未完成任务 · ${hours.toFixed(1)} h</span>
-          <span>${nextDeadline ? `${relativeDay(nextDeadline.date)} · ${escapeHtml(nextDeadline.title)}` : "暂无关键节点"}</span>
-        </div>
-        <p><strong>下一步：</strong>${escapeHtml(project.next || "待补充")}</p>
-      </button>
+      </article>
     `;
   }
 
@@ -940,10 +957,17 @@
           <td>${escapeHtml(task.owner || "—")}</td>
           <td>${escapeHtml(task.due || "未设定")}</td>
           <td><span class="badge ${escapeAttr(task.priority)}">${priorityLabel(task.priority)}</span></td>
+          <td>
+            <span class="table-actions">
+              <button class="ghost-button compact" data-open-task="${escapeAttr(task.id)}" type="button">打开</button>
+              <button class="ghost-button compact" data-edit-task="${escapeAttr(task.id)}" type="button">编辑</button>
+              <button class="ghost-button compact danger-button" data-delete-task="${escapeAttr(task.id)}" type="button">删除</button>
+            </span>
+          </td>
         </tr>
       `;
     }).join("");
-    if (!tasks.length) table.innerHTML = `<tr><td colspan="6">暂无任务。</td></tr>`;
+    if (!tasks.length) table.innerHTML = `<tr><td colspan="7">暂无任务。</td></tr>`;
   }
 
   function taskCard(task) {
@@ -1556,6 +1580,7 @@
                 <button class="ghost-button compact" data-add-related="task" data-project-id="${escapeAttr(id)}" type="button">新增任务</button>
                 <button class="ghost-button compact" data-add-related="deadline" data-project-id="${escapeAttr(id)}" type="button">新增节点</button>
                 <button class="primary-button small" data-edit-project="${escapeAttr(id)}" type="button">编辑项目</button>
+                <button class="ghost-button compact danger-button" data-delete-project="${escapeAttr(id)}" type="button">删除项目</button>
               </div>
             </div>
             <div class="atom-program-metrics">
@@ -1604,17 +1629,24 @@
 
   function projectTaskRow(task) {
     return `
-      <button class="project-task-row" data-open-task="${escapeAttr(task.id)}" type="button">
-        <span class="task-main">
-          <strong>${escapeHtml(task.title)}</strong>
-          <small>${escapeHtml(task.notes || "暂无备注。")}</small>
-        </span>
-        <span class="task-meta">
-          <span class="atom-status ${escapeAttr(task.status)}">${statusLabel(task.status)}</span>
-          <span class="due-pill ${daysUntil(task.due) <= 3 ? "urgent" : ""}">${escapeHtml(relativeDay(task.due))}</span>
-          <span>${priorityLabel(task.priority)}</span>
-        </span>
-      </button>
+      <article class="project-task-row">
+        <button class="project-row-open" data-open-task="${escapeAttr(task.id)}" type="button">
+          <span class="task-main">
+            <strong>${escapeHtml(task.title)}</strong>
+            <small>${escapeHtml(task.notes || "暂无备注。")}</small>
+          </span>
+          <span class="task-meta">
+            <span class="atom-status ${escapeAttr(task.status)}">${statusLabel(task.status)}</span>
+            <span class="due-pill ${daysUntil(task.due) <= 3 ? "urgent" : ""}">${escapeHtml(relativeDay(task.due))}</span>
+            <span>${priorityLabel(task.priority)}</span>
+          </span>
+        </button>
+        <div class="project-row-actions">
+          <button class="ghost-button compact" data-open-task="${escapeAttr(task.id)}" type="button">打开</button>
+          <button class="ghost-button compact" data-edit-task="${escapeAttr(task.id)}" type="button">编辑</button>
+          <button class="ghost-button compact danger-button" data-delete-task="${escapeAttr(task.id)}" type="button">删除</button>
+        </div>
+      </article>
     `;
   }
 
@@ -1827,11 +1859,12 @@
     container.innerHTML = `
       <div class="detail-page">
         <div class="detail-toolbar">
-          <button class="ghost-button compact" data-view-jump="tasks" type="button">返回任务</button>
+          <button class="ghost-button compact" data-open-project="${escapeAttr(project.id)}" type="button">← 返回 ${escapeHtml(project.projectNo)}</button>
           <div class="detail-actions">
-            <button class="ghost-button compact" data-open-project="${escapeAttr(project.id)}" type="button">打开项目</button>
+            <button class="ghost-button compact" data-view-jump="tasks" type="button">任务清单</button>
             <button class="ghost-button compact" data-add-related="time" data-project-id="${escapeAttr(project.id)}" type="button">记录投入</button>
             <button class="primary-button small" data-edit-task="${escapeAttr(task.id)}" type="button">编辑任务</button>
+            <button class="ghost-button compact danger-button" data-delete-task="${escapeAttr(task.id)}" type="button">删除任务</button>
           </div>
         </div>
 
@@ -2213,6 +2246,53 @@
     saveAndRender();
   }
 
+  function deleteProject(id) {
+    const project = state.projects.find((item) => item.id === id);
+    if (!project) return;
+    const rel = related(id);
+    const confirmed = window.confirm(`确定删除项目 ${project.projectNo} · ${project.name}？\n\n将同时删除该项目下的 ${rel.tasks.length} 个任务、${rel.deadlines.length} 个节点、${rel.documents.length} 份资料、${rel.objectives.length} 个目标和 ${rel.timeEntries.length} 条投入记录。`);
+    if (!confirmed) return;
+
+    const objectiveIds = rel.objectives.map((objective) => objective.id);
+    state.projects = state.projects.filter((item) => item.id !== id);
+    state.tasks = state.tasks.filter((task) => task.projectId !== id);
+    state.deadlines = state.deadlines.filter((deadline) => deadline.projectId !== id);
+    state.documents = state.documents.filter((documentItem) => documentItem.projectId !== id);
+    state.objectives = state.objectives.filter((objective) => objective.projectId !== id);
+    state.keyResults = state.keyResults.filter((kr) => kr.projectId !== id && !objectiveIds.includes(kr.objectiveId));
+    state.timeEntries = state.timeEntries.filter((entry) => entry.projectId !== id);
+    state.activities = state.activities.filter((activity) => activity.projectId !== id);
+    trackActivity({ projectId: "", entity: "Project", entityId: id, action: "delete", title: `删除项目档案 ${project.projectNo}`, note: project.name });
+
+    if (activeDetail?.kind === "project" && activeDetail.id === id) activeDetail = null;
+    if (activeDrawer) closeDrawerIfOpen();
+    saveAndRender();
+    if (currentView === "projectDetail") setView("projects");
+    setSyncStatus("项目已删除，正在同步云端", "pending");
+  }
+
+  function deleteTask(id) {
+    const task = state.tasks.find((item) => item.id === id);
+    if (!task) return;
+    const project = projectById(task.projectId);
+    const confirmed = window.confirm(`确定删除任务「${task.title}」？\n\n已有工时记录会保留，但不再关联到这个任务。`);
+    if (!confirmed) return;
+
+    state.tasks = state.tasks.filter((item) => item.id !== id);
+    state.timeEntries.forEach((entry) => {
+      if (entry.taskId === id) entry.taskId = "";
+    });
+    trackActivity({ projectId: task.projectId, entity: "Task", entityId: id, action: "delete", title: `删除任务：${task.title}`, note: project.projectNo });
+
+    const shouldReturnProject = currentView === "taskDetail" && activeDetail?.kind === "task" && activeDetail.id === id && project.id;
+    if (activeDetail?.kind === "task" && activeDetail.id === id) activeDetail = null;
+    if (activeDrawer) closeDrawerIfOpen();
+    saveAndRender();
+    if (shouldReturnProject) openProject(project.id);
+    if (currentView === "taskDetail" && !shouldReturnProject) setView("tasks");
+    setSyncStatus("任务已删除，正在同步云端", "pending");
+  }
+
   function valueOf(id) {
     return document.getElementById(id)?.value?.trim() || "";
   }
@@ -2487,7 +2567,7 @@
     saveAndRender();
   });
   document.body.addEventListener("click", (event) => {
-    const target = event.target.closest("[data-open-program], [data-open-project], [data-open-task], [data-open-deadline], [data-open-document], [data-open-objective], [data-open-time], [data-open-activity], [data-open-day], [data-add-related], [data-new-program-project], [data-filter-program], [data-edit-project], [data-edit-task], [data-view-jump], [data-save-project], [data-save-task], [data-save-deadline], [data-save-document], [data-save-objective], [data-save-time], [data-filter-jump]");
+    const target = event.target.closest("[data-open-program], [data-open-project], [data-open-task], [data-open-deadline], [data-open-document], [data-open-objective], [data-open-time], [data-open-activity], [data-open-day], [data-add-related], [data-new-program-project], [data-filter-program], [data-edit-project], [data-edit-task], [data-delete-project], [data-delete-task], [data-view-jump], [data-save-project], [data-save-task], [data-save-deadline], [data-save-document], [data-save-objective], [data-save-time], [data-filter-jump]");
     if (!target) return;
     if (target.dataset.viewJump) setView(target.dataset.viewJump);
     if (target.dataset.openProgram) openProgram(target.dataset.openProgram);
@@ -2509,6 +2589,8 @@
     }
     if (target.dataset.editProject) openEditDialog("project", target.dataset.editProject);
     if (target.dataset.editTask) openEditDialog("task", target.dataset.editTask);
+    if (target.dataset.deleteProject) deleteProject(target.dataset.deleteProject);
+    if (target.dataset.deleteTask) deleteTask(target.dataset.deleteTask);
     if (target.dataset.saveProject) saveProject(target.dataset.saveProject);
     if (target.dataset.saveTask) saveTask(target.dataset.saveTask);
     if (target.dataset.saveDeadline) saveDeadline(target.dataset.saveDeadline);
