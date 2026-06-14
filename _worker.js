@@ -11,11 +11,11 @@ export default {
       return redirect(`${url.origin}/workbench/`);
     }
 
-    if (path === "/workbench/login" && request.method === "GET") {
+    if (path === "/workbench/login" && (request.method === "GET" || request.method === "HEAD")) {
       if (await hasValidSession(request, env)) {
         return redirect(`${url.origin}/workbench/`);
       }
-      return loginPage();
+      return loginPage("", 200, request.method === "HEAD");
     }
 
     if (path === "/workbench/api/login" && request.method === "POST") {
@@ -178,9 +178,9 @@ function withPrivateHeaders(response) {
   return next;
 }
 
-function loginPage(message = "", status = 200) {
+function loginPage(message = "", status = 200, headOnly = false) {
   return new Response(
-    `<!doctype html>
+    headOnly ? null : `<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
