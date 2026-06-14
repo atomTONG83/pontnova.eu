@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
   <title>Pontnova 工作台</title>
-  <link rel="stylesheet" href="/workbench/styles.css?v=20260614-v3">
+  <link rel="stylesheet" href="/workbench/styles.css?v=20260614-v4">
 </head>
-<body>
+<body data-view="dashboard">
   <div class="shell">
     <aside class="sidebar">
       <a class="brand" href="/workbench/" aria-label="Pontnova 工作台首页">
@@ -17,18 +17,23 @@
           <small>工作台</small>
         </span>
       </a>
+      <button class="sidebar-create" id="newProjectButtonSidebar" type="button">+ 新增项目</button>
       <nav class="nav" aria-label="工作台导航">
-        <button class="nav-item is-active" data-view="dashboard" type="button">总览</button>
+        <button class="nav-item is-active" data-view="dashboard" type="button">看板</button>
         <button class="nav-item" data-view="projects" type="button">项目</button>
-        <button class="nav-item" data-view="tasks" type="button">任务</button>
         <button class="nav-item" data-view="calendar" type="button">日程</button>
-        <button class="nav-item" data-view="documents" type="button">资料</button>
-        <button class="nav-item" data-view="objectives" type="button">目标</button>
-        <button class="nav-item" data-view="workload" type="button">投入</button>
-        <button class="nav-item" data-view="audit" type="button">动态</button>
-        <button class="nav-item" data-view="map" type="button">图谱</button>
+        <button class="nav-item" data-view="objectives" type="button">OKR</button>
+        <button class="nav-item" data-view="tasks" type="button">任务</button>
+        <button class="nav-item" data-view="workload" type="button">投入分析</button>
+        <button class="nav-item" data-view="documents" type="button">资料索引</button>
+        <button class="nav-item" data-view="audit" type="button">活动日志</button>
+        <button class="nav-item" data-view="map" type="button">平台图谱</button>
       </nav>
       <div class="sidebar-foot">
+        <div class="sidebar-note">
+          <strong>工作原则</strong>
+          <span>先看期限，再看项目；每个动作都绑定项目号。</span>
+        </div>
         <button class="ghost-button" id="exportDataButton" type="button">导出 JSON</button>
         <label class="ghost-button file-button">
           导入
@@ -56,57 +61,126 @@
         </div>
       </header>
 
-      <section class="view is-active" id="dashboardView" aria-labelledby="viewTitle">
-        <div class="metric-grid" id="metricGrid"></div>
-        <section class="panel">
+      <section class="view is-active dashboard-board" id="dashboardView" aria-labelledby="viewTitle">
+        <section class="hero-board">
+          <div class="hero-copy">
+            <p class="date-pill" id="todayPill">Pontnova</p>
+            <h1>先看期限，再看项目，把今天的时间放到最重要的事上。</h1>
+            <p>咨询、投融资、培训和 Workshop 都按项目号归档；任务、资料、节点、投入和目标围绕项目流转。</p>
+            <div class="hero-actions">
+              <button class="primary-button" id="newTaskButton" type="button">新增任务</button>
+              <button class="ghost-button compact" id="newDeadlineButton" type="button">新增节点</button>
+            </div>
+          </div>
+          <div class="hero-stats" id="heroStats"></div>
+        </section>
+
+        <section class="board-panel analytics-panel">
           <div class="panel-head">
             <div>
-              <h2>业务线</h2>
-              <p class="panel-subtitle">对应 Atom 工作台的项目组合层，Pontnova 版按业务类型归档。</p>
+              <p class="section-kicker">Workload Analytics</p>
+              <h2>工时分析</h2>
+              <p class="panel-subtitle">按项目号汇总投入，帮助判断哪些项目正在消耗注意力。</p>
             </div>
-            <button class="text-button" data-view-jump="projects" type="button">查看项目档案</button>
+            <div class="range-pills" aria-label="工时分析范围">
+              <button data-dashboard-range="7" type="button">7 天</button>
+              <button class="is-active" data-dashboard-range="30" type="button">30 天</button>
+              <button data-dashboard-range="90" type="button">90 天</button>
+              <button data-dashboard-range="365" type="button">1 年</button>
+              <button data-dashboard-range="all" type="button">全部</button>
+            </div>
+          </div>
+          <div class="analytics-stats" id="analyticsStats"></div>
+          <div class="histogram-card">
+            <div class="mini-head">
+              <strong>每日工时分布</strong>
+              <span id="histogramMeta">30 天</span>
+            </div>
+            <div class="histogram-bars" id="workloadHistogram"></div>
+          </div>
+          <div class="analytics-splits">
+            <div class="split-panel">
+              <div class="mini-head">
+                <strong>按项目分布</strong>
+                <span>基于项目号</span>
+              </div>
+              <div class="distribution-list" id="workloadByProject"></div>
+            </div>
+            <div class="split-panel">
+              <div class="mini-head">
+                <strong>高强度项目</strong>
+                <span>Top 5</span>
+              </div>
+              <div class="distribution-list compact" id="topProjectWorkload"></div>
+            </div>
+          </div>
+          <div class="trend-card" id="weeklyTrend"></div>
+        </section>
+
+        <section class="board-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Current Tasks</p>
+              <h2>当前任务</h2>
+            </div>
+            <div class="panel-meta" id="taskPanelMeta"></div>
+          </div>
+          <div class="dashboard-table" id="dashboardTasks"></div>
+        </section>
+
+        <section class="board-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Deadline Radar</p>
+              <h2>近 30 天期限</h2>
+            </div>
+            <span class="panel-meta" id="deadlinePanelMeta"></span>
+          </div>
+          <div class="deadline-radar-list" id="dashboardTimeline"></div>
+        </section>
+
+        <section class="board-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Objectives & Key Results</p>
+              <h2>本季度 OKR</h2>
+            </div>
+            <button class="text-button" data-view-jump="objectives" type="button">查看全部 OKR</button>
+          </div>
+          <div class="objective-grid compact" id="dashboardObjectives"></div>
+        </section>
+
+        <section class="board-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Portfolio</p>
+              <h2>项目组合</h2>
+            </div>
+            <button class="text-button" data-view-jump="projects" type="button">进入项目档案</button>
           </div>
           <div class="program-grid" id="dashboardPrograms"></div>
         </section>
-        <div class="layout-two">
-          <section class="panel">
-            <div class="panel-head">
-              <h2>正在推进</h2>
-              <button class="text-button" data-view-jump="projects" type="button">查看全部</button>
-            </div>
-            <div class="project-list compact" id="dashboardProjects"></div>
-          </section>
-          <section class="panel">
-            <div class="panel-head">
-              <h2>未来 14 天</h2>
-              <button class="text-button" id="newDeadlineButton" type="button">新增节点</button>
-            </div>
-            <div class="timeline" id="dashboardTimeline"></div>
-          </section>
-        </div>
-        <section class="panel">
-          <div class="panel-head">
-            <h2>下一步动作</h2>
-            <button class="text-button" id="newTaskButton" type="button">新增任务</button>
-          </div>
-          <div class="task-board" id="dashboardTasks"></div>
-        </section>
-        <div class="layout-two">
-          <section class="panel">
-            <div class="panel-head">
-              <h2>季度目标</h2>
-              <button class="text-button" data-view-jump="objectives" type="button">查看全部</button>
-            </div>
-            <div class="objective-grid compact" id="dashboardObjectives"></div>
-          </section>
-          <section class="panel">
-            <div class="panel-head">
-              <h2>最近动态</h2>
-              <button class="text-button" data-view-jump="audit" type="button">查看日志</button>
-            </div>
+
+        <section class="bottom-board-grid">
+          <article class="newsdesk-card">
+            <p class="section-kicker">Newsdesk</p>
+            <h2>UPC / EU IP 资讯台</h2>
+            <p>后续接入 EUIPO、UPC、SEP、反假冒与投融资观察，成为项目判断的外部情报入口。</p>
+            <button class="ghost-button compact" data-view-jump="documents" type="button">查看资料索引</button>
+          </article>
+          <article class="board-panel compact-panel">
+            <p class="section-kicker">Audit Trail</p>
+            <h2>数据完整性</h2>
+            <p class="panel-subtitle">项目、任务、节点、资料、目标和投入均保留活动记录。</p>
             <div class="activity-list" id="dashboardActivity"></div>
-          </section>
-        </div>
+          </article>
+          <article class="board-panel compact-panel map-teaser">
+            <p class="section-kicker">Platform Map</p>
+            <h2>平台地图</h2>
+            <p class="panel-subtitle">查看项目与任务、节点、目标、资料和投入之间的关系。</p>
+            <button class="text-button" data-view-jump="map" type="button">打开平台图谱</button>
+          </article>
+        </section>
       </section>
 
       <section class="view" id="projectsView">
@@ -294,6 +368,6 @@
     </div>
   </template>
 
-  <script src="/workbench/app.js?v=20260614-v3" defer></script>
+  <script src="/workbench/app.js?v=20260614-v4" defer></script>
 </body>
 </html>

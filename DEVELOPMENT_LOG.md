@@ -430,3 +430,122 @@
 - Notes:
   - Local Wrangler Pages D1 binding may still use a temporary database namespace and show fallback sync in the browser, but migration 0002 applied successfully to the configured local D1 database.
   - Production verification must run after applying remote migration 0002.
+
+### Local retained copy
+
+- Date: 2026-06-14
+- Purpose:
+  - Keep a clean local retained copy of the Pontnova workbench v3 source for future development and rollback reference.
+  - Source is the deployed `origin/main` commit, not the dirty working directory.
+- Source commit:
+  - `7479ec05980d272f1b4ec0ef7c4ff75b5b9a9f82`
+- Local copy:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v3-7479ec0`
+- Archive:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v3-7479ec0.tar.gz`
+- SHA-256:
+  - `7ecd4e59652f3618552a1b5a954e0cc588d9cd2a28319a4d6d9761c329a50b3c`
+- Manifest:
+  - `LOCAL_BACKUP_MANIFEST.md`
+
+## 2026-06-14 Workbench v4 Atom-style dashboard refinement
+
+### Request
+
+- User feedback:
+  - Atom workbench home dashboard is clearer and better looking.
+  - PN workbench home page still felt cluttered.
+  - After login, the first screen should behave like a dashboard/kanban.
+  - Project, task, deadline, and OKR details still need to be clickable.
+
+### Scope
+
+- Keep the Pontnova simplified business scope:
+  - consulting
+  - fundraising
+  - training
+  - workshop
+- Do not add patent-application workflow modules.
+- Do not change D1 schema in this iteration.
+- Continue using cloud D1 state and project-number-based records.
+
+### UI / UX changes
+
+- Rebuilt the workbench home page into an Atom-style board:
+  - hero panel with date, operating principle, quick task/node actions, and 4 key metrics
+  - workload analytics panel with range controls, KPI cards, daily histogram, project distribution, top workload projects, and weekly trend
+  - current tasks section using compact table-like rows
+  - deadline radar section for near-term project nodes
+  - compact OKR summary section
+  - portfolio section for business-line cards
+  - bottom entry cards for Newsdesk, Audit Trail, and Platform Map
+- Hid the old topbar on the dashboard view so the first viewport starts directly with the board.
+- Added sidebar `+ 新增项目` so users can create project dossiers from the dashboard.
+- Updated navigation labels:
+  - 看板
+  - 项目
+  - 日程
+  - OKR
+  - 任务
+  - 投入分析
+  - 资料索引
+  - 活动日志
+  - 平台图谱
+- Shifted the visual style to Atom-like warm cream, terracotta, brown, green, and blue accents.
+
+### Interaction changes
+
+- Dashboard task rows open task detail drawers.
+- Dashboard deadline rows open deadline detail drawers.
+- Dashboard OKR rows open objective detail drawers.
+- Project cards in the project view still open editable project dossiers with project numbers.
+- Workload range controls now update dashboard analytics:
+  - 7 天
+  - 30 天
+  - 90 天
+  - 1 年
+  - 全部
+
+### Files changed
+
+- `workbench/index.html`
+  - Replaced the previous overview layout with a board-first dashboard structure.
+  - Added dashboard containers for metrics, workload charts, task rows, deadline radar, OKR summary, portfolio, and bottom cards.
+  - Bumped workbench assets to `20260614-v4`.
+- `workbench/app.js`
+  - Added dashboard range state.
+  - Added renderers for hero metrics, workload analytics, histogram, distributions, trend, task rows, deadline radar rows, and compact OKR rows.
+  - Updated view switching so returning to the dashboard re-renders the new board.
+  - Removed old dashboard task-card overwrites.
+- `workbench/styles.css`
+  - Added Atom-inspired warm palette.
+  - Added board, hero, analytics, histogram, radar, task-row, OKR-row, and responsive styles.
+  - Added mobile rules to avoid horizontal overflow.
+
+### Local verification
+
+- `node --check workbench/app.js`
+- `node --check _worker.js`
+- Local static preview:
+  - `http://127.0.0.1:3003/workbench/`
+- Browser verification:
+  - Dashboard opens as the first view.
+  - Hero headline renders:
+    - `先看期限，再看项目，把今天的时间放到最重要的事上。`
+  - Dashboard rendered:
+    - 4 hero metric cards
+    - 4 current task rows
+    - 3 deadline radar rows
+    - 2 compact OKR rows
+    - 5 portfolio cards
+  - Project card opens project drawer with project number and save button.
+  - Dashboard task row opens task drawer.
+  - Dashboard deadline row opens deadline drawer.
+  - Dashboard OKR row opens objective drawer.
+  - Workload range switch to `90 天` updates active range and histogram metadata.
+  - Mobile viewport `390 x 844` has no horizontal overflow.
+  - Browser console had no warnings or errors.
+
+### Deployment note
+
+- No D1 migration is required for v4 because this iteration only changes frontend layout and dashboard rendering.

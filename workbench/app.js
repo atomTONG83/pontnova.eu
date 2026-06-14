@@ -153,6 +153,7 @@
   const state = clone(seed);
   let currentView = "dashboard";
   let currentFilter = "all";
+  let dashboardRange = "30";
   let query = "";
   let calendarMode = "month";
   let calendarAnchor = startOfDay(new Date());
@@ -173,7 +174,7 @@
     map: document.getElementById("mapView")
   };
   const titles = {
-    dashboard: "项目总览",
+    dashboard: "项目看板",
     projects: "项目组合",
     tasks: "任务清单",
     calendar: "日历",
@@ -450,34 +451,247 @@
     const weekDeadlines = upcoming30.filter((deadline) => daysUntil(deadline.date) <= 7);
     const openTasks = state.tasks.filter((task) => task.status !== "done");
     const totalHours = sumHours(state.timeEntries);
-    document.getElementById("metricGrid").innerHTML = [
-      ["本周到期", weekDeadlines.length, "≤ 7 天关键节点"],
-      ["30 天内", upcoming30.length, "会议、交付、发布"],
-      ["活跃项目", `${state.projects.filter((p) => !["complete", "paused"].includes(p.stage)).length} / ${state.projects.length}`, "按项目号归档"],
-      ["累计投入", `${totalHours.toFixed(1)} h`, `${state.documents.length} 份资料`],
-      ["当前任务", openTasks.length, "未完成动作"],
-      ["风险关注", state.projects.filter((p) => ["at_risk", "blocked"].includes(p.health)).length, "需复核或阻塞"]
-    ].map(([label, value, hint]) => `<article class="metric"><span>${label}</span><strong>${value}</strong><small>${hint}</small></article>`).join("");
+    const activeProjects = state.projects.filter((project) => !["complete", "paused"].includes(project.stage));
+    const riskProjects = state.projects.filter((project) => ["at_risk", "blocked"].includes(project.health));
+    const scopedEntries = timeEntriesForDashboardRange();
+    const scopedHours = sumHours(scopedEntries);
+    const scopedDays = dashboardRange === "all" ? spanDays(scopedEntries) : Number(dashboardRange);
+    const projectHours = projectHourRows(scopedEntries);
 
-    const dashProjects = document.getElementById("dashboardProjects");
-    const projects = filteredProjects().filter((p) => p.stage !== "complete").slice(0, 4);
-    dashProjects.innerHTML = projects.length ? projects.map(projectCard).join("") : "";
-    if (!projects.length) renderEmpty(dashProjects);
+    const todayPill = document.getElementById("todayPill");
+    if (todayPill) todayPill.textContent = formatLongDate(toIsoDate(today));
+
+    const heroStats = document.getElementById("heroStats");
+    if (heroStats) {
+      heroStats.innerHTML = [
+        dashboardMetricCard("本周到期", weekDeadlines.length, "7 天内关键节点", "rose"),
+        dashboardMetricCard("30 天内", upcoming30.length, "未来一个月排期", "amber"),
+        dashboardMetricCard("活跃项目", `${activeProjects.length}/${state.projects.length}`, "按项目号归档", "green"),
+        dashboardMetricCard("累计投入", `${totalHours.toFixed(1)} h`, `${state.timeEntries.length} 条记录`, "neutral")
+      ].join("");
+    }
+
+    document.querySelectorAll("[data-dashboard-range]").forEach((button) => {
+      button.classList.toggle("is-active", button.dataset.dashboardRange === dashboardRange);
+    });
+
+    const analyticsStats = document.getElementById("analyticsStats");
+    if (analyticsStats) {
+      analyticsStats.innerHTML = [
+        analyticsMetricCard("总工时", `${scopedHours.toFixed(1)} h`, `${projectHours.length} 个项目有投入`),
+        analyticsMetricCard("日均", `${(scopedHours / Math.max(1, scopedDays)).toFixed(2)} h`, "按当前范围折算"),
+        analyticsMetricCard("记录条数", scopedEntries.length, `${state.documents.length} 份资料索引`)
+      ].join("");
+    }
+
+    const histogram = document.getElementById("workloadHistogram");
+    if (histogram) histogram.innerHTML = histogramBars(scopedEntries);
+    const histogramMeta = document.getElementById("histogramMeta");
+    if (histogramMeta) histogramMeta.textContent = rangeLabel(dashboardRange);
+
+    const byProject = document.getElementById("workloadByProject");
+    if (byProject) byProject.innerHTML = distributionRows(projectHours, "wide");
+    const topProject = document.getElementById("topProjectWorkload");
+    if (topProject) topProject.innerHTML = distributionRows(projectHours.slice(0, 5), "compact");
+    const trend = document.getElementById("weeklyTrend");
+    if (trend) trend.innerHTML = weeklyTrendCard();
 
     const dashTasks = document.getElementById("dashboardTasks");
     const tasks = filteredTasks().filter((task) => task.status !== "done").sort(sortTasks).slice(0, 6);
-    dashTasks.innerHTML = tasks.length ? tasks.map(taskCard).join("") : "";
+    dashTasks.innerHTML = tasks.length ? tasks.map(dashboardTaskRow).join("") : "";
     if (!tasks.length) renderEmpty(dashTasks);
+    const taskPanelMeta = document.getElementById("taskPanelMeta");
+    if (taskPanelMeta) taskPanelMeta.innerHTML = `<span class="status">共 ${openTasks.length} 条</span><span class="status needs_review">进行中 ${state.tasks.filter((task) => task.status === "in_progress").length}</span>`;
+
+    const dashTimeline = document.getElementById("dashboardTimeline");
+    const radarDeadlines = filteredDeadlines()
+      .filter((deadline) => deadline.date && daysUntil(deadline.date) >= -1 && daysUntil(deadline.date) <= 30)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, 8);
+    dashTimeline.innerHTML = radarDeadlines.length ? radarDeadlines.map(deadlineRadarRow).join("") : "";
+    if (!radarDeadlines.length) renderEmpty(dashTimeline);
+    const deadlinePanelMeta = document.getElementById("deadlinePanelMeta");
+    if (deadlinePanelMeta) deadlinePanelMeta.textContent = `共 ${upcoming30.length} 条，按时间排序`;
 
     const dashObjectives = document.getElementById("dashboardObjectives");
-    const objectives = state.objectives.filter((objective) => objective.status !== "archived").slice(0, 4);
-    dashObjectives.innerHTML = objectives.length ? objectives.map(objectiveCard).join("") : "";
+    const objectives = state.objectives.filter((objective) => objective.status !== "archived").slice(0, 2);
+    dashObjectives.innerHTML = objectives.length ? objectives.map(dashboardObjectiveCard).join("") : "";
     if (!objectives.length) renderEmpty(dashObjectives);
 
     const dashActivity = document.getElementById("dashboardActivity");
     const activities = sortedActivities().slice(0, 5);
     dashActivity.innerHTML = activities.length ? activities.map(activityRow).join("") : "";
     if (!activities.length) renderEmpty(dashActivity);
+  }
+
+  function dashboardMetricCard(label, value, hint, tone) {
+    return `
+      <article class="hero-stat ${escapeAttr(tone)}">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value)}</strong>
+        <small>${escapeHtml(hint)}</small>
+      </article>
+    `;
+  }
+
+  function analyticsMetricCard(label, value, hint) {
+    return `
+      <article class="analytics-metric">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value)}</strong>
+        <small>${escapeHtml(hint)}</small>
+      </article>
+    `;
+  }
+
+  function timeEntriesForDashboardRange() {
+    if (dashboardRange === "all") return state.timeEntries;
+    const days = Number(dashboardRange) || 30;
+    const start = addDays(today, -(days - 1));
+    return state.timeEntries.filter((entry) => {
+      const date = parseDate(entry.date);
+      return date >= start && date <= today;
+    });
+  }
+
+  function spanDays(entries) {
+    if (!entries.length) return 1;
+    const times = entries.map((entry) => parseDate(entry.date).getTime()).filter(Number.isFinite);
+    if (!times.length) return 1;
+    return Math.max(1, Math.round((Math.max(...times) - Math.min(...times)) / dayMs) + 1);
+  }
+
+  function projectHourRows(entries) {
+    return state.projects.map((project) => ({
+      project,
+      hours: sumHours(entries.filter((entry) => entry.projectId === project.id))
+    })).filter((item) => item.hours > 0).sort((a, b) => b.hours - a.hours);
+  }
+
+  function histogramBars(entries) {
+    const visibleDays = dashboardRange === "all" ? 30 : Math.min(Number(dashboardRange) || 30, 45);
+    const start = addDays(today, -(visibleDays - 1));
+    const byDate = new Map();
+    entries.forEach((entry) => byDate.set(entry.date, (byDate.get(entry.date) || 0) + Number(entry.hours || 0)));
+    const dates = Array.from({ length: visibleDays }, (_, index) => toIsoDate(addDays(start, index)));
+    const values = dates.map((date) => byDate.get(date) || 0);
+    const max = Math.max(1, ...values);
+    return dates.map((date, index) => {
+      const hours = values[index];
+      const height = hours ? Math.max(8, (hours / max) * 100) : 2;
+      const showLabel = index === 0 || index === dates.length - 1 || (visibleDays <= 14 && index % 3 === 0);
+      return `
+        <button class="histogram-bar" data-open-day="${escapeAttr(date)}" title="${escapeAttr(date)} · ${hours.toFixed(2)} h" type="button">
+          <i style="height:${height}%"></i>
+          <span>${showLabel ? escapeHtml(date.slice(5)) : ""}</span>
+        </button>
+      `;
+    }).join("");
+  }
+
+  function distributionRows(items, density = "wide") {
+    if (!items.length) return `<p class="muted-copy">暂无投入记录。</p>`;
+    const total = Math.max(1, sumHours(items));
+    return items.map(({ project, hours }) => {
+      const percent = Math.round((hours / total) * 100);
+      return `
+        <button class="distribution-row ${escapeAttr(density)}" data-open-project="${escapeAttr(project.id)}" type="button">
+          <span class="distribution-label">
+            <strong>${escapeHtml(project.projectNo)}</strong>
+            <small>${escapeHtml(project.name)}</small>
+          </span>
+          <span class="distribution-meter"><i style="width:${Math.max(5, percent)}%"></i></span>
+          <b>${hours.toFixed(1)} h</b>
+        </button>
+      `;
+    }).join("");
+  }
+
+  function weeklyTrendCard() {
+    const points = Array.from({ length: 5 }, (_, index) => {
+      const end = addDays(today, -(4 - index) * 7);
+      const start = addDays(end, -6);
+      const hours = sumHours(state.timeEntries.filter((entry) => {
+        const date = parseDate(entry.date);
+        return date >= start && date <= end;
+      }));
+      return { label: toIsoDate(end).slice(5), hours };
+    });
+    const max = Math.max(1, ...points.map((point) => point.hours));
+    const coords = points.map((point, index) => {
+      const x = 18 + index * 76;
+      const y = 92 - (point.hours / max) * 64;
+      return `${x},${y}`;
+    }).join(" ");
+    return `
+      <div class="mini-head">
+        <strong>周累计趋势</strong>
+        <span>${points[points.length - 1].hours.toFixed(1)} h 本周</span>
+      </div>
+      <svg class="trend-line" viewBox="0 0 340 112" role="img" aria-label="最近五周工时趋势">
+        <polyline points="${coords}" fill="none"></polyline>
+        ${points.map((point, index) => {
+          const [x, y] = coords.split(" ")[index].split(",");
+          return `<circle cx="${x}" cy="${y}" r="4"><title>${escapeHtml(point.label)} · ${point.hours.toFixed(1)} h</title></circle>`;
+        }).join("")}
+      </svg>
+      <div class="trend-labels">${points.map((point) => `<span>${escapeHtml(point.label)}</span>`).join("")}</div>
+    `;
+  }
+
+  function dashboardTaskRow(task) {
+    const project = projectById(task.projectId);
+    return `
+      <article class="dashboard-task-row">
+        <input data-task-check="${escapeAttr(task.id)}" type="checkbox" ${task.status === "done" ? "checked" : ""}>
+        <button class="dashboard-row-main" data-open-task="${escapeAttr(task.id)}" type="button">
+          <strong>${escapeHtml(task.title)}</strong>
+          <span>${escapeHtml(project.projectNo)} · ${escapeHtml(project.name)}</span>
+        </button>
+        <span class="status ${escapeAttr(task.status === "in_progress" ? "needs_review" : "")}">${statusLabel(task.status)}</span>
+        <span class="badge ${escapeAttr(task.priority)}">${priorityLabel(task.priority)}</span>
+        <span class="due-pill ${daysUntil(task.due) <= 2 ? "urgent" : ""}">${relativeDay(task.due)}</span>
+      </article>
+    `;
+  }
+
+  function deadlineRadarRow(deadline) {
+    const project = projectById(deadline.projectId);
+    const distance = daysUntil(deadline.date);
+    const tone = distance <= 3 || deadline.risk === "high" ? "urgent" : deadline.risk;
+    return `
+      <button class="radar-row ${escapeAttr(tone)}" data-open-deadline="${escapeAttr(deadline.id)}" type="button">
+        <span class="radar-dot"></span>
+        <span class="radar-main">
+          <strong>${escapeHtml(deadline.title)}</strong>
+          <small>${escapeHtml(project.projectNo)} · ${escapeHtml(project.name)} · ${escapeHtml(deadline.kind || "节点")}</small>
+        </span>
+        <span class="due-pill ${distance <= 3 ? "urgent" : ""}">${relativeDay(deadline.date)}</span>
+        <span class="row-arrow">›</span>
+      </button>
+    `;
+  }
+
+  function dashboardObjectiveCard(objective) {
+    const project = projectById(objective.projectId);
+    const keyResults = state.keyResults.filter((kr) => kr.objectiveId === objective.id);
+    return `
+      <button class="dashboard-objective-row" data-open-objective="${escapeAttr(objective.id)}" type="button">
+        <span class="okr-score ${escapeAttr(objective.status)}">${objective.progress}%</span>
+        <span class="dashboard-row-main">
+          <strong>${escapeHtml(objective.title)}</strong>
+          <span>${escapeHtml(project.projectNo)} · ${escapeHtml(objective.quarter || "目标")} · ${escapeHtml(objective.owner || "Pontnova")}</span>
+          <span>${keyResults.slice(0, 2).map((kr) => `${escapeHtml(kr.label)} ${kr.progress}%`).join(" / ") || escapeHtml(objective.signal || "暂无关键结果")}</span>
+        </span>
+        <span class="row-arrow">›</span>
+      </button>
+    `;
+  }
+
+  function rangeLabel(range) {
+    if (range === "all") return "全部";
+    if (range === "365") return "1 年";
+    return `${range} 天`;
   }
 
   function renderPrograms() {
@@ -538,12 +752,8 @@
   }
 
   function renderTasks() {
-    const board = document.getElementById("dashboardTasks");
     const table = document.getElementById("taskTable");
     const tasks = filteredTasks().sort(sortTasks);
-    if (board && currentView !== "dashboard") {
-      board.innerHTML = tasks.filter((task) => task.status !== "done").slice(0, 6).map(taskCard).join("");
-    }
     table.innerHTML = tasks.map((task) => {
       const project = projectById(task.projectId);
       return `
@@ -583,7 +793,7 @@
     const deadlines = filteredDeadlines()
       .filter((deadline) => deadline.date && daysUntil(deadline.date) >= -1)
       .sort((a, b) => a.date.localeCompare(b.date));
-    dash.innerHTML = deadlines.slice(0, 8).map(deadlineRow).join("");
+    dash.innerHTML = deadlines.slice(0, 8).map(deadlineRadarRow).join("");
     if (!deadlines.length) renderEmpty(dash);
   }
 
@@ -848,9 +1058,11 @@
 
   function setView(view) {
     currentView = view;
+    document.body.dataset.view = view;
     Object.entries(views).forEach(([name, element]) => element?.classList.toggle("is-active", name === view));
     document.querySelectorAll(".nav-item").forEach((button) => button.classList.toggle("is-active", button.dataset.view === view));
     document.getElementById("viewTitle").textContent = titles[view];
+    if (view === "dashboard") renderDashboard();
     if (view === "calendar") renderCalendar();
     if (view === "map") renderMap();
   }
@@ -1580,11 +1792,18 @@
       renderCalendar();
     });
   });
+  document.querySelectorAll("[data-dashboard-range]").forEach((button) => {
+    button.addEventListener("click", () => {
+      dashboardRange = button.dataset.dashboardRange;
+      renderDashboard();
+    });
+  });
   document.getElementById("searchInput").addEventListener("input", (event) => {
     query = event.target.value.trim();
     renderAll();
   });
   document.getElementById("newProjectButton").addEventListener("click", () => openDialog("project"));
+  document.getElementById("newProjectButtonSidebar")?.addEventListener("click", () => openDialog("project"));
   document.getElementById("newProjectButtonSecondary").addEventListener("click", () => openDialog("project"));
   document.getElementById("newTaskButton").addEventListener("click", () => openDialog("task"));
   document.getElementById("newTaskButtonSecondary").addEventListener("click", () => openDialog("task"));
