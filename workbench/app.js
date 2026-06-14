@@ -315,6 +315,10 @@
         headers: { Accept: "application/json" },
         credentials: "same-origin"
       });
+      if (response.status === 401) {
+        setReauthStatus();
+        return;
+      }
       if (!response.ok) throw new Error(`Cloud state load failed: ${response.status}`);
       const cloudState = await response.json();
       if (Array.isArray(cloudState.projects) && cloudState.projects.length) {
@@ -350,6 +354,10 @@
         credentials: "same-origin",
         body: JSON.stringify(state)
       });
+      if (response.status === 401) {
+        setReauthStatus();
+        return;
+      }
       if (!response.ok) throw new Error(`Cloud state save failed: ${response.status}`);
       setSyncStatus("已保存到云端", "ok");
     } catch (error) {
@@ -368,6 +376,19 @@
     if (!status) return;
     status.textContent = message;
     status.dataset.tone = tone;
+    status.dataset.action = "";
+    status.onclick = null;
+  }
+
+  function setReauthStatus() {
+    const status = document.getElementById("syncStatus");
+    if (!status) return;
+    status.textContent = "登录已过期，请点这里重新登录";
+    status.dataset.tone = "warn";
+    status.dataset.action = "login";
+    status.onclick = () => {
+      window.location.href = "/workbench/login";
+    };
   }
 
   function projectById(id) {
@@ -1510,12 +1531,15 @@
     const drawer = document.getElementById("detailDrawer");
     drawer.classList.add("is-open");
     drawer.setAttribute("aria-hidden", "false");
+    document.querySelector(".shell")?.setAttribute("inert", "");
+    document.getElementById("closeDrawerButton")?.focus();
   }
 
   function closeDrawer() {
     const drawer = document.getElementById("detailDrawer");
     drawer.classList.remove("is-open");
     drawer.setAttribute("aria-hidden", "true");
+    document.querySelector(".shell")?.removeAttribute("inert");
     activeDrawer = null;
   }
 
@@ -1903,6 +1927,12 @@
   });
   document.getElementById("closeDrawerButton").addEventListener("click", closeDrawer);
   document.querySelector("[data-close-drawer]").addEventListener("click", closeDrawer);
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (document.getElementById("entryDialog")?.open) return;
+    const drawer = document.getElementById("detailDrawer");
+    if (drawer.classList.contains("is-open")) closeDrawer();
+  });
   document.getElementById("exportDataButton").addEventListener("click", () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -1915,12 +1945,19 @@
   document.getElementById("importDataInput").addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const imported = JSON.parse(await file.text());
-    replaceState(imported);
-    trackActivity({ title: "导入 JSON 数据", entity: "Project", action: "update" });
-    saveState();
-    renderAll();
-    event.target.value = "";
+    try {
+      const imported = JSON.parse(await file.text());
+      if (!imported || typeof imported !== "object") throw new Error("Invalid workbench JSON");
+      replaceState(imported);
+      trackActivity({ title: "导入 JSON 数据", entity: "Project", action: "update" });
+      saveState();
+      renderAll();
+      setSyncStatus("已导入并保存，正在同步云端", "ok");
+    } catch (error) {
+      setSyncStatus("导入失败：文件不是有效的工作台 JSON", "warn");
+    } finally {
+      event.target.value = "";
+    }
   });
 
   replaceState(loadLocalState());

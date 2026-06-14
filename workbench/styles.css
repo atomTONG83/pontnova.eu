@@ -269,6 +269,12 @@ h3 {
   color: var(--amber);
 }
 
+.sync-status[data-action="login"] {
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .top-actions,
 .filter-row,
 .panel-head,
@@ -1850,11 +1856,11 @@ th {
   .program-grid,
   .objective-grid,
   .document-grid,
-    .form-grid,
-    .detail-metrics,
-    .compact-grid,
-    .agenda-day,
-    .hero-stats {
+  .form-grid,
+  .detail-metrics,
+  .compact-grid,
+  .agenda-day,
+  .hero-stats {
     grid-template-columns: 1fr;
   }
 
@@ -1887,14 +1893,18 @@ th {
 
   .calendar-board {
     min-height: auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .calendar-weekdays {
-    display: none;
+    display: grid;
+    min-width: 560px;
   }
 
   .calendar-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(7, minmax(78px, 1fr));
+    min-width: 560px;
   }
 
   .calendar-cell {

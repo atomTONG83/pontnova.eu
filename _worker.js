@@ -1,6 +1,11 @@
 const SESSION_COOKIE = "pn_workbench_session";
 const SESSION_TTL_SECONDS = 12 * 60 * 60;
 const WORKBENCH_PREFIX = "/workbench";
+const SECURITY_HEADERS = {
+  "Content-Security-Policy":
+    "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+};
 
 export default {
   async fetch(request, env) {
@@ -593,6 +598,7 @@ function jsonResponse(payload, status = 200, headers = {}) {
       "Cache-Control": "no-store",
       "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet, noimageindex",
       "X-Content-Type-Options": "nosniff",
+      ...SECURITY_HEADERS,
       ...headers,
     },
   });
@@ -704,6 +710,7 @@ function withPrivateHeaders(response) {
   next.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet, noimageindex");
   next.headers.set("X-Frame-Options", "DENY");
   next.headers.set("X-Content-Type-Options", "nosniff");
+  Object.entries(SECURITY_HEADERS).forEach(([key, value]) => next.headers.set(key, value));
   return next;
 }
 
@@ -719,16 +726,16 @@ function loginPage(message = "", status = 200, headOnly = false) {
   <style>
     :root { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; color-scheme: light; }
     * { box-sizing: border-box; }
-    body { display: grid; min-height: 100vh; margin: 0; place-items: center; background: #edf2f4; color: #172026; }
-    main { width: min(420px, calc(100vw - 32px)); border: 1px solid #ccd9df; border-radius: 8px; padding: 28px; background: #ffffff; box-shadow: 0 18px 50px rgba(24,38,45,.12); }
-    .mark { display: grid; width: 44px; height: 44px; place-items: center; margin-bottom: 18px; border-radius: 8px; background: #102226; color: #f7fbfc; font-weight: 800; }
+    body { display: grid; min-height: 100vh; margin: 0; place-items: center; background: #f2eadf; color: #2a211a; }
+    main { width: min(420px, calc(100vw - 32px)); border: 1px solid #ead8c2; border-radius: 8px; padding: 28px; background: #fffaf2; box-shadow: 0 18px 46px rgba(73,50,29,.12); }
+    .mark { display: grid; width: 44px; height: 44px; place-items: center; margin-bottom: 18px; border-radius: 8px; background: #2b1a12; color: #fdf6ec; font-weight: 800; }
     h1 { margin: 0 0 8px; font-size: 26px; letter-spacing: 0; }
-    p { margin: 0 0 22px; color: #63737c; line-height: 1.6; }
-    label { display: grid; gap: 8px; color: #63737c; font-size: 13px; font-weight: 700; }
-    input { width: 100%; height: 44px; border: 1px solid #ccd9df; border-radius: 8px; padding: 0 12px; font: inherit; outline: none; }
-    input:focus { border-color: #007f83; box-shadow: 0 0 0 3px rgba(0,127,131,.14); }
-    button { width: 100%; height: 44px; margin-top: 16px; border: 0; border-radius: 8px; background: #007f83; color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
-    .error { margin-bottom: 12px; border: 1px solid rgba(169,67,89,.28); border-radius: 8px; padding: 10px 12px; background: rgba(169,67,89,.08); color: #a94359; }
+    p { margin: 0 0 22px; color: #7b6d60; line-height: 1.6; }
+    label { display: grid; gap: 8px; color: #7b6d60; font-size: 13px; font-weight: 700; }
+    input { width: 100%; height: 44px; border: 1px solid #ead8c2; border-radius: 8px; padding: 0 12px; font: inherit; outline: none; }
+    input:focus { border-color: #bd6045; box-shadow: 0 0 0 3px rgba(189,96,69,.18); }
+    button { width: 100%; height: 44px; margin-top: 16px; border: 0; border-radius: 8px; background: #bd6045; color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+    .error { margin-bottom: 12px; border: 1px solid rgba(189,96,69,.30); border-radius: 8px; padding: 10px 12px; background: rgba(189,96,69,.08); color: #9a3f2c; }
   </style>
 </head>
 <body>
@@ -754,6 +761,7 @@ function loginPage(message = "", status = 200, headOnly = false) {
         "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet, noimageindex",
         "X-Frame-Options": "DENY",
         "X-Content-Type-Options": "nosniff",
+        ...SECURITY_HEADERS,
       },
     }
   );

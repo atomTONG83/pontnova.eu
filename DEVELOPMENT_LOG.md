@@ -614,6 +614,60 @@
   - `migrations/0002_workbench_atom_parity.sql`
   - `DEVELOPMENT_LOG.md`
 
+## 2026-06-14 Workbench v4.5 apply UX review low-risk fixes
+
+### Request
+
+- User provided `Pontnova工作台_体验改进报告_20260614.md` and asked to optimize and iterate the platform based on the report.
+- This round implements the report's low-risk A-F patch set and keeps larger architecture items for a later round.
+
+### Changes
+
+- Added CSP and HSTS security headers to workbench private HTML, API JSON responses, and login page responses.
+- Restyled the login page from the old teal palette to the current warm Pontnova workbench palette.
+- Added session-expiry handling for cloud load/save `401` responses:
+  - Sync status now shows `登录已过期，请点这里重新登录`.
+  - The status pill links the user to `/workbench/login`.
+- Added safer JSON import handling:
+  - Invalid JSON no longer throws an uncaught front-end error.
+  - Users see `导入失败：文件不是有效的工作台 JSON`.
+  - Valid imports show `已导入并保存，正在同步云端`.
+- Improved detail drawer accessibility:
+  - Opening a drawer marks the background `.shell` as `inert`.
+  - Focus moves to the drawer close button.
+  - Esc closes the drawer.
+  - Esc remains reserved for the native entry dialog when that dialog is open.
+- Improved mobile calendar usability:
+  - Under 760px, month view keeps 7 columns.
+  - Weekday headers stay visible.
+  - The calendar board scrolls horizontally instead of becoming a 42-row single-column list.
+- Bumped workbench asset query version to `20260614-v4-5`.
+
+### Deferred architecture items
+
+- Login rate limiting / anti-bruteforce was not included in this low-risk UI/security patch because it needs a Turnstile or KV-backed design.
+- Full-state overwrite / multi-device conflict protection was not included because it needs an optimistic-lock or record-level CRUD design.
+
+### Local verification
+
+- `node --check workbench/app.js`
+- `node --check _worker.js`
+- Local static preview:
+  - `http://127.0.0.1:3010/workbench/`
+- Browser drawer verification:
+  - Opened a task drawer from the task section.
+  - Confirmed drawer open state, `aria-hidden="false"`, `.shell[inert]`, and focus on `closeDrawerButton`.
+  - Pressed Esc and confirmed drawer closed, `aria-hidden="true"`, and shell inert was removed.
+- Browser mobile calendar verification at `390 x 844`:
+  - Calendar weekday header stayed visible as grid.
+  - Month grid kept 7 columns.
+  - Calendar board had horizontal overflow (`scrollWidth 560 > clientWidth 316`).
+  - Browser console had no application errors.
+
+### Deployment note
+
+- No D1 migration required.
+
 ## 2026-06-14 Workbench v4.4 improve task editing feedback
 
 ### Request
