@@ -549,3 +549,67 @@
 ### Deployment note
 
 - No D1 migration is required for v4 because this iteration only changes frontend layout and dashboard rendering.
+
+### Production deployment
+
+- Source commit:
+  - `b7a2289c459e663d35ad22304e3627586ff41d2c`
+- Commit message:
+  - `Refine Pontnova workbench dashboard layout`
+- Pushed to:
+  - `origin/main`
+- Cloudflare Pages deploy:
+  - `https://9d56f0c9.pontnova.pages.dev`
+- Production URL:
+  - `https://pontnova.eu/workbench/`
+
+### Production verification
+
+- Login API:
+  - `302`
+- Authenticated workbench HTML:
+  - `200`
+- Authenticated state API:
+  - `200`
+- Production HTML confirmed:
+  - `/workbench/styles.css?v=20260614-v4`
+  - `/workbench/app.js?v=20260614-v4`
+  - Hero headline present.
+- Production D1 state confirmed:
+  - 4 projects
+  - 4 tasks
+  - 3 deadlines
+  - 3 objectives
+  - 3 time entries
+  - 3 activities
+  - Project numbers:
+    - `PN-CONS-2026-001`
+    - `PN-FUND-2026-001`
+    - `PN-TRN-2026-001`
+    - `PN-WS-2026-001`
+- Browser production verification:
+  - Dashboard view active.
+  - Old topbar hidden on dashboard.
+  - Hero board visible.
+  - Sync status shows `已连接云端数据库`.
+  - Project drawer opens from project card.
+  - Task drawer opens from dashboard task row.
+  - Browser console had no warnings or errors.
+
+### Local retained copy v4
+
+- Local copy:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v4-b7a2289`
+- Archive:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v4-b7a2289.tar.gz`
+- SHA-256:
+  - `baa5683245a97d1e6e58a166a3a75c8506dd5055fa91c136f95226e8cdce3501`
+- Manifest:
+  - `LOCAL_BACKUP_MANIFEST.md`
+- Archive content spot-check:
+  - `workbench/index.html`
+  - `workbench/app.js`
+  - `workbench/styles.css`
+  - `_worker.js`
+  - `migrations/0002_workbench_atom_parity.sql`
+  - `DEVELOPMENT_LOG.md`
