@@ -1324,6 +1324,7 @@
         <p>${escapeHtml(task.notes || project.name)}</p>
       </section>
       <section class="drawer-section">
+        <h3>任务字段</h3>
         <div class="form-grid">
           ${field("drawerTaskTitle", "任务", "text", task.title, true, "full")}
           ${selectField("drawerTaskProject", "项目", projectOptions(), task.projectId)}
@@ -1334,6 +1335,7 @@
           ${textareaField("drawerTaskNotes", "备注", task.notes || "")}
         </div>
         <div class="drawer-actions">
+          <span class="drawer-save-status" id="drawerSaveStatus" aria-live="polite"></span>
           <button class="ghost-button" data-open-project="${escapeAttr(project.id)}" type="button">打开项目</button>
           <button class="primary-button small" data-save-task="${escapeAttr(task.id)}" type="button">保存任务</button>
         </div>
@@ -1554,7 +1556,12 @@
   function saveTask(id) {
     const task = state.tasks.find((item) => item.id === id);
     if (!task) return;
-    task.title = valueOf("drawerTaskTitle") || task.title;
+    const title = requiredValueOf("drawerTaskTitle");
+    if (!title) {
+      showDrawerSaveStatus("请填写任务标题", "warn");
+      return;
+    }
+    task.title = title;
     task.projectId = valueOf("drawerTaskProject") || task.projectId;
     task.owner = valueOf("drawerTaskOwner");
     task.due = valueOf("drawerTaskDue");
@@ -1563,6 +1570,7 @@
     task.notes = valueOf("drawerTaskNotes");
     trackActivity({ projectId: task.projectId, entity: "Task", entityId: id, action: task.status === "done" ? "complete" : "update", title: `更新任务：${task.title}` });
     saveAndRender();
+    showDrawerSaveStatus("任务已保存，正在同步云端");
   }
 
   function saveDeadline(id) {
@@ -1618,6 +1626,23 @@
 
   function valueOf(id) {
     return document.getElementById(id)?.value?.trim() || "";
+  }
+
+  function requiredValueOf(id) {
+    const field = document.getElementById(id);
+    const value = field?.value?.trim() || "";
+    if (!value) {
+      field?.focus();
+      field?.reportValidity?.();
+    }
+    return value;
+  }
+
+  function showDrawerSaveStatus(message, tone = "ok") {
+    const status = document.getElementById("drawerSaveStatus");
+    if (!status) return;
+    status.textContent = message;
+    status.dataset.tone = tone;
   }
 
   function saveAndRender() {

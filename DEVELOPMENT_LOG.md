@@ -614,6 +614,40 @@
   - `migrations/0002_workbench_atom_parity.sql`
   - `DEVELOPMENT_LOG.md`
 
+## 2026-06-14 Workbench v4.4 improve task editing feedback
+
+### Request
+
+- User reported that task information did not feel editable from the task detail drawer.
+- Screenshot showed the task detail drawer with editable fields but no clear saved/invalid feedback after using `保存任务`.
+
+### Changes
+
+- Added a `任务字段` heading to the task detail drawer to make the editable section clearer.
+- Added inline save feedback beside `保存任务`:
+  - `任务已保存，正在同步云端`
+  - `请填写任务标题`
+- Added required-title validation for task drawer saves, so empty or whitespace-only task titles are blocked before updating state.
+- Added drawer save-status styling with green success and amber warning tones.
+- Bumped workbench asset query version to `20260614-v4-4`.
+
+### Local verification
+
+- `node --check workbench/app.js`
+- `node --check _worker.js`
+- Local static preview:
+  - `http://127.0.0.1:3009/workbench/`
+- Browser task-edit verification:
+  - Opened the `任务` section and opened `task-2`.
+  - Edited the task title and clicked `保存任务`; drawer title, hero title, input value, and inline save message updated.
+  - Cleared the task title with whitespace and clicked `保存任务`; save was blocked and `请填写任务标题` appeared.
+  - Restored the local test task title.
+  - Browser console had no errors.
+
+### Deployment note
+
+- No D1 migration required.
+
 ## 2026-06-14 Workbench v4.3 fix dialog cancel / close behavior
 
 ### Request

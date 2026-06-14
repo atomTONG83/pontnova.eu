@@ -1741,6 +1741,21 @@ th {
   justify-content: flex-end;
 }
 
+.drawer-save-status {
+  margin-right: auto;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.drawer-save-status[data-tone="warn"] {
+  color: var(--amber);
+}
+
+.drawer-save-status:empty {
+  display: none;
+}
+
 .muted {
   color: var(--muted);
 }
