@@ -651,6 +651,61 @@
 
 - No D1 migration required.
 
+### Production deployment
+
+- Source commit:
+  - `aceb72b1a21a5fc5af4df1e753bb5d7f385ae61a`
+- Commit message:
+  - `Fix Pontnova dialog cancel behavior`
+- Pushed to:
+  - `origin/main`
+- Cloudflare Pages deploy:
+  - `https://663ca8aa.pontnova.pages.dev`
+- Production URL:
+  - `https://pontnova.eu/workbench/`
+
+### Production verification
+
+- Login API:
+  - `302`
+- Authenticated workbench HTML:
+  - `200`
+- Authenticated state API:
+  - `200`
+- Production HTML confirmed:
+  - `/workbench/styles.css?v=20260614-v4-3`
+  - `/workbench/app.js?v=20260614-v4-3`
+  - dialog close controls use `data-close-dialog` and `type="button"`.
+- Production D1 state confirmed:
+  - 4 projects
+  - 4 tasks
+  - 3 deadlines
+  - 3 objectives
+- Browser production modal verification:
+  - Opened `新增项目档案` from the sidebar.
+  - Clicked `保存` with empty `项目名称`; dialog stayed open and the name field remained invalid.
+  - Clicked the `×` close button after validation; dialog closed.
+  - Reopened the dialog and clicked `取消`; dialog closed.
+  - Browser console had no errors.
+
+### Local retained copy v4.3
+
+- Local copy:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v4-3-aceb72b`
+- Archive:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v4-3-aceb72b.tar.gz`
+- SHA-256:
+  - `47dcc8c76bc081b657064f947cf67a2f9d9ae4df2923201d417c852ec072130f`
+- Manifest:
+  - `LOCAL_BACKUP_MANIFEST.md`
+- Archive content spot-check:
+  - `workbench/index.html`
+  - `workbench/app.js`
+  - `workbench/styles.css`
+  - `_worker.js`
+  - `migrations/0002_workbench_atom_parity.sql`
+  - `DEVELOPMENT_LOG.md`
+
 ## 2026-06-14 Workbench v4.2 fix sidebar view switching
 
 ### Request
