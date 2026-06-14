@@ -271,3 +271,84 @@
   - Add login rate limiting.
   - Expand `audit_log` to record semantic operations rather than full state replacements.
   - Add regular D1 export backup routine.
+
+### Pontnova workbench v2 interaction and Atom-style UI upgrade
+
+- Date: 2026-06-14
+- Context:
+  - User feedback: project/task content felt static and could not be opened like Atom workbench.
+  - Goal: move closer to Atom workbench's dashboard, calendar, and visualization style, while excluding patent application workflow and patent task management.
+  - Scope remains Pontnova consulting, fundraising, training, and workshop project work.
+
+- Reference checked:
+  - Atom workbench dashboard at `/Volumes/LaCie/Codex/20260514 atom 工作台/src/app/app/page.tsx`
+  - Atom calendar page and month grid components.
+  - Atom platform mind map component.
+
+- Main UI changes:
+  - Added a sixth navigation view: `图谱`.
+  - Added right-side detail drawer for opening records without leaving the dashboard.
+  - Reworked project cards, task rows, deadline rows, and document cards as clickable work items.
+  - Added a month/week/day calendar toolbar with previous, today, next controls.
+  - Added relationship map SVG showing project -> tasks -> deadlines -> documents.
+  - Updated visual system from the first warm beige version to a cleaner Pontnova operations palette:
+    - light blue-gray background
+    - dark teal sidebar
+    - teal primary action
+    - blue/amber/rose/green semantic accents
+  - Updated login page inline style to match the new workbench palette.
+
+- Interaction changes:
+  - Project detail drawer:
+    - shows progress, owner, priority, stage, related tasks, related deadlines, related documents
+    - supports editing stage, priority, progress, owner, and next step
+    - supports adding task, deadline, or document directly under that project
+  - Task detail drawer:
+    - supports editing title, project, owner, due date, status, and priority
+    - links back to the parent project
+  - Deadline detail drawer:
+    - supports editing title, project, kind, date, and risk
+    - links back to the parent project
+  - Document detail drawer:
+    - supports editing title, project, type, path/link, and notes
+    - links back to the parent project
+  - Calendar:
+    - month view shows task/deadline chips inside each day cell
+    - week view shows a 7-day agenda
+    - day view shows a single-day agenda
+    - clicking a day opens that day's schedule in the drawer
+    - clicking a task/deadline event opens its own drawer
+  - Project map:
+    - project nodes are clickable
+    - task/deadline/document counts are visualized as connected nodes
+
+- Files changed:
+  - `workbench/index.html`
+    - added map nav/view, calendar toolbar, detail drawer markup
+  - `workbench/app.js`
+    - replaced the original list-only rendering with record-level drawers, calendar modes, map rendering, and richer event delegation
+    - retained D1-backed state loading and saving via `/workbench/api/state`
+  - `workbench/styles.css`
+    - rebuilt workbench styling for dashboard, cards, table links, calendar, map, drawer, forms, and responsive layout
+  - `_worker.js`
+    - updated login page colors to match workbench v2
+
+- Local verification:
+  - `node --check workbench/app.js`
+  - `node --check _worker.js`
+  - Local Pages preview opened at `http://127.0.0.1:8788/workbench/`
+  - Verified project card opens project drawer.
+  - Verified task row opens task drawer.
+  - Verified calendar month day opens day drawer.
+  - Verified week/day calendar switches render correct agenda counts.
+  - Verified project map node opens project drawer.
+  - Captured desktop and mobile viewport screenshots to check layout and text fit.
+
+- Notes:
+  - Local preview D1 binding can create a temporary local database name in Wrangler; production remains bound to `WORKBENCH_DB` / `pontnova-workbench`.
+  - Production D1 is the intended source of truth after deployment.
+
+- Follow-up:
+  - Add drag/drop task ordering if daily task planning becomes important.
+  - Add record-level CRUD API before multi-user simultaneous editing.
+  - Add calendar import/export only if Pontnova needs external calendar sync.

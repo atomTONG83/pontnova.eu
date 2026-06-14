@@ -23,6 +23,7 @@
         <button class="nav-item" data-view="tasks" type="button">任务</button>
         <button class="nav-item" data-view="calendar" type="button">日程</button>
         <button class="nav-item" data-view="documents" type="button">资料</button>
+        <button class="nav-item" data-view="map" type="button">图谱</button>
       </nav>
       <div class="sidebar-foot">
         <button class="ghost-button" id="exportDataButton" type="button">导出 JSON</button>
@@ -117,10 +118,23 @@
       <section class="view" id="calendarView">
         <div class="panel">
           <div class="panel-head">
-            <h2>关键节点</h2>
-            <button class="primary-button small" id="newDeadlineButtonSecondary" type="button">新增节点</button>
+            <div>
+              <h2>日历</h2>
+              <p class="panel-subtitle" id="calendarTitle">本月</p>
+            </div>
+            <div class="toolbar">
+              <button class="icon-button quiet" id="calendarPrevButton" type="button" aria-label="上一段">‹</button>
+              <button class="ghost-button compact" id="calendarTodayButton" type="button">今天</button>
+              <button class="icon-button quiet" id="calendarNextButton" type="button" aria-label="下一段">›</button>
+              <div class="segmented" aria-label="日历视图">
+                <button class="is-active" data-calendar-mode="month" type="button">月</button>
+                <button data-calendar-mode="week" type="button">周</button>
+                <button data-calendar-mode="day" type="button">日</button>
+              </div>
+              <button class="primary-button small" id="newDeadlineButtonSecondary" type="button">新增节点</button>
+            </div>
           </div>
-          <div class="calendar-list" id="calendarList"></div>
+          <div class="calendar-board" id="calendarBoard"></div>
         </div>
       </section>
 
@@ -131,6 +145,19 @@
             <button class="primary-button small" id="newDocumentButton" type="button">新增资料</button>
           </div>
           <div class="document-grid" id="documentGrid"></div>
+        </div>
+      </section>
+
+      <section class="view" id="mapView">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>项目图谱</h2>
+              <p class="panel-subtitle">从项目到任务、关键节点和资料的关系视图</p>
+            </div>
+            <button class="primary-button small" id="newProjectButtonSecondary" type="button">新增项目</button>
+          </div>
+          <div class="map-canvas" id="projectMap"></div>
         </div>
       </section>
     </main>
@@ -152,6 +179,20 @@
       </div>
     </form>
   </dialog>
+
+  <aside class="drawer" id="detailDrawer" aria-hidden="true">
+    <div class="drawer-backdrop" data-close-drawer></div>
+    <section class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+      <div class="drawer-head">
+        <div>
+          <p class="eyebrow" id="drawerKicker">详情</p>
+          <h2 id="drawerTitle">详情</h2>
+        </div>
+        <button class="icon-button" id="closeDrawerButton" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="drawer-body" id="drawerBody"></div>
+    </section>
+  </aside>
 
   <template id="emptyTemplate">
     <div class="empty-state">
