@@ -199,3 +199,75 @@
   - Revert `1822a4c` and `3bedc06` from `origin/main`.
   - Redeploy the previous Cloudflare Pages bundle.
   - Optionally remove the two Pages secrets from the Cloudflare dashboard.
+
+### Pontnova workbench cloud database upgrade
+
+- Context:
+  - The first workbench version stored data in browser `localStorage`.
+  - Requirement update: workbench data should live in a cloud database.
+  - Chosen backend: Cloudflare D1, because the existing production stack is Cloudflare Pages and the workbench data is structured relational data.
+
+- Cloudflare D1:
+  - Database name: `pontnova-workbench`
+  - Database ID: `509ae21d-1238-401c-bb6a-966ad436dacb`
+  - Region reported by Wrangler: `WEUR`
+  - Pages/Worker binding: `WORKBENCH_DB`
+
+- Schema:
+  - Added migration `migrations/0001_workbench_schema.sql`.
+  - Tables:
+    - `projects`
+    - `tasks`
+    - `deadlines`
+    - `documents`
+    - `audit_log`
+  - Seed rows:
+    - 4 projects
+    - 4 tasks
+    - 3 deadlines
+    - 3 documents
+
+- Application changes:
+  - `_worker.js`
+    - Added protected `/workbench/api/state`.
+    - `GET /workbench/api/state` reads the full workbench state from D1.
+    - `PUT /workbench/api/state` validates and replaces the full workbench state in D1 using prepared statements and `db.batch()`.
+    - Malformed JSON returns `400`.
+    - Missing D1 binding returns `503`.
+  - `workbench/app.js`
+    - Workbench now loads local cache first, then hydrates from cloud state.
+    - Mutations still save local cache immediately.
+    - Mutations also queue a D1 save through `/workbench/api/state`.
+    - If cloud save fails, local data is retained and the UI reports a warning.
+  - `workbench/index.html` / `workbench/styles.css`
+    - Added cloud sync status indicator.
+  - `wrangler.toml`
+    - Added D1 binding configuration for `WORKBENCH_DB`.
+
+- Migration / verification:
+  - Created D1 database with Wrangler.
+  - Applied migration locally:
+    - `npx wrangler d1 migrations apply pontnova-workbench --local`
+  - Applied migration remotely:
+    - `npx wrangler d1 migrations apply pontnova-workbench --remote`
+  - Verified remote counts:
+    - projects: 4
+    - tasks: 4
+    - deadlines: 3
+    - documents: 3
+  - Verified local Pages dev binding exposes `env.WORKBENCH_DB`.
+  - Verified authenticated local API:
+    - `GET /workbench/api/state` returns cloud-backed state.
+    - `PUT /workbench/api/state` persists a test task and returns counts.
+  - Verified workbench page shows cloud sync status.
+
+- Current behavior:
+  - Cloud database is now the source of truth once a user is logged in.
+  - Browser cache remains a resilience layer and fast first paint cache.
+  - JSON export/import remains available for backup and manual migration.
+
+- Follow-up:
+  - Replace full-state `PUT` with per-record CRUD if multi-user concurrent editing becomes important.
+  - Add login rate limiting.
+  - Expand `audit_log` to record semantic operations rather than full state replacements.
+  - Add regular D1 export backup routine.

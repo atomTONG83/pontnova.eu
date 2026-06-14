@@ -182,6 +182,29 @@ h1 {
   line-height: 1.05;
 }
 
+.sync-status {
+  display: inline-flex;
+  margin: 12px 0 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sync-status[data-tone="ok"] {
+  border-color: rgba(60, 122, 73, 0.28);
+  background: rgba(60, 122, 73, 0.1);
+  color: var(--green);
+}
+
+.sync-status[data-tone="warn"] {
+  border-color: rgba(184, 118, 22, 0.3);
+  background: rgba(184, 118, 22, 0.1);
+  color: var(--amber);
+}
+
 h2 {
   margin-bottom: 0;
   font-size: 18px;

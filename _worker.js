@@ -28,6 +28,13 @@ export default {
       });
     }
 
+    if (path === "/workbench/api/state") {
+      if (!(await hasValidSession(request, env))) {
+        return jsonResponse({ error: "Unauthorized" }, 401);
+      }
+      return handleWorkbenchState(request, env);
+    }
+
     if (path === "/workbench/" || path === "/workbench/index.html") {
       if (!(await hasValidSession(request, env))) {
         return redirect(`${url.origin}/workbench/login`);
@@ -43,6 +50,269 @@ export default {
     return env.ASSETS.fetch(request);
   },
 };
+
+async function handleWorkbenchState(request, env) {
+  if (!env.WORKBENCH_DB) {
+    return jsonResponse({ error: "Cloud database is not configured" }, 503);
+  }
+
+  if (request.method === "GET") {
+    return jsonResponse(await readWorkbenchState(env.WORKBENCH_DB));
+  }
+
+  if (request.method === "PUT") {
+    let payload;
+    try {
+      payload = await request.json();
+    } catch (error) {
+      return jsonResponse({ error: "Invalid JSON body" }, 400);
+    }
+    const nextState = sanitizeWorkbenchState(payload);
+    await writeWorkbenchState(env.WORKBENCH_DB, nextState);
+    return jsonResponse({
+      ok: true,
+      counts: {
+        projects: nextState.projects.length,
+        tasks: nextState.tasks.length,
+        deadlines: nextState.deadlines.length,
+        documents: nextState.documents.length,
+      },
+    });
+  }
+
+  return jsonResponse({ error: "Method not allowed" }, 405, { Allow: "GET, PUT" });
+}
+
+async function readWorkbenchState(db) {
+  const [projects, tasks, deadlines, documents] = await db.batch([
+    db.prepare("SELECT * FROM projects ORDER BY sort_order ASC, updated_at DESC"),
+    db.prepare("SELECT * FROM tasks ORDER BY sort_order ASC, due_date ASC, updated_at DESC"),
+    db.prepare("SELECT * FROM deadlines ORDER BY due_date ASC, sort_order ASC"),
+    db.prepare("SELECT * FROM documents ORDER BY sort_order ASC, updated_at DESC"),
+  ]);
+
+  return {
+    projects: (projects.results || []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      type: row.type,
+      client: row.client,
+      owner: row.owner,
+      stage: row.stage,
+      priority: row.priority,
+      progress: row.progress,
+      next: row.next_action,
+      summary: row.summary,
+    })),
+    tasks: (tasks.results || []).map((row) => ({
+      id: row.id,
+      projectId: row.project_id,
+      title: row.title,
+      owner: row.owner,
+      due: row.due_date,
+      priority: row.priority,
+      status: row.status,
+    })),
+    deadlines: (deadlines.results || []).map((row) => ({
+      id: row.id,
+      projectId: row.project_id,
+      title: row.title,
+      date: row.due_date,
+      kind: row.kind,
+      risk: row.risk,
+    })),
+    documents: (documents.results || []).map((row) => ({
+      id: row.id,
+      projectId: row.project_id,
+      title: row.title,
+      type: row.type,
+      path: row.path,
+      note: row.note,
+    })),
+  };
+}
+
+async function writeWorkbenchState(db, state) {
+  const statements = [
+    db.prepare("DELETE FROM documents"),
+    db.prepare("DELETE FROM deadlines"),
+    db.prepare("DELETE FROM tasks"),
+    db.prepare("DELETE FROM projects"),
+  ];
+
+  state.projects.forEach((project, index) => {
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO projects (id, name, type, client, owner, stage, priority, progress, next_action, summary, sort_order, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+        )
+        .bind(
+          project.id,
+          project.name,
+          project.type,
+          project.client,
+          project.owner,
+          project.stage,
+          project.priority,
+          project.progress,
+          project.next,
+          project.summary,
+          index
+        )
+    );
+  });
+
+  state.tasks.forEach((task, index) => {
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO tasks (id, project_id, title, owner, due_date, priority, status, sort_order, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+        )
+        .bind(task.id, task.projectId, task.title, task.owner, task.due, task.priority, task.status, index)
+    );
+  });
+
+  state.deadlines.forEach((deadline, index) => {
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO deadlines (id, project_id, title, due_date, kind, risk, sort_order, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+        )
+        .bind(deadline.id, deadline.projectId, deadline.title, deadline.date, deadline.kind, deadline.risk, index)
+    );
+  });
+
+  state.documents.forEach((document, index) => {
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO documents (id, project_id, title, type, path, note, sort_order, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+        )
+        .bind(document.id, document.projectId, document.title, document.type, document.path, document.note, index)
+    );
+  });
+
+  statements.push(
+    db
+      .prepare("INSERT INTO audit_log (event_type, detail_json) VALUES (?, ?)")
+      .bind(
+        "state_replace",
+        JSON.stringify({
+          projects: state.projects.length,
+          tasks: state.tasks.length,
+          deadlines: state.deadlines.length,
+          documents: state.documents.length,
+        })
+      )
+  );
+
+  await db.batch(statements);
+}
+
+function sanitizeWorkbenchState(payload) {
+  const projects = sanitizeArray(payload?.projects, 200).map((rawItem, index) => {
+    const item = rawItem && typeof rawItem === "object" ? rawItem : {};
+    return {
+    id: sanitizeId(item.id, `project-${index}`),
+    name: sanitizeText(item.name, 160) || "未命名项目",
+    type: sanitizeChoice(item.type, ["consulting", "fundraising", "training", "workshop", "operations"], "consulting"),
+    client: sanitizeText(item.client, 160),
+    owner: sanitizeText(item.owner, 120),
+    stage: sanitizeChoice(item.stage, ["planning", "active", "waiting", "complete"], "planning"),
+    priority: sanitizeChoice(item.priority, ["high", "medium", "low"], "medium"),
+    progress: sanitizeInteger(item.progress, 0, 100, 0),
+    next: sanitizeText(item.next, 300),
+    summary: sanitizeText(item.summary, 800),
+    };
+  });
+  const projectIds = new Set(projects.map((project) => project.id));
+  const fallbackProjectId = projects[0]?.id || "inbox";
+  if (!projectIds.size) {
+    projects.push({
+      id: fallbackProjectId,
+      name: "Inbox",
+      type: "operations",
+      client: "",
+      owner: "Pontnova",
+      stage: "active",
+      priority: "medium",
+      progress: 0,
+      next: "",
+      summary: "临时收件箱项目。",
+    });
+    projectIds.add(fallbackProjectId);
+  }
+
+  return {
+    projects,
+    tasks: sanitizeArray(payload?.tasks, 1000).map((rawItem, index) => {
+      const item = rawItem && typeof rawItem === "object" ? rawItem : {};
+      return {
+      id: sanitizeId(item.id, `task-${index}`),
+      projectId: projectIds.has(item.projectId) ? item.projectId : fallbackProjectId,
+      title: sanitizeText(item.title, 240) || "未命名任务",
+      owner: sanitizeText(item.owner, 120),
+      due: sanitizeDate(item.due),
+      priority: sanitizeChoice(item.priority, ["high", "medium", "low"], "medium"),
+      status: sanitizeChoice(item.status, ["next", "in_progress", "waiting", "done"], "next"),
+      };
+    }),
+    deadlines: sanitizeArray(payload?.deadlines, 1000).map((rawItem, index) => {
+      const item = rawItem && typeof rawItem === "object" ? rawItem : {};
+      return {
+      id: sanitizeId(item.id, `deadline-${index}`),
+      projectId: projectIds.has(item.projectId) ? item.projectId : fallbackProjectId,
+      title: sanitizeText(item.title, 240) || "未命名节点",
+      date: sanitizeDate(item.date),
+      kind: sanitizeText(item.kind, 80),
+      risk: sanitizeChoice(item.risk, ["high", "medium", "low"], "medium"),
+      };
+    }),
+    documents: sanitizeArray(payload?.documents, 1000).map((rawItem, index) => {
+      const item = rawItem && typeof rawItem === "object" ? rawItem : {};
+      return {
+      id: sanitizeId(item.id, `document-${index}`),
+      projectId: projectIds.has(item.projectId) ? item.projectId : fallbackProjectId,
+      title: sanitizeText(item.title, 240) || "未命名资料",
+      type: sanitizeText(item.type, 80),
+      path: sanitizeText(item.path, 800),
+      note: sanitizeText(item.note, 800),
+      };
+    }),
+  };
+}
+
+function sanitizeArray(value, limit) {
+  return Array.isArray(value) ? value.slice(0, limit) : [];
+}
+
+function sanitizeId(value, fallback) {
+  const text = sanitizeText(value, 80);
+  return /^[A-Za-z0-9_.:-]+$/.test(text) ? text : fallback;
+}
+
+function sanitizeText(value, maxLength) {
+  return String(value ?? "").trim().slice(0, maxLength);
+}
+
+function sanitizeChoice(value, choices, fallback) {
+  return choices.includes(value) ? value : fallback;
+}
+
+function sanitizeInteger(value, min, max, fallback) {
+  const number = Number.parseInt(value, 10);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(min, Math.min(max, number));
+}
+
+function sanitizeDate(value) {
+  const text = sanitizeText(value, 20);
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
+}
 
 async function handleLogin(request, env) {
   const url = new URL(request.url);
@@ -64,6 +334,19 @@ function redirect(location, headers = {}) {
     status: 302,
     headers: {
       Location: location,
+      ...headers,
+    },
+  });
+}
+
+function jsonResponse(payload, status = 200, headers = {}) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet, noimageindex",
+      "X-Content-Type-Options": "nosniff",
       ...headers,
     },
   });

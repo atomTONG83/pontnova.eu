@@ -1,3 +1,9 @@
 name = "pontnova"
 compatibility_date = "2026-05-20"
 pages_build_output_dir = ".cloudflare-pages/pontnova"
+
+[[d1_databases]]
+binding = "WORKBENCH_DB"
+database_name = "pontnova-workbench"
+database_id = "509ae21d-1238-401c-bb6a-966ad436dacb"
+migrations_dir = "migrations"

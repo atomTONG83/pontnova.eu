@@ -73,10 +73,13 @@
     ]
   };
 
-  const state = loadState();
+  const state = structuredClone(seed);
   let currentView = "dashboard";
   let currentFilter = "all";
   let query = "";
+  let cloudSaveTimer = null;
+  let cloudSaveInFlight = false;
+  let cloudSaveQueued = false;
 
   const views = {
     dashboard: document.getElementById("dashboardView"),
@@ -93,19 +96,90 @@
     documents: "资料索引"
   };
 
-  function loadState() {
+  function loadLocalState() {
     try {
       const stored = JSON.parse(localStorage.getItem(storageKey) || "");
       if (stored && Array.isArray(stored.projects)) return stored;
     } catch (error) {
       // Ignore malformed local data and fall back to seed records.
     }
-    localStorage.setItem(storageKey, JSON.stringify(seed));
     return structuredClone(seed);
+  }
+
+  function replaceState(nextState) {
+    state.projects = Array.isArray(nextState.projects) ? nextState.projects : [];
+    state.tasks = Array.isArray(nextState.tasks) ? nextState.tasks : [];
+    state.deadlines = Array.isArray(nextState.deadlines) ? nextState.deadlines : [];
+    state.documents = Array.isArray(nextState.documents) ? nextState.documents : [];
   }
 
   function saveState() {
     localStorage.setItem(storageKey, JSON.stringify(state));
+    queueCloudSave();
+  }
+
+  async function loadCloudState() {
+    setSyncStatus("正在连接云端...", "pending");
+    try {
+      const response = await fetch("/workbench/api/state", {
+        headers: { Accept: "application/json" },
+        credentials: "same-origin"
+      });
+      if (!response.ok) throw new Error(`Cloud state load failed: ${response.status}`);
+      const cloudState = await response.json();
+      if (Array.isArray(cloudState.projects) && cloudState.projects.length) {
+        replaceState(cloudState);
+        localStorage.setItem(storageKey, JSON.stringify(state));
+        render();
+        setSyncStatus("已连接云端数据库", "ok");
+      } else {
+        setSyncStatus("云端为空，正在初始化...", "pending");
+        await saveCloudState();
+      }
+    } catch (error) {
+      setSyncStatus("云端暂不可用，正在使用本地缓存", "warn");
+    }
+  }
+
+  function queueCloudSave() {
+    clearTimeout(cloudSaveTimer);
+    cloudSaveTimer = setTimeout(() => {
+      saveCloudState();
+    }, 350);
+  }
+
+  async function saveCloudState() {
+    if (cloudSaveInFlight) {
+      cloudSaveQueued = true;
+      return;
+    }
+    cloudSaveInFlight = true;
+    setSyncStatus("正在保存到云端...", "pending");
+    try {
+      const response = await fetch("/workbench/api/state", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(state)
+      });
+      if (!response.ok) throw new Error(`Cloud state save failed: ${response.status}`);
+      setSyncStatus("已保存到云端", "ok");
+    } catch (error) {
+      setSyncStatus("云端保存失败，本地已保留", "warn");
+    } finally {
+      cloudSaveInFlight = false;
+      if (cloudSaveQueued) {
+        cloudSaveQueued = false;
+        queueCloudSave();
+      }
+    }
+  }
+
+  function setSyncStatus(message, tone = "pending") {
+    const status = document.getElementById("syncStatus");
+    if (!status) return;
+    status.textContent = message;
+    status.dataset.tone = tone;
   }
 
   function matches(text) {
@@ -521,10 +595,17 @@
       alert("JSON 结构不符合工作台格式。");
       return;
     }
-    Object.assign(state, imported);
+    replaceState(imported);
     saveState();
     render();
   });
 
-  render();
+  function init() {
+    replaceState(loadLocalState());
+    localStorage.setItem(storageKey, JSON.stringify(state));
+    render();
+    loadCloudState();
+  }
+
+  init();
 })();
