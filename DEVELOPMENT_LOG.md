@@ -614,6 +614,43 @@
   - `migrations/0002_workbench_atom_parity.sql`
   - `DEVELOPMENT_LOG.md`
 
+## 2026-06-14 Workbench v4.3 fix dialog cancel / close behavior
+
+### Request
+
+- User reported that clicking the `×` close button on the `新增项目档案` dialog could not close or cancel the dialog.
+- Screenshot showed the browser required-field validation bubble on `项目名称`, meaning the close action was being treated as a form submit.
+
+### Root cause
+
+- The dialog close button and `取消` button were both `type="submit"` inside the entry form.
+- The shared submit handler always called record creation, so cancel/close actions were routed through required-field validation before the dialog could close.
+
+### Changes
+
+- Changed the dialog `×` and `取消` buttons to `type="button"` with `data-close-dialog`.
+- Added a shared `closeEntryDialog()` helper to close and reset the entry dialog without creating records.
+- Added a backdrop click handler for the entry dialog so clicking outside the form can close it cleanly.
+- Kept the `保存` button as the only submit action, preserving required-field validation for real saves.
+- Bumped workbench asset query version to `20260614-v4-3`.
+
+### Local verification
+
+- `node --check workbench/app.js`
+- `node --check _worker.js`
+- Local static preview:
+  - `http://127.0.0.1:3008/workbench/`
+- Browser modal verification:
+  - Opened `新增项目档案` from the sidebar.
+  - Clicked `保存` with empty `项目名称`; dialog stayed open and the name field remained invalid.
+  - Clicked the `×` close button after validation; dialog closed.
+  - Reopened the dialog and clicked `取消`; dialog closed.
+  - Browser console had no errors.
+
+### Deployment note
+
+- No D1 migration required.
+
 ## 2026-06-14 Workbench v4.2 fix sidebar view switching
 
 ### Request

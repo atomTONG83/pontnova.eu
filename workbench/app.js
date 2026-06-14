@@ -1088,6 +1088,13 @@
     dialog.showModal();
   }
 
+  function closeEntryDialog() {
+    const dialog = document.getElementById("entryDialog");
+    const form = document.getElementById("entryForm");
+    if (dialog.open) dialog.close("cancel");
+    form.reset();
+  }
+
   function formFor(kind, defaults) {
     if (kind === "project") return `
       ${field("projectNo", "项目号", "text", defaults.projectNo || nextProjectNo(defaults.type || "consulting"))}
@@ -1822,10 +1829,18 @@
   });
   document.getElementById("entryForm").addEventListener("submit", (event) => {
     event.preventDefault();
+    if (event.submitter?.value === "cancel") {
+      closeEntryDialog();
+      return;
+    }
     const form = event.currentTarget;
     handleCreate(form.dataset.kind, form);
     document.getElementById("entryDialog").close();
     form.reset();
+  });
+  document.querySelectorAll("[data-close-dialog]").forEach((button) => button.addEventListener("click", closeEntryDialog));
+  document.getElementById("entryDialog").addEventListener("click", (event) => {
+    if (event.target === event.currentTarget) closeEntryDialog();
   });
   document.body.addEventListener("change", (event) => {
     const checkbox = event.target.closest("[data-task-check]");

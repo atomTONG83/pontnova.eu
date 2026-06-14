@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
   <title>Pontnova 工作台</title>
-  <link rel="stylesheet" href="/workbench/styles.css?v=20260614-v4-2">
+  <link rel="stylesheet" href="/workbench/styles.css?v=20260614-v4-3">
 </head>
 <body data-view="dashboard">
   <div class="shell">
@@ -331,11 +331,11 @@
           <p class="eyebrow" id="dialogKicker">新增</p>
           <h2 id="dialogTitle">新增项目</h2>
         </div>
-        <button class="icon-button" value="cancel" type="submit" aria-label="关闭">×</button>
+        <button class="icon-button" data-close-dialog type="button" aria-label="关闭">×</button>
       </div>
       <div class="form-grid" id="formFields"></div>
       <div class="dialog-actions">
-        <button class="ghost-button" value="cancel" type="submit">取消</button>
+        <button class="ghost-button" data-close-dialog type="button">取消</button>
         <button class="primary-button" id="saveEntryButton" value="default" type="submit">保存</button>
       </div>
     </form>
@@ -362,6 +362,6 @@
     </div>
   </template>
 
-  <script src="/workbench/app.js?v=20260614-v4-2" defer></script>
+  <script src="/workbench/app.js?v=20260614-v4-3" defer></script>
 </body>
 </html>
