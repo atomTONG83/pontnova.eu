@@ -648,6 +648,60 @@
 
 - No D1 migration required.
 
+### Production deployment
+
+- Source commit:
+  - `e52c1d044ac2e2fb1db4ebc8f6b86e21a6fc2651`
+- Commit message:
+  - `Improve Pontnova task editing feedback`
+- Pushed to:
+  - `origin/main`
+- Cloudflare Pages deploy:
+  - `https://92d0e3f7.pontnova.pages.dev`
+- Production URL:
+  - `https://pontnova.eu/workbench/`
+
+### Production verification
+
+- Login API:
+  - `302`
+- Authenticated workbench HTML:
+  - `200`
+- Authenticated state API:
+  - `200`
+- Production HTML confirmed:
+  - `/workbench/styles.css?v=20260614-v4-4`
+  - `/workbench/app.js?v=20260614-v4-4`
+- Production D1 state confirmed:
+  - 4 projects
+  - 4 tasks
+  - 3 deadlines
+  - 3 objectives
+- Browser production task drawer verification:
+  - Opened the `任务` section and opened `task-2`.
+  - Task drawer showed `任务字段`.
+  - Whitespace-only task title was blocked with `请填写任务标题`.
+  - Live task data was not mutated; cloud state still showed `task-2` title as `生成技术尽调问题清单`.
+  - Browser console had no errors.
+
+### Local retained copy v4.4
+
+- Local copy:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v4-4-e52c1d0`
+- Archive:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v4-4-e52c1d0.tar.gz`
+- SHA-256:
+  - `08780e5c9b39764dcf4a1350ab246fcf960ecc3e7ac458834581028ba16150b4`
+- Manifest:
+  - `LOCAL_BACKUP_MANIFEST.md`
+- Archive content spot-check:
+  - `workbench/index.html`
+  - `workbench/app.js`
+  - `workbench/styles.css`
+  - `_worker.js`
+  - `migrations/0002_workbench_atom_parity.sql`
+  - `DEVELOPMENT_LOG.md`
+
 ## 2026-06-14 Workbench v4.3 fix dialog cancel / close behavior
 
 ### Request
