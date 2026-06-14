@@ -614,6 +614,98 @@
   - `migrations/0002_workbench_atom_parity.sql`
   - `DEVELOPMENT_LOG.md`
 
+## 2026-06-14 Workbench v5.4 remove data import/export controls
+
+### User request
+
+- The sidebar `导出 JSON` and `导入` controls are not needed in the platform UI.
+
+### Changes
+
+- Bumped workbench asset query version to `20260614-v5-4`.
+- Removed sidebar controls:
+  - `导出 JSON`
+  - `导入`
+- Removed the hidden `#importDataInput` file input.
+- Removed front-end export/download listener.
+- Removed front-end JSON import listener.
+- Removed no-longer-used `.file-button input` CSS.
+- Sidebar footer now keeps only the user-facing `退出` action below the work-principle note.
+
+### Local verification
+
+- `node --check workbench/app.js`
+- `node --check _worker.js`
+- `git diff --check`
+- Local static preview:
+  - `http://127.0.0.1:4321/workbench/`
+- Browser local verification:
+  - v5.4 CSS and JS assets loaded.
+  - `导出 JSON` text not present.
+  - `导入` text not present.
+  - `#exportDataButton` not present.
+  - `#importDataInput` not present.
+  - Sidebar footer buttons now only show:
+    - `退出`
+  - No horizontal overflow.
+  - Browser console had no errors.
+
+### Deployment note
+
+- No D1 migration required.
+- Cloud D1 state shape is unchanged.
+
+### Production deployment
+
+- Source commit:
+  - `e61d3f95694c8e1c6bf606dd5a4c43b472917f44`
+- Commit message:
+  - `Remove workbench data import export controls`
+- Pushed to:
+  - `origin/main`
+- Cloudflare Pages deploy:
+  - `https://31c5c7f6.pontnova.pages.dev`
+- Production URL:
+  - `https://pontnova.eu/workbench/`
+
+### Production verification
+
+- Login API:
+  - `302`
+- Authenticated workbench HTML:
+  - `200`
+- Authenticated state API:
+  - `200`
+- Production HTML confirmed:
+  - `/workbench/styles.css?v=20260614-v5-4`
+  - `/workbench/app.js?v=20260614-v5-4`
+- Production state API bytes:
+  - `7279`
+- Browser production verification:
+  - v5.4 CSS and JS assets loaded.
+  - `导出 JSON` and `导入` are not visible.
+  - `#exportDataButton` and `#importDataInput` are not present.
+  - Sidebar footer buttons now only show `退出`.
+  - No horizontal overflow.
+  - Browser console had no errors.
+
+### Local retained copy v5.4
+
+- Local copy:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v5-4-e61d3f9`
+- Archive:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260614-v5-4-e61d3f9.tar.gz`
+- SHA-256:
+  - `e460ab65ba9fec63144e276fa86ad01570d30f3e22fc9affcb0c1dff565bb17b`
+- Manifest:
+  - `LOCAL_BACKUP_MANIFEST.md`
+- Archive content spot-check:
+  - `workbench/index.html`
+  - `workbench/app.js`
+  - `workbench/styles.css`
+  - `_worker.js`
+  - `DEVELOPMENT_LOG.md`
+
 ## 2026-06-14 Workbench v5.3 clarify project/task edit-delete actions
 
 ### User request
