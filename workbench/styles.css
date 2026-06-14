@@ -1700,11 +1700,100 @@ th {
   gap: 12px;
 }
 
+.detail-page {
+  display: grid;
+  gap: 16px;
+}
+
+.detail-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.detail-page-hero {
+  background: linear-gradient(135deg, #fff9ef 0%, #ffffff 64%, #eef7f0 100%);
+}
+
+.detail-page-hero h2 {
+  margin-bottom: 8px;
+  font-size: 28px;
+  line-height: 1.12;
+}
+
+.detail-section {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--surface);
+}
+
+.section-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.read-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.read-field {
+  min-height: 72px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--surface-3);
+}
+
+.read-field.full {
+  grid-column: 1 / -1;
+}
+
+.read-field span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.read-field strong {
+  display: block;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.detail-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
 .detail-metrics,
 .compact-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.detail-page > .detail-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .detail-metrics .metric {
@@ -1780,8 +1869,13 @@ th {
   }
 
   .bottom-board-grid,
-  .analytics-splits {
+  .analytics-splits,
+  .detail-columns {
     grid-template-columns: 1fr;
+  }
+
+  .detail-page > .detail-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .panel-head {
@@ -1858,9 +1952,25 @@ th {
   .document-grid,
   .form-grid,
   .detail-metrics,
+  .read-grid,
   .compact-grid,
   .agenda-day,
   .hero-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-toolbar,
+  .detail-actions,
+  .section-title-row {
+    display: grid;
+    width: 100%;
+  }
+
+  .detail-page-hero h2 {
+    font-size: 24px;
+  }
+
+  .detail-page > .detail-metrics {
     grid-template-columns: 1fr;
   }
 

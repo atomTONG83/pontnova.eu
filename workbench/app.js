@@ -158,6 +158,7 @@
   let calendarMode = "month";
   let calendarAnchor = startOfDay(new Date());
   let activeDrawer = null;
+  let activeDetail = null;
   let cloudSaveTimer = null;
   let cloudSaveInFlight = false;
   let cloudSaveQueued = false;
@@ -166,6 +167,8 @@
     dashboard: document.getElementById("dashboardView"),
     projects: document.getElementById("projectsView"),
     tasks: document.getElementById("tasksView"),
+    projectDetail: document.getElementById("projectDetailView"),
+    taskDetail: document.getElementById("taskDetailView"),
     calendar: document.getElementById("calendarView"),
     documents: document.getElementById("documentsView"),
     objectives: document.getElementById("objectivesView"),
@@ -177,6 +180,8 @@
     dashboard: "项目看板",
     projects: "项目组合",
     tasks: "任务清单",
+    projectDetail: "项目详情",
+    taskDetail: "任务详情",
     calendar: "日历",
     documents: "资料索引",
     objectives: "OKR / 目标",
@@ -464,6 +469,7 @@
     renderActivity();
     renderCalendar();
     renderMap();
+    refreshDetailPage();
     refreshDrawer();
   }
 
@@ -1079,9 +1085,11 @@
 
   function setView(view) {
     currentView = view;
+    if (!["projectDetail", "taskDetail"].includes(view)) activeDetail = null;
     document.body.dataset.view = view;
     Object.entries(views).forEach(([name, element]) => element?.classList.toggle("is-active", name === view));
-    document.querySelectorAll(".nav-item").forEach((button) => button.classList.toggle("is-active", button.dataset.view === view));
+    const navView = view === "projectDetail" ? "projects" : view === "taskDetail" ? "tasks" : view;
+    document.querySelectorAll(".nav-item").forEach((button) => button.classList.toggle("is-active", button.dataset.view === navView));
     document.getElementById("viewTitle").textContent = titles[view];
     window.scrollTo({ top: 0, behavior: "auto" });
     if (view === "dashboard") renderDashboard();
@@ -1094,7 +1102,10 @@
     const form = document.getElementById("entryForm");
     const fields = document.getElementById("formFields");
     form.dataset.kind = kind;
+    form.dataset.mode = "create";
+    form.dataset.editId = "";
     form.dataset.projectId = defaults.projectId || "";
+    document.getElementById("saveEntryButton").textContent = "保存";
     document.getElementById("dialogTitle").textContent = {
       project: "新增项目档案",
       task: "新增任务",
@@ -1109,37 +1120,62 @@
     dialog.showModal();
   }
 
+  function openEditDialog(kind, id) {
+    const item = kind === "project"
+      ? state.projects.find((project) => project.id === id)
+      : state.tasks.find((task) => task.id === id);
+    if (!item) return;
+    const dialog = document.getElementById("entryDialog");
+    const form = document.getElementById("entryForm");
+    const fields = document.getElementById("formFields");
+    form.dataset.kind = kind;
+    form.dataset.mode = "edit";
+    form.dataset.editId = id;
+    form.dataset.projectId = item.projectId || id;
+    document.getElementById("dialogTitle").textContent = kind === "project" ? "编辑项目档案" : "编辑任务";
+    document.getElementById("dialogKicker").textContent = kind === "project" ? item.projectNo : projectById(item.projectId).projectNo;
+    document.getElementById("saveEntryButton").textContent = kind === "project" ? "保存项目" : "保存任务";
+    fields.innerHTML = formFor(kind, item);
+    dialog.showModal();
+  }
+
   function closeEntryDialog() {
     const dialog = document.getElementById("entryDialog");
     const form = document.getElementById("entryForm");
     if (dialog.open) dialog.close("cancel");
     form.reset();
+    form.dataset.mode = "create";
+    form.dataset.editId = "";
+    document.getElementById("saveEntryButton").textContent = "保存";
   }
 
   function formFor(kind, defaults) {
     if (kind === "project") return `
       ${field("projectNo", "项目号", "text", defaults.projectNo || nextProjectNo(defaults.type || "consulting"))}
-      ${field("name", "项目名称", "text", "", true)}
+      ${field("name", "项目名称", "text", defaults.name || "", true)}
       ${selectField("type", "业务线", typeOptions.map(([value, label]) => [value, label]), defaults.type || "consulting")}
-      ${selectField("priority", "优先级", [["high", "高"], ["medium", "中"], ["low", "低"]], "medium")}
-      ${field("client", "客户 / 委托方", "text", "")}
-      ${field("contact", "客户联系人", "text", "")}
-      ${field("owner", "负责人", "text", "Pontnova")}
-      ${field("openedAt", "开启日期", "date", toIsoDate(today))}
-      ${field("dueDate", "目标完成日", "date", "")}
-      ${field("budget", "项目包 / 预算", "text", "")}
-      ${textareaField("goal", "项目目标", "")}
-      ${textareaField("summary", "项目说明", "")}
-      ${field("next", "下一步", "text", "", false, "full")}
+      ${selectField("stage", "状态", stageOptions, defaults.stage || "planning")}
+      ${selectField("priority", "优先级", [["high", "高"], ["medium", "中"], ["low", "低"]], defaults.priority || "medium")}
+      ${selectField("health", "健康度", healthOptions, defaults.health || "on_track")}
+      ${field("progress", "进度", "number", defaults.progress ?? "0")}
+      ${field("client", "客户 / 委托方", "text", defaults.client || "")}
+      ${field("contact", "客户联系人", "text", defaults.contact || "")}
+      ${field("owner", "负责人", "text", defaults.owner || "Pontnova")}
+      ${field("openedAt", "开启日期", "date", defaults.openedAt || toIsoDate(today))}
+      ${field("dueDate", "目标完成日", "date", defaults.dueDate || "")}
+      ${field("budget", "项目包 / 预算", "text", defaults.budget || "", false, "full")}
+      ${textareaField("goal", "项目目标", defaults.goal || "")}
+      ${textareaField("summary", "项目说明", defaults.summary || "")}
+      ${field("next", "下一步", "text", defaults.next || "", false, "full")}
     `;
     if (kind === "task") return `
       ${selectField("projectId", "项目", projectOptions(), defaults.projectId)}
-      ${field("title", "任务", "text", "", true, "full")}
-      ${field("owner", "负责人", "text", "Pontnova")}
-      ${field("due", "截止日期", "date", "")}
-      ${selectField("priority", "优先级", [["high", "高"], ["medium", "中"], ["low", "低"]], "medium")}
-      ${selectField("status", "状态", [["next", "下一步"], ["in_progress", "进行中"], ["waiting", "等待"], ["done", "完成"]], "next")}
-      ${textareaField("notes", "备注", "")}
+      ${field("title", "任务", "text", defaults.title || "", true, "full")}
+      ${field("owner", "负责人", "text", defaults.owner || "Pontnova")}
+      ${field("due", "截止日期", "date", defaults.due || "")}
+      ${selectField("priority", "优先级", [["high", "高"], ["medium", "中"], ["low", "低"]], defaults.priority || "medium")}
+      ${selectField("status", "状态", [["next", "下一步"], ["in_progress", "进行中"], ["waiting", "等待"], ["done", "完成"]], defaults.status || "next")}
+      ${textareaField("notes", "备注", defaults.notes || "")}
     `;
     if (kind === "deadline") return `
       ${selectField("projectId", "项目", projectOptions(), defaults.projectId)}
@@ -1231,71 +1267,149 @@
     renderAll();
   }
 
+  function handleEdit(kind, id, form) {
+    const data = Object.fromEntries(new FormData(form).entries());
+    if (kind === "project") {
+      const project = state.projects.find((item) => item.id === id);
+      if (!project) return;
+      project.projectNo = text(data.projectNo) || project.projectNo;
+      project.name = text(data.name) || project.name;
+      project.type = choice(data.type, typeOptions.map(([value]) => value), project.type);
+      project.stage = choice(data.stage, stageOptions.map(([value]) => value), project.stage);
+      project.priority = choice(data.priority, ["high", "medium", "low"], project.priority);
+      project.health = choice(data.health, healthOptions.map(([value]) => value), project.health);
+      project.progress = clamp(Number(data.progress) || 0, 0, 100);
+      project.client = text(data.client);
+      project.contact = text(data.contact);
+      project.owner = text(data.owner);
+      project.openedAt = validDate(data.openedAt);
+      project.dueDate = validDate(data.dueDate);
+      project.budget = text(data.budget);
+      project.goal = text(data.goal);
+      project.summary = text(data.summary);
+      project.next = text(data.next);
+      trackActivity({ projectId: project.id, entity: "Project", entityId: project.id, action: "update", title: `更新项目档案 ${project.projectNo}`, note: project.name });
+    }
+    if (kind === "task") {
+      const task = state.tasks.find((item) => item.id === id);
+      if (!task) return;
+      task.projectId = data.projectId || task.projectId;
+      task.title = text(data.title) || task.title;
+      task.owner = text(data.owner);
+      task.due = validDate(data.due);
+      task.priority = choice(data.priority, ["high", "medium", "low"], task.priority);
+      task.status = choice(data.status, ["next", "in_progress", "waiting", "done"], task.status);
+      task.notes = text(data.notes);
+      trackActivity({ projectId: task.projectId, entity: "Task", entityId: task.id, action: task.status === "done" ? "complete" : "update", title: `更新任务：${task.title}` });
+    }
+    replaceState(state);
+    saveState();
+    renderAll();
+  }
+
   function openProject(id) {
     const project = state.projects.find((item) => item.id === id);
     if (!project) return;
+    closeDrawerIfOpen();
+    activeDetail = { kind: "project", id };
+    renderProjectDetailPage(id);
+    setView("projectDetail");
+    setDetailTitle(project.projectNo, project.name);
+  }
+
+  function renderProjectDetailPage(id) {
+    const project = state.projects.find((item) => item.id === id);
+    const container = document.getElementById("projectDetailPage");
+    if (!project || !container) {
+      activeDetail = null;
+      setView("projects");
+      return;
+    }
     const rel = related(id);
-    activeDrawer = { kind: "project", id };
-    setDrawer("项目档案", `${project.projectNo} · ${project.name}`, `
-      <section class="detail-hero">
-        <div>
-          <span class="case-number">${escapeHtml(project.projectNo)}</span>
-          <h3>${escapeHtml(project.name)}</h3>
-          <p>${escapeHtml(project.summary || "暂无项目说明。")}</p>
+    const openTasks = rel.tasks.filter((task) => task.status !== "done");
+    const upcomingDeadlines = rel.deadlines.filter((deadline) => daysUntil(deadline.date) >= 0).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    container.innerHTML = `
+      <div class="detail-page">
+        <div class="detail-toolbar">
+          <button class="ghost-button compact" data-view-jump="projects" type="button">返回项目</button>
+          <div class="detail-actions">
+            <button class="ghost-button compact" data-add-related="task" data-project-id="${escapeAttr(id)}" type="button">新增任务</button>
+            <button class="ghost-button compact" data-add-related="deadline" data-project-id="${escapeAttr(id)}" type="button">新增节点</button>
+            <button class="primary-button small" data-edit-project="${escapeAttr(id)}" type="button">编辑项目</button>
+          </div>
         </div>
-        <span class="badge ${escapeAttr(project.priority)}">${priorityLabel(project.priority)}</span>
-        <div class="progress large"><span style="width:${project.progress}%"></span></div>
-        <div class="meta-row">
-          <span class="status">${typeLabel(project.type)}</span>
-          <span class="status">${stageLabel(project.stage)}</span>
-          <span class="status ${escapeAttr(project.health)}">${healthLabel(project.health)}</span>
-          <span class="status">${escapeHtml(project.client || "未设客户")}</span>
+
+        <section class="detail-hero detail-page-hero">
+          <div>
+            <span class="case-number">${escapeHtml(project.projectNo)}</span>
+            <h2>${escapeHtml(project.name)}</h2>
+            <p>${escapeHtml(project.summary || "暂无项目说明。")}</p>
+          </div>
+          <span class="badge ${escapeAttr(project.priority)}">${priorityLabel(project.priority)}</span>
+          <div class="progress large"><span style="width:${project.progress}%"></span></div>
+          <div class="meta-row">
+            <span class="status">${typeLabel(project.type)}</span>
+            <span class="status">${stageLabel(project.stage)}</span>
+            <span class="status ${escapeAttr(project.health)}">${healthLabel(project.health)}</span>
+            <span class="status">${escapeHtml(project.client || "未设客户")}</span>
+          </div>
+        </section>
+
+        <section class="detail-metrics">
+          <article class="metric"><span>未完成任务</span><strong>${openTasks.length}</strong><small>${rel.tasks.length} 总数</small></article>
+          <article class="metric"><span>未来节点</span><strong>${upcomingDeadlines.length}</strong><small>${rel.deadlines.length} 总数</small></article>
+          <article class="metric"><span>资料</span><strong>${rel.documents.length}</strong><small>索引链接</small></article>
+          <article class="metric"><span>投入</span><strong>${sumHours(rel.timeEntries).toFixed(1)} h</strong><small>${rel.timeEntries.length} 条记录</small></article>
+        </section>
+
+        <section class="detail-section">
+          <div class="section-title-row">
+            <div>
+              <p class="eyebrow">Project Fields</p>
+              <h3>固定项目内容</h3>
+            </div>
+            <span class="status">${escapeHtml(project.openedAt || "未设开启日期")}</span>
+          </div>
+          <div class="read-grid">
+            ${readField("项目号", project.projectNo)}
+            ${readField("业务线", typeLabel(project.type))}
+            ${readField("状态", stageLabel(project.stage))}
+            ${readField("健康度", healthLabel(project.health))}
+            ${readField("优先级", priorityLabel(project.priority))}
+            ${readField("进度", `${project.progress}%`)}
+            ${readField("负责人", project.owner || "未设置")}
+            ${readField("客户 / 委托方", project.client || "未设置")}
+            ${readField("客户联系人", project.contact || "未设置")}
+            ${readField("开启日期", project.openedAt || "未设置")}
+            ${readField("目标完成日", project.dueDate || "未设置")}
+            ${readField("项目包 / 预算", project.budget || "未设置")}
+            ${readField("项目目标", project.goal || "暂无项目目标。", "full")}
+            ${readField("下一步", project.next || "暂无下一步。", "full")}
+          </div>
+        </section>
+
+        <div class="detail-columns">
+          ${linkedList("任务", rel.tasks.sort(sortTasks), "task")}
+          ${linkedList("关键节点", upcomingDeadlines, "deadline")}
         </div>
-      </section>
-      <section class="drawer-section detail-metrics">
-        <article class="metric"><span>任务</span><strong>${rel.tasks.filter((task) => task.status !== "done").length}</strong><small>${rel.tasks.length} 总数</small></article>
-        <article class="metric"><span>节点</span><strong>${rel.deadlines.length}</strong><small>未来 ${rel.deadlines.filter((d) => daysUntil(d.date) >= 0).length}</small></article>
-        <article class="metric"><span>资料</span><strong>${rel.documents.length}</strong><small>索引链接</small></article>
-        <article class="metric"><span>投入</span><strong>${sumHours(rel.timeEntries).toFixed(1)} h</strong><small>${rel.timeEntries.length} 条记录</small></article>
-      </section>
-      <section class="drawer-section">
-        <h3>项目字段</h3>
-        <div class="form-grid">
-          ${field("drawerProjectNo", "项目号", "text", project.projectNo)}
-          ${field("drawerProjectName", "项目名称", "text", project.name, true)}
-          ${selectField("drawerProjectType", "业务线", typeOptions.map(([value, label]) => [value, label]), project.type)}
-          ${selectField("drawerProjectStage", "状态", stageOptions, project.stage)}
-          ${selectField("drawerProjectPriority", "优先级", [["high", "高"], ["medium", "中"], ["low", "低"]], project.priority)}
-          ${selectField("drawerProjectHealth", "健康度", healthOptions, project.health)}
-          ${field("drawerProjectProgress", "进度", "number", project.progress || 0)}
-          ${field("drawerProjectOwner", "负责人", "text", project.owner || "")}
-          ${field("drawerProjectClient", "客户 / 委托方", "text", project.client || "")}
-          ${field("drawerProjectContact", "客户联系人", "text", project.contact || "")}
-          ${field("drawerProjectOpenedAt", "开启日期", "date", project.openedAt || "")}
-          ${field("drawerProjectDueDate", "目标完成日", "date", project.dueDate || "")}
-          ${field("drawerProjectBudget", "项目包 / 预算", "text", project.budget || "", false, "full")}
-          ${textareaField("drawerProjectGoal", "项目目标", project.goal || "")}
-          ${field("drawerProjectNext", "下一步", "text", project.next || "", false, "full")}
+
+        <div class="detail-columns">
+          ${linkedList("资料", rel.documents, "document")}
+          ${linkedList("目标", rel.objectives, "objective")}
         </div>
-        <div class="drawer-actions"><button class="primary-button small" data-save-project="${escapeAttr(id)}" type="button">保存项目档案</button></div>
-      </section>
-      ${linkedList("任务", rel.tasks, "task")}
-      ${linkedList("关键节点", rel.deadlines, "deadline")}
-      ${linkedList("资料", rel.documents, "document")}
-      ${linkedList("目标", rel.objectives, "objective")}
-      ${timeList(rel.timeEntries)}
-      <section class="drawer-section">
-        <h3>快速新增</h3>
-        <div class="drawer-actions">
-          <button class="ghost-button" data-add-related="task" data-project-id="${escapeAttr(id)}" type="button">新增任务</button>
-          <button class="ghost-button" data-add-related="deadline" data-project-id="${escapeAttr(id)}" type="button">新增节点</button>
-          <button class="ghost-button" data-add-related="document" data-project-id="${escapeAttr(id)}" type="button">新增资料</button>
-          <button class="ghost-button" data-add-related="objective" data-project-id="${escapeAttr(id)}" type="button">新增目标</button>
-          <button class="ghost-button" data-add-related="time" data-project-id="${escapeAttr(id)}" type="button">记录投入</button>
-          <button class="ghost-button" data-add-related="activity" data-project-id="${escapeAttr(id)}" type="button">新增动态</button>
-        </div>
-      </section>
-    `);
+        ${timeList(rel.timeEntries)}
+      </div>
+    `;
+    if (currentView === "projectDetail") setDetailTitle(project.projectNo, project.name);
+  }
+
+  function readField(label, value, klass = "") {
+    return `
+      <article class="read-field ${klass}">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value || "—")}</strong>
+      </article>
+    `;
   }
 
   function linkedList(title, items, kind) {
@@ -1336,32 +1450,98 @@
   function openTask(id) {
     const task = state.tasks.find((item) => item.id === id);
     if (!task) return;
+    closeDrawerIfOpen();
+    activeDetail = { kind: "task", id };
+    renderTaskDetailPage(id);
+    setView("taskDetail");
+    setDetailTitle("任务", task.title);
+  }
+
+  function renderTaskDetailPage(id) {
+    const task = state.tasks.find((item) => item.id === id);
+    const container = document.getElementById("taskDetailPage");
+    if (!task || !container) {
+      activeDetail = null;
+      setView("tasks");
+      return;
+    }
     const project = projectById(task.projectId);
-    activeDrawer = { kind: "task", id };
-    setDrawer("任务", task.title, `
-      <section class="detail-hero">
-        <span class="case-number">${escapeHtml(project.projectNo)}</span>
-        <h3>${escapeHtml(task.title)}</h3>
-        <p>${escapeHtml(task.notes || project.name)}</p>
-      </section>
+    const taskTime = state.timeEntries.filter((entry) => entry.taskId === task.id);
+    const taskActivities = state.activities.filter((activity) => activity.entityId === task.id || activity.title.includes(task.title)).slice(0, 8);
+    container.innerHTML = `
+      <div class="detail-page">
+        <div class="detail-toolbar">
+          <button class="ghost-button compact" data-view-jump="tasks" type="button">返回任务</button>
+          <div class="detail-actions">
+            <button class="ghost-button compact" data-open-project="${escapeAttr(project.id)}" type="button">打开项目</button>
+            <button class="ghost-button compact" data-add-related="time" data-project-id="${escapeAttr(project.id)}" type="button">记录投入</button>
+            <button class="primary-button small" data-edit-task="${escapeAttr(task.id)}" type="button">编辑任务</button>
+          </div>
+        </div>
+
+        <section class="detail-hero detail-page-hero">
+          <div>
+            <span class="case-number">${escapeHtml(project.projectNo)}</span>
+            <h2>${escapeHtml(task.title)}</h2>
+            <p>${escapeHtml(task.notes || project.name)}</p>
+          </div>
+          <span class="badge ${escapeAttr(task.priority)}">${priorityLabel(task.priority)}</span>
+          <div class="meta-row">
+            <span class="status">${statusLabel(task.status)}</span>
+            <span class="status">${relativeDay(task.due)}</span>
+            <span class="status">${escapeHtml(task.owner || "未设负责人")}</span>
+          </div>
+        </section>
+
+        <section class="detail-metrics">
+          <article class="metric"><span>状态</span><strong>${statusLabel(task.status)}</strong><small>${task.status === "done" ? "已完成" : "待推进"}</small></article>
+          <article class="metric"><span>截止</span><strong>${escapeHtml(relativeDay(task.due))}</strong><small>${escapeHtml(task.due || "未设日期")}</small></article>
+          <article class="metric"><span>优先级</span><strong>${priorityLabel(task.priority)}</strong><small>任务权重</small></article>
+          <article class="metric"><span>投入</span><strong>${sumHours(taskTime).toFixed(1)} h</strong><small>${taskTime.length} 条记录</small></article>
+        </section>
+
+        <section class="detail-section">
+          <div class="section-title-row">
+            <div>
+              <p class="eyebrow">Task Fields</p>
+              <h3>固定任务内容</h3>
+            </div>
+            <span class="status">${escapeHtml(project.projectNo)}</span>
+          </div>
+          <div class="read-grid">
+            ${readField("任务", task.title, "full")}
+            ${readField("项目", `${project.projectNo} · ${project.name}`, "full")}
+            ${readField("负责人", task.owner || "未设置")}
+            ${readField("截止日期", task.due || "未设置")}
+            ${readField("状态", statusLabel(task.status))}
+            ${readField("优先级", priorityLabel(task.priority))}
+            ${readField("备注", task.notes || "暂无备注。", "full")}
+          </div>
+        </section>
+
+        <div class="detail-columns">
+          ${timeList(taskTime)}
+          ${activityList("任务动态", taskActivities)}
+        </div>
+      </div>
+    `;
+    if (currentView === "taskDetail") setDetailTitle("任务", task.title);
+  }
+
+  function activityList(title, items) {
+    return `
       <section class="drawer-section">
-        <h3>任务字段</h3>
-        <div class="form-grid">
-          ${field("drawerTaskTitle", "任务", "text", task.title, true, "full")}
-          ${selectField("drawerTaskProject", "项目", projectOptions(), task.projectId)}
-          ${field("drawerTaskOwner", "负责人", "text", task.owner || "")}
-          ${field("drawerTaskDue", "截止日期", "date", task.due || "")}
-          ${selectField("drawerTaskStatus", "状态", [["next", "下一步"], ["in_progress", "进行中"], ["waiting", "等待"], ["done", "完成"]], task.status)}
-          ${selectField("drawerTaskPriority", "优先级", [["high", "高"], ["medium", "中"], ["low", "低"]], task.priority)}
-          ${textareaField("drawerTaskNotes", "备注", task.notes || "")}
-        </div>
-        <div class="drawer-actions">
-          <span class="drawer-save-status" id="drawerSaveStatus" aria-live="polite"></span>
-          <button class="ghost-button" data-open-project="${escapeAttr(project.id)}" type="button">打开项目</button>
-          <button class="primary-button small" data-save-task="${escapeAttr(task.id)}" type="button">保存任务</button>
+        <h3>${title}</h3>
+        <div class="linked-list">
+          ${items.length ? items.map((item) => `
+            <button class="linked-item" data-open-activity="${escapeAttr(item.id)}" type="button">
+              <span><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.date)} · ${escapeHtml(item.actor || "Pontnova")}</span></span>
+              <span>打开</span>
+            </button>
+          `).join("") : `<p class="muted-copy">暂无${title}。</p>`}
         </div>
       </section>
-    `);
+    `;
   }
 
   function openDeadline(id) {
@@ -1535,6 +1715,11 @@
     document.getElementById("closeDrawerButton")?.focus();
   }
 
+  function closeDrawerIfOpen() {
+    const drawer = document.getElementById("detailDrawer");
+    if (drawer?.classList.contains("is-open")) closeDrawer();
+  }
+
   function closeDrawer() {
     const drawer = document.getElementById("detailDrawer");
     drawer.classList.remove("is-open");
@@ -1543,10 +1728,18 @@
     activeDrawer = null;
   }
 
+  function setDetailTitle(primary, secondary) {
+    document.getElementById("viewTitle").textContent = secondary ? `${primary} · ${secondary}` : primary;
+  }
+
+  function refreshDetailPage() {
+    if (!activeDetail) return;
+    if (activeDetail.kind === "project") renderProjectDetailPage(activeDetail.id);
+    if (activeDetail.kind === "task") renderTaskDetailPage(activeDetail.id);
+  }
+
   function refreshDrawer() {
     if (!activeDrawer) return;
-    if (activeDrawer.kind === "project") openProject(activeDrawer.id);
-    if (activeDrawer.kind === "task") openTask(activeDrawer.id);
     if (activeDrawer.kind === "deadline") openDeadline(activeDrawer.id);
     if (activeDrawer.kind === "document") openDocument(activeDrawer.id);
     if (activeDrawer.kind === "objective") openObjective(activeDrawer.id);
@@ -1883,9 +2076,16 @@
       return;
     }
     const form = event.currentTarget;
-    handleCreate(form.dataset.kind, form);
+    if (form.dataset.mode === "edit") {
+      handleEdit(form.dataset.kind, form.dataset.editId, form);
+    } else {
+      handleCreate(form.dataset.kind, form);
+    }
     document.getElementById("entryDialog").close();
     form.reset();
+    form.dataset.mode = "create";
+    form.dataset.editId = "";
+    document.getElementById("saveEntryButton").textContent = "保存";
   });
   document.querySelectorAll("[data-close-dialog]").forEach((button) => button.addEventListener("click", closeEntryDialog));
   document.getElementById("entryDialog").addEventListener("click", (event) => {
@@ -1901,8 +2101,9 @@
     saveAndRender();
   });
   document.body.addEventListener("click", (event) => {
-    const target = event.target.closest("[data-open-project], [data-open-task], [data-open-deadline], [data-open-document], [data-open-objective], [data-open-time], [data-open-activity], [data-open-day], [data-add-related], [data-save-project], [data-save-task], [data-save-deadline], [data-save-document], [data-save-objective], [data-save-time], [data-filter-jump]");
+    const target = event.target.closest("[data-open-project], [data-open-task], [data-open-deadline], [data-open-document], [data-open-objective], [data-open-time], [data-open-activity], [data-open-day], [data-add-related], [data-edit-project], [data-edit-task], [data-view-jump], [data-save-project], [data-save-task], [data-save-deadline], [data-save-document], [data-save-objective], [data-save-time], [data-filter-jump]");
     if (!target) return;
+    if (target.dataset.viewJump) setView(target.dataset.viewJump);
     if (target.dataset.openProject) openProject(target.dataset.openProject);
     if (target.dataset.openTask) openTask(target.dataset.openTask);
     if (target.dataset.openDeadline) openDeadline(target.dataset.openDeadline);
@@ -1912,6 +2113,8 @@
     if (target.dataset.openActivity) openActivity(target.dataset.openActivity);
     if (target.dataset.openDay) openDay(target.dataset.openDay);
     if (target.dataset.addRelated) openDialog(target.dataset.addRelated, { projectId: target.dataset.projectId || "" });
+    if (target.dataset.editProject) openEditDialog("project", target.dataset.editProject);
+    if (target.dataset.editTask) openEditDialog("task", target.dataset.editTask);
     if (target.dataset.saveProject) saveProject(target.dataset.saveProject);
     if (target.dataset.saveTask) saveTask(target.dataset.saveTask);
     if (target.dataset.saveDeadline) saveDeadline(target.dataset.saveDeadline);
