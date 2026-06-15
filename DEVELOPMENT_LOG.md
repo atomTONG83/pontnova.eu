@@ -614,6 +614,127 @@
   - `migrations/0002_workbench_atom_parity.sql`
   - `DEVELOPMENT_LOG.md`
 
+## 2026-06-15 Workbench v5.7 document upload, AI analysis connector, task/time usability
+
+### User request
+
+- Make project opening easier: the whole project item should be a clickable hot zone, not only the project number or `打开` action.
+- Do the same for task opening.
+- Add drag-and-drop upload to the `新增资料` flow.
+- Add an AI document-analysis feature using Bailian / Qwen `qwen3.6-plus`, reusing local project configuration where possible.
+- Make workload/time history editable and visibly associated with specific tasks.
+- Remove the sidebar `工作原则` card from the platform.
+
+### Changes
+
+- Bumped workbench asset query version to `20260615-v5-7-1`.
+- Removed the sidebar `工作原则` block from the protected workbench shell.
+- Added larger opening hot zones:
+  - project cards expose `data-open-project` on the full card body
+  - program/project table rows expose `tr.clickable-table-row[data-open-project]`
+  - dashboard task cards expose `data-open-task`
+  - task table rows expose `tr.clickable-table-row[data-open-task]`
+- Added document upload fields and drag/drop UI:
+  - drag area in new/edit document forms
+  - file picker fallback
+  - file metadata fields: name, size, type, uploaded time
+  - text extraction for text-like files so AI can analyze document contents
+- Added AI document-analysis backend route:
+  - `POST /workbench/api/analyze-document`
+  - resolves Bailian/Qwen config from encrypted Pages variables
+  - default model: `qwen3.6-plus`
+  - returns structured fields: summary, key points, risks, next actions, project relevance, confidence
+  - returns provider failures as app JSON (`ok:false`) so the UI can show a useful reason instead of a Cloudflare bare 502 page
+- Added document drawer controls:
+  - `AI 分析资料` / `重新 AI 分析`
+  - AI analysis display panel
+  - failed-analysis diagnostic text for authenticated users
+- Updated workload/time history:
+  - records show an explicit `关联任务` column
+  - time rows are clickable hot zones
+  - each row has an `编辑` action
+  - task detail time records show the linked task name
+  - recording time from a task preselects that task
+
+### Database migration
+
+- Added and applied remote D1 migration:
+  - `migrations/0004_workbench_document_ai_uploads.sql`
+- New `documents` columns:
+  - `file_name`
+  - `file_size`
+  - `file_type`
+  - `file_text`
+  - `uploaded_at`
+  - `ai_status`
+  - `ai_analysis`
+  - `ai_model`
+  - `ai_analyzed_at`
+- Remote D1 verification:
+  - `PRAGMA table_info(documents)` shows all new upload / AI columns.
+  - Existing state can be read and written without adding records.
+
+### Bailian / Qwen configuration findings
+
+- Local project configurations reviewed:
+  - `/Users/atom1983/Claude Projects/20260313 /atom-ip-sentinel/.env`
+  - `/Volumes/LaCie/Codex/20260404 EP case law/.env.local`
+  - `/Volumes/LaCie/Codex/20260404 EP case law/scripts/_dashscope-client.mjs`
+- Production encrypted variables configured:
+  - `PONTNOVA_QWEN_API_KEY`
+  - `PONTNOVA_QWEN_BASE_URL`
+  - `PONTNOVA_QWEN_MODEL`
+- Important result:
+  - The local key that works with `https://coding.dashscope.aliyuncs.com/v1` and `qwen3.6-plus` returns `200` locally.
+  - The same provider returns `Coding Plan is currently only available for Coding Agents` from the Cloudflare Pages Function.
+  - Standard DashScope compatible endpoint tests with the available local keys returned `401`.
+- Current production behavior:
+  - AI feature UI and backend connector are implemented.
+  - Production endpoint returns readable `ok:false` JSON until a standard Bailian / DashScope API key usable from Cloudflare is supplied.
+
+### Verification
+
+- Local checks:
+  - `node --check workbench/app.js`
+  - `node --check _worker.js`
+  - `git diff --check`
+- Remote D1:
+  - `0004_workbench_document_ai_uploads.sql` applied successfully.
+- Production state:
+  - login API returns `302`
+  - `/workbench/` loads `/workbench/app.js?v=20260615-v5-7-1`
+  - `/workbench/api/state` returns the new document upload / AI fields
+  - current state `PUT` returns `ok:true`
+- Browser production verification:
+  - sidebar `工作原则` removed
+  - project card body opens project detail
+  - project detail has `新增资料`
+  - document dialog shows drag/drop upload area and file picker
+  - task hot zone opens task detail
+  - task detail has visible edit/delete buttons and a `← 返回 PN-...` project return button
+  - workload view headers include `关联任务`
+  - workload rows expose time-entry hot zones and edit buttons
+  - browser console has no errors
+
+### Production deployment
+
+- Source commits:
+  - `5d0a3d2` - document upload / AI connector and interaction improvements
+  - `56a1d9e` - harden Qwen request handling
+  - `da4d200` - expose provider diagnostics
+  - `6fbfe1d` - improve AI failure feedback
+  - `8e073bb` - return AI provider errors as app JSON
+- Pushed to:
+  - `origin/main`
+- Latest Cloudflare Pages deploy:
+  - `https://a555557e.pontnova.pages.dev`
+- Production URL:
+  - `https://pontnova.eu/workbench/`
+
+### Local retained copy v5.7
+
+- To be recorded after the retained copy archive is created.
+
 ## 2026-06-15 Workbench v5.6 task creation stability and D1 state parity
 
 ### User request
