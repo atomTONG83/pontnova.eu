@@ -733,7 +733,21 @@
 
 ### Local retained copy v5.7
 
-- To be recorded after the retained copy archive is created.
+- Local copy:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260615-v5-7-889ecde`
+- Archive:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260615-v5-7-889ecde.tar.gz`
+- SHA-256:
+  - `59db18af35292ffb29bb443bdb35c936c1a453712ce303e6ddd3df73204b0c67`
+- Manifest:
+  - `LOCAL_BACKUP_MANIFEST.md`
+- Archive content spot-check:
+  - `workbench/index.html`
+  - `workbench/app.js`
+  - `workbench/styles.css`
+  - `_worker.js`
+  - `migrations/0004_workbench_document_ai_uploads.sql`
+  - `DEVELOPMENT_LOG.md`
 
 ## 2026-06-15 Workbench v5.6 task creation stability and D1 state parity
 
