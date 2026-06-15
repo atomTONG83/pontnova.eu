@@ -614,6 +614,56 @@
   - `migrations/0002_workbench_atom_parity.sql`
   - `DEVELOPMENT_LOG.md`
 
+## 2026-06-15 Workbench v5.10 blurred modal backdrop
+
+### User request
+
+- Port the Atom workbench modal effect where new-task and new-project dialogs blur the background page.
+
+### Changes
+
+- Bumped workbench asset query version to `20260615-v5-10`.
+- Added a shared blurred backdrop for the workbench `<dialog>` component:
+  - warm translucent dim layer
+  - `blur(12px)` background filter
+  - softer modal shadow
+  - short `dialog-pop` entrance animation
+- Added a lighter blur treatment to the drawer backdrop so modal and drawer overlays feel consistent.
+- Kept form behavior unchanged; the change is visual only.
+
+### Verification
+
+- Local checks:
+  - `node --check workbench/app.js`
+  - `node --check _worker.js`
+  - `git diff --check`
+- Browser production verification:
+  - `/workbench/` loads `/workbench/styles.css?v=20260615-v5-10`
+  - `/workbench/` loads `/workbench/app.js?v=20260615-v5-10`
+  - `新增任务` opens the shared dialog with:
+    - `backdrop-filter: blur(12px) saturate(0.86)`
+    - warm translucent backdrop color
+    - `dialog-pop` animation
+  - `新增项目档案` opens the same blurred dialog treatment.
+  - browser console had no errors.
+
+### Production deployment
+
+- Source commit:
+  - `51fe656`
+- Commit message:
+  - `Add blurred workbench modal backdrop`
+- Pushed to:
+  - `origin/main`
+- Cloudflare Pages deploy:
+  - `https://adee5d95.pontnova.pages.dev`
+- Production URL:
+  - `https://pontnova.eu/workbench/`
+
+### Local retained copy v5.10
+
+- Pending local retained copy creation.
+
 ## 2026-06-15 Workbench v5.9 login audit records
 
 ### User request
