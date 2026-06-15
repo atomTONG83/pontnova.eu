@@ -2176,10 +2176,14 @@
 
   function documentAiPanel(documentItem) {
     if (!documentItem.aiAnalysis && documentItem.aiStatus !== "failed") return "";
+    const failedDetail = documentItem.aiStatus === "failed" ? safeParseJson(documentItem.aiAnalysis) : null;
     return `
       <section class="drawer-section ai-panel">
         <h3>AI 分析</h3>
-        ${documentItem.aiStatus === "failed" ? `<p class="muted-copy">AI 分析失败，请稍后重试或检查百炼配置。</p>` : documentAnalysisHtml(documentItem.aiAnalysis)}
+        ${documentItem.aiStatus === "failed" ? `
+          <p class="muted-copy">AI 分析失败，请稍后重试或检查百炼配置。</p>
+          ${failedDetail?.message ? `<pre class="analysis-text">${escapeHtml(failedDetail.message)}</pre>` : ""}
+        ` : documentAnalysisHtml(documentItem.aiAnalysis)}
         ${documentItem.aiModel ? `<p class="muted-copy">${escapeHtml(documentItem.aiModel)} · ${escapeHtml(documentItem.aiAnalyzedAt || "")}</p>` : ""}
       </section>
     `;
@@ -2603,7 +2607,10 @@
         return;
       }
       const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error || `AI analysis failed: ${response.status}`);
+      if (!response.ok || !payload.ok) {
+        const detail = [payload.error, payload.providerMessage, payload.endpoint].filter(Boolean).join("\n");
+        throw new Error(detail || `AI analysis failed: ${response.status}`);
+      }
       documentItem.aiStatus = "done";
       documentItem.aiAnalysis = JSON.stringify(payload.analysis, null, 2);
       documentItem.aiModel = payload.model || "qwen3.6-plus";
@@ -2614,7 +2621,7 @@
       showDrawerSaveStatus("AI 分析已完成，正在同步云端");
     } catch (error) {
       documentItem.aiStatus = "failed";
-      documentItem.aiAnalysis = "";
+      documentItem.aiAnalysis = JSON.stringify({ message: error.message || "AI 分析失败" }, null, 2);
       saveAndRender();
       openDocument(id);
       showDrawerSaveStatus("AI 分析失败，请检查百炼配置或稍后重试", "warn");
