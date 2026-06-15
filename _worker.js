@@ -178,13 +178,15 @@ async function handleDocumentAnalysis(request, env) {
   };
 
   const prompt = buildDocumentAnalysisPrompt(documentInfo);
+  const endpoint = qwenChatEndpoint(config.baseUrl);
   let response;
   try {
-    response = await fetch(`${config.baseUrl}/chat/completions`, {
+    response = await fetch(endpoint, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${config.apiKey}`,
         "Content-Type": "application/json",
+        Accept: "application/json",
       },
       body: JSON.stringify({
         model: config.model,
@@ -206,7 +208,11 @@ async function handleDocumentAnalysis(request, env) {
 
   const responseText = await response.text();
   if (!response.ok) {
-    return jsonResponse({ error: `Qwen request failed: ${response.status}` }, 502);
+    return jsonResponse({
+      error: `Qwen request failed: ${response.status}`,
+      providerMessage: summarizeProviderError(responseText),
+      endpoint: describeQwenEndpoint(endpoint),
+    }, 502);
   }
 
   let decoded;
@@ -652,6 +658,27 @@ function resolveQwenConfig(env) {
     baseUrl: baseUrl.replace(/\/+$/, ""),
     model,
   };
+}
+
+function qwenChatEndpoint(baseUrl) {
+  const cleanBase = baseUrl.replace(/\/+$/, "");
+  return cleanBase.endsWith("/chat/completions") ? cleanBase : `${cleanBase}/chat/completions`;
+}
+
+function summarizeProviderError(text) {
+  const source = sanitizeText(text, 800);
+  try {
+    const payload = JSON.parse(source);
+    return sanitizeText(payload?.error?.message || payload?.message || payload?.code || source, 400);
+  } catch (error) {
+    return source.replace(/\s+/g, " ").slice(0, 400);
+  }
+}
+
+function describeQwenEndpoint(endpoint) {
+  const url = new URL(endpoint);
+  const path = url.pathname.replace(/\/+/g, "/");
+  return `${url.hostname}${path}`;
 }
 
 function firstNonEmpty(...values) {
