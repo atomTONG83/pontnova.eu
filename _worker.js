@@ -178,27 +178,31 @@ async function handleDocumentAnalysis(request, env) {
   };
 
   const prompt = buildDocumentAnalysisPrompt(documentInfo);
-  const response = await fetch(`${config.baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: config.model,
-      messages: [
-        {
-          role: "system",
-          content: "你是 Pontnova 工作台的资料分析助手，擅长咨询、投融资、培训和 workshop 项目的资料研判。请严格输出 JSON。",
-        },
-        { role: "user", content: prompt },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.2,
-      max_tokens: 1200,
-    }),
-    signal: AbortSignal.timeout(30000),
-  });
+  let response;
+  try {
+    response = await fetch(`${config.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          {
+            role: "system",
+            content: "你是 Pontnova 工作台的资料分析助手，擅长咨询、投融资、培训和 workshop 项目的资料研判。请严格输出 JSON。",
+          },
+          { role: "user", content: prompt },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        max_tokens: 1200,
+      }),
+    });
+  } catch (error) {
+    return jsonResponse({ error: "Qwen request failed before receiving a response" }, 502);
+  }
 
   const responseText = await response.text();
   if (!response.ok) {
