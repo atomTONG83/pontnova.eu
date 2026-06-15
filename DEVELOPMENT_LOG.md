@@ -662,7 +662,21 @@
 
 ### Local retained copy v5.10
 
-- Pending local retained copy creation.
+- Local copy:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260615-v5-10-a63a008`
+- Archive:
+  - `/Volumes/LaCie/Codex/20260614 PN 工作台/保留副本/pontnova.eu-20260615-v5-10-a63a008.tar.gz`
+- SHA-256:
+  - `1e6985d7dc43ff6025cf05b3d7075d126381587f1fdcbaa368810bac019f738d`
+- Manifest:
+  - `LOCAL_BACKUP_MANIFEST.md`
+- Archive content spot-check:
+  - `workbench/index.html`
+  - `workbench/app.js`
+  - `workbench/styles.css`
+  - `_worker.js`
+  - `DEVELOPMENT_LOG.md`
+  - `LOCAL_BACKUP_MANIFEST.md`
 
 ## 2026-06-15 Workbench v5.9 login audit records
 
