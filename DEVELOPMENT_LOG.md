@@ -614,6 +614,63 @@
   - `migrations/0002_workbench_atom_parity.sql`
   - `DEVELOPMENT_LOG.md`
 
+## 2026-06-15 Workbench v5.8 program logo refinement
+
+### User request
+
+- The program/category logos in the project portfolio still looked wrong.
+- The issue was visible in the `项目组合` cards where the large Chinese mark and the small English prefix were squeezed into the same icon block.
+
+### Changes
+
+- Bumped workbench asset query version to `20260615-v5-8`.
+- Changed program/category card identity from a stacked mixed logo to:
+  - a clean single-character colored seal
+  - a separate small prefix pill such as `CONS`, `FUND`, `TRN`, `WS`, `OPS`
+- Removed the small prefix from inside `.program-icon` and `.program-hero-icon`.
+- Limited editable program `mark` to one character to prevent future icon overflow.
+- Kept prefix editing unchanged; the prefix is still visible next to the seal and still drives project-number generation.
+
+### Verification
+
+- Local checks:
+  - `node --check workbench/app.js`
+  - `node --check _worker.js`
+  - `git diff --check`
+- Local browser preview:
+  - `/workbench/` loads `styles.css?v=20260615-v5-8`
+  - visible program icons are `54 x 54`
+  - no program icon contains an inner `small` prefix element
+  - `overflowingIcons: 0`
+- Production browser verification:
+  - `/workbench/` loads `/workbench/styles.css?v=20260615-v5-8`
+  - `/workbench/` loads `/workbench/app.js?v=20260615-v5-8`
+  - visible card identities:
+    - `咨 / CONS`
+    - `融 / FUND`
+    - `训 / TRN`
+    - `坊 / WS`
+    - `营 / OPS`
+  - no visible program icon contains an inner `small` prefix element
+  - browser console had no errors
+
+### Production deployment
+
+- Source commit:
+  - `d1ba6cd`
+- Commit message:
+  - `Refine workbench program logos`
+- Pushed to:
+  - `origin/main`
+- Cloudflare Pages deploy:
+  - `https://b0b0f838.pontnova.pages.dev`
+- Production URL:
+  - `https://pontnova.eu/workbench/`
+
+### Local retained copy v5.8
+
+- To be recorded after the retained copy archive is created.
+
 ## 2026-06-15 Workbench v5.7 document upload, AI analysis connector, task/time usability
 
 ### User request
