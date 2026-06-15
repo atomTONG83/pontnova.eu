@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
   <title>Pontnova 工作台</title>
-  <link rel="stylesheet" href="/workbench/styles.css?v=20260615-v5-8">
+  <link rel="stylesheet" href="/workbench/styles.css?v=20260615-v5-9">
 </head>
 <body data-view="dashboard">
   <div class="shell">
@@ -328,6 +328,16 @@
           </div>
           <div class="activity-list full" id="activityFeed"></div>
         </div>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">Security Log</p>
+              <h2>后台登录记录</h2>
+              <p class="panel-subtitle">记录工作台登录成功和失败事件，包括时间、IP、地区和浏览器信息。</p>
+            </div>
+          </div>
+          <div class="login-event-list" id="loginEventList"></div>
+        </div>
       </section>
 
       <section class="view" id="mapView">
@@ -383,6 +393,6 @@
     </div>
   </template>
 
-  <script src="/workbench/app.js?v=20260615-v5-8" defer></script>
+  <script src="/workbench/app.js?v=20260615-v5-9" defer></script>
 </body>
 </html>

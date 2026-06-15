@@ -333,8 +333,20 @@
       date: validDate(activity.date) || toIsoDate(today),
       note: text(activity.note)
     }));
+    const loginEvents = asArray(nextState.loginEvents).map((event, index) => ({
+      id: text(event.id) || `login-${index}`,
+      occurredAt: text(event.occurredAt),
+      success: Boolean(event.success),
+      ipAddress: text(event.ipAddress),
+      country: text(event.country),
+      colo: text(event.colo),
+      userAgent: text(event.userAgent),
+      method: text(event.method),
+      path: text(event.path),
+      reason: text(event.reason)
+    }));
 
-    return { programs, projects, tasks, deadlines, documents, objectives, keyResults, timeEntries, activities };
+    return { programs, projects, tasks, deadlines, documents, objectives, keyResults, timeEntries, activities, loginEvents };
   }
 
   function normalizePrograms(value) {
@@ -404,11 +416,12 @@
     cloudSaveInFlight = true;
     setSyncStatus("正在保存到云端...", "pending");
     try {
+      const { loginEvents, ...persistableState } = state;
       const response = await fetch("/workbench/api/state", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify(state)
+        body: JSON.stringify(persistableState)
       });
       if (response.status === 401) {
         setReauthStatus();
@@ -525,6 +538,7 @@
     renderObjectives();
     renderWorkload();
     renderActivity();
+    renderLoginEvents();
     renderCalendar();
     renderMap();
     refreshDetailPage();
@@ -1220,6 +1234,46 @@
     const activities = sortedActivities().filter((activity) => matches([activity.title, activity.note, activity.actor, projectById(activity.projectId).projectNo].join(" ")));
     feed.innerHTML = activities.map(activityRow).join("");
     if (!activities.length) renderEmpty(feed);
+  }
+
+  function renderLoginEvents() {
+    const list = document.getElementById("loginEventList");
+    if (!list) return;
+    const events = asArray(state.loginEvents)
+      .filter((event) => matches([event.occurredAt, event.ipAddress, event.country, event.colo, event.userAgent, event.reason].join(" ")))
+      .slice(0, 80);
+    list.innerHTML = events.map(loginEventRow).join("");
+    if (!events.length) renderEmpty(list);
+  }
+
+  function loginEventRow(event) {
+    const location = [event.country, event.colo].filter(Boolean).join(" / ") || "未知地区";
+    const device = browserSummary(event.userAgent);
+    return `
+      <article class="login-event-item ${event.success ? "success" : "failed"}">
+        <span class="activity-dot ${event.success ? "complete" : "delete"}"></span>
+        <span>
+          <strong>${event.success ? "登录成功" : "登录失败"}</strong>
+          <small>${escapeHtml(formatDateTime(event.occurredAt))} · IP ${escapeHtml(event.ipAddress || "未知")} · ${escapeHtml(location)}</small>
+          <em>${escapeHtml(device)}${event.reason ? ` · ${escapeHtml(loginReasonLabel(event.reason))}` : ""}</em>
+        </span>
+      </article>
+    `;
+  }
+
+  function browserSummary(userAgent) {
+    const source = text(userAgent);
+    if (!source) return "未知浏览器";
+    const browser = source.includes("Edg/") ? "Edge" : source.includes("Chrome/") ? "Chrome" : source.includes("Safari/") ? "Safari" : source.includes("Firefox/") ? "Firefox" : "浏览器";
+    const platform = source.includes("Mac OS X") ? "macOS" : source.includes("Windows") ? "Windows" : source.includes("iPhone") ? "iPhone" : source.includes("Android") ? "Android" : "";
+    return [browser, platform].filter(Boolean).join(" · ");
+  }
+
+  function loginReasonLabel(reason) {
+    return {
+      password_login: "密码登录",
+      invalid_password: "密码错误"
+    }[reason] || reason;
   }
 
   function activityRow(activity) {
@@ -2798,6 +2852,19 @@
   function formatLongDate(value) {
     if (!value) return "未设日期";
     return new Intl.DateTimeFormat("zh-CN", { dateStyle: "full" }).format(parseDate(value));
+  }
+
+  function formatDateTime(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value || "未知时间";
+    return new Intl.DateTimeFormat("zh-CN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    }).format(date);
   }
 
   function sumHours(entries) {

@@ -1541,11 +1541,17 @@ th {
   gap: 10px;
 }
 
+.login-event-list {
+  display: grid;
+  gap: 10px;
+}
+
 .activity-list.full {
   gap: 12px;
 }
 
-.activity-item {
+.activity-item,
+.login-event-item {
   display: grid;
   grid-template-columns: 14px minmax(0, 1fr);
   gap: 12px;
@@ -1558,19 +1564,32 @@ th {
   text-align: left;
 }
 
+.login-event-item.success {
+  background: rgba(102, 125, 81, 0.08);
+}
+
+.login-event-item.failed {
+  background: rgba(189, 96, 69, 0.08);
+}
+
 .activity-item strong,
 .activity-item small,
-.activity-item em {
+.activity-item em,
+.login-event-item strong,
+.login-event-item small,
+.login-event-item em {
   display: block;
 }
 
-.activity-item small {
+.activity-item small,
+.login-event-item small {
   margin-top: 4px;
   color: var(--muted);
   font-size: 12px;
 }
 
-.activity-item em {
+.activity-item em,
+.login-event-item em {
   margin-top: 6px;
   color: var(--muted);
   font-size: 13px;

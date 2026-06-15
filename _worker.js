@@ -235,6 +235,7 @@ async function handleDocumentAnalysis(request, env) {
 
 async function readWorkbenchState(db) {
   const programs = await readPrograms(db);
+  const loginEvents = await readLoginEvents(db);
   const [projects, tasks, deadlines, documents, objectives, keyResults, timeEntries, activities] = await db.batch([
     db.prepare("SELECT * FROM projects ORDER BY sort_order ASC, updated_at DESC"),
     db.prepare("SELECT * FROM tasks ORDER BY sort_order ASC, due_date ASC, updated_at DESC"),
@@ -344,6 +345,7 @@ async function readWorkbenchState(db) {
       date: row.activity_date,
       note: row.note,
     })),
+    loginEvents,
   };
 }
 
@@ -603,6 +605,30 @@ async function readPrograms(db) {
       mark: sanitizeText(row.mark, 8) || defaults.mark,
     };
   });
+}
+
+async function readLoginEvents(db) {
+  if (!(await tableExists(db, "login_events"))) return [];
+  const result = await db
+    .prepare(
+      `SELECT id, occurred_at, success, ip_address, country, colo, user_agent, method, path, reason
+       FROM login_events
+       ORDER BY occurred_at DESC
+       LIMIT 120`
+    )
+    .all();
+  return (result.results || []).map((row) => ({
+    id: row.id,
+    occurredAt: row.occurred_at || "",
+    success: Boolean(row.success),
+    ipAddress: row.ip_address || "",
+    country: row.country || "",
+    colo: row.colo || "",
+    userAgent: row.user_agent || "",
+    method: row.method || "",
+    path: row.path || "",
+    reason: row.reason || "",
+  }));
 }
 
 async function tableExists(db, tableName) {
@@ -1007,8 +1033,11 @@ async function handleLogin(request, env) {
   const url = new URL(request.url);
   const form = await request.formData();
   const password = String(form.get("password") || "");
+  const ok = await passwordMatches(password, env);
 
-  if (!(await passwordMatches(password, env))) {
+  await recordLoginEvent(request, env, ok, ok ? "password_login" : "invalid_password");
+
+  if (!ok) {
     return loginPage("口令不正确，请再试一次。", 401);
   }
 
@@ -1016,6 +1045,39 @@ async function handleLogin(request, env) {
   return redirect(`${url.origin}/workbench/`, {
     "Set-Cookie": sessionCookie(token, request),
   });
+}
+
+async function recordLoginEvent(request, env, success, reason) {
+  if (!env.WORKBENCH_DB) return;
+  try {
+    const url = new URL(request.url);
+    const cf = request.cf || {};
+    await env.WORKBENCH_DB
+      .prepare(
+        `INSERT INTO login_events (id, occurred_at, success, ip_address, country, colo, user_agent, method, path, reason)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(
+        `login-${Date.now()}-${crypto.randomUUID()}`,
+        new Date().toISOString(),
+        success ? 1 : 0,
+        requestIp(request),
+        sanitizeText(cf.country, 24),
+        sanitizeText(cf.colo, 24),
+        sanitizeText(request.headers.get("User-Agent"), 500),
+        sanitizeText(request.method, 16),
+        sanitizeText(url.pathname, 120),
+        sanitizeText(reason, 80)
+      )
+      .run();
+  } catch (error) {
+    // Login auditing should never block authentication.
+  }
+}
+
+function requestIp(request) {
+  const forwarded = request.headers.get("CF-Connecting-IP") || request.headers.get("X-Forwarded-For") || "";
+  return sanitizeText(forwarded.split(",")[0], 80);
 }
 
 function redirect(location, headers = {}) {
