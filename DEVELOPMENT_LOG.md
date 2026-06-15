@@ -614,6 +614,88 @@
   - `migrations/0002_workbench_atom_parity.sql`
   - `DEVELOPMENT_LOG.md`
 
+## 2026-06-15 Workbench v5.9 login audit records
+
+### User request
+
+- Add backend login records.
+- Records should include time, IP address, and related login metadata.
+
+### Changes
+
+- Bumped workbench asset query version to `20260615-v5-9`.
+- Added D1 migration:
+  - `migrations/0005_workbench_login_events.sql`
+- Added `login_events` table with:
+  - `id`
+  - `occurred_at`
+  - `success`
+  - `ip_address`
+  - `country`
+  - `colo`
+  - `user_agent`
+  - `method`
+  - `path`
+  - `reason`
+- Updated `_worker.js` login handler:
+  - records successful password login
+  - records failed password login
+  - keeps login auditing non-blocking so an audit write failure never blocks authentication
+- Updated protected state read:
+  - returns latest 120 login events as read-only `loginEvents`
+- Updated frontend:
+  - `活动日志` page now includes a `后台登录记录` panel
+  - displays login status, time, IP, country/colo, browser/platform summary, and reason
+  - regular workbench state saves exclude `loginEvents`, so audit records cannot be overwritten by project-state saves
+
+### Database migration
+
+- Wrangler version:
+  - `4.100.0`
+- Remote migration applied:
+  - `0005_workbench_login_events.sql`
+- Remote D1 verification:
+  - `login_events` table exists
+  - all expected columns are present
+  - no pending remote migrations after apply
+
+### Verification
+
+- Local checks:
+  - `node --check workbench/app.js`
+  - `node --check _worker.js`
+  - `git diff --check`
+- Production login audit verification:
+  - one intentional wrong-password request returned `401`
+  - one valid login returned `302`
+  - `/workbench/api/state` returned `loginEvents`
+  - latest records included both `success` and `failed`
+  - latest records included IP and user-agent values
+- Browser production verification:
+  - `/workbench/` loads `/workbench/styles.css?v=20260615-v5-9`
+  - `/workbench/` loads `/workbench/app.js?v=20260615-v5-9`
+  - `活动日志` view shows `后台登录记录`
+  - login audit list shows `登录成功` and `登录失败`
+  - IP field is visible
+  - browser console had no errors
+
+### Production deployment
+
+- Source commit:
+  - `b7b6db9`
+- Commit message:
+  - `Add workbench login audit log`
+- Pushed to:
+  - `origin/main`
+- Cloudflare Pages deploy:
+  - `https://1fdeb9bd.pontnova.pages.dev`
+- Production URL:
+  - `https://pontnova.eu/workbench/`
+
+### Local retained copy v5.9
+
+- To be recorded after the retained copy archive is created.
+
 ## 2026-06-15 Workbench v5.8 program logo refinement
 
 ### User request
