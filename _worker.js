@@ -155,7 +155,7 @@ async function handleWorkbenchState(request, env) {
 async function handleDocumentAnalysis(request, env) {
   const config = resolveQwenConfig(env);
   if (!config.apiKey) {
-    return jsonResponse({ error: "Qwen API key is not configured" }, 503);
+    return jsonResponse({ ok: false, error: "Qwen API key is not configured" });
   }
 
   let payload;
@@ -203,23 +203,24 @@ async function handleDocumentAnalysis(request, env) {
       }),
     });
   } catch (error) {
-    return jsonResponse({ error: "Qwen request failed before receiving a response" }, 502);
+    return jsonResponse({ ok: false, error: "Qwen request failed before receiving a response" });
   }
 
   const responseText = await response.text();
   if (!response.ok) {
     return jsonResponse({
+      ok: false,
       error: `Qwen request failed: ${response.status}`,
       providerMessage: summarizeProviderError(responseText),
       endpoint: describeQwenEndpoint(endpoint),
-    }, 502);
+    });
   }
 
   let decoded;
   try {
     decoded = JSON.parse(responseText);
   } catch (error) {
-    return jsonResponse({ error: "Qwen response was not valid JSON" }, 502);
+    return jsonResponse({ ok: false, error: "Qwen response was not valid JSON" });
   }
 
   const rawContent = extractResponseContent(decoded);
