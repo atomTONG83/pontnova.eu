@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
   <title>Pontnova 工作台</title>
-  <link rel="stylesheet" href="/workbench/styles.css?v=20260615-v5-5">
+  <link rel="stylesheet" href="/workbench/styles.css?v=20260615-v5-7">
 </head>
 <body data-view="dashboard">
   <div class="shell">
@@ -29,10 +29,6 @@
         <button class="nav-item" data-icon="◇" data-view="map" type="button">平台地图</button>
       </nav>
       <div class="sidebar-foot">
-        <div class="sidebar-note">
-          <strong>工作原则</strong>
-          <span>期限优先 · 事项留痕 · 关键判断人工复核。</span>
-        </div>
         <form action="/workbench/api/logout" method="post">
           <button class="ghost-button" type="submit">退出</button>
         </form>
@@ -308,8 +304,10 @@
                     <th>日期</th>
                     <th>项目号</th>
                     <th>内容</th>
+                    <th>关联任务</th>
                     <th>小时</th>
                     <th>标签</th>
+                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody id="timeEntryTable"></tbody>
@@ -385,6 +383,6 @@
     </div>
   </template>
 
-  <script src="/workbench/app.js?v=20260615-v5-6" defer></script>
+  <script src="/workbench/app.js?v=20260615-v5-7" defer></script>
 </body>
 </html>

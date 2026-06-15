@@ -279,7 +279,16 @@
       title: text(documentItem.title) || "未命名资料",
       type: text(documentItem.type) || "资料",
       path: text(documentItem.path),
-      note: text(documentItem.note)
+      note: text(documentItem.note),
+      fileName: text(documentItem.fileName),
+      fileSize: clamp(Number(documentItem.fileSize) || 0, 0, 25000000),
+      fileType: text(documentItem.fileType),
+      fileText: text(documentItem.fileText).slice(0, 100000),
+      uploadedAt: text(documentItem.uploadedAt),
+      aiStatus: choice(documentItem.aiStatus, ["", "idle", "pending", "done", "failed"], ""),
+      aiAnalysis: text(documentItem.aiAnalysis),
+      aiModel: text(documentItem.aiModel),
+      aiAnalyzedAt: text(documentItem.aiAnalyzedAt)
     }));
     const objectives = asArray(nextState.objectives).map((objective, index) => ({
       id: text(objective.id) || `objective-${index}`,
@@ -451,6 +460,10 @@
     };
   }
 
+  function taskById(id) {
+    return state.tasks.find((task) => task.id === id) || null;
+  }
+
   function related(projectId) {
     return {
       tasks: state.tasks.filter((task) => task.projectId === projectId),
@@ -486,7 +499,7 @@
   function filteredDocuments() {
     return state.documents.filter((documentItem) => {
       const project = projectById(documentItem.projectId);
-      return matches([documentItem.title, documentItem.path, documentItem.note, project.projectNo, project.name].join(" "));
+      return matches([documentItem.title, documentItem.path, documentItem.note, documentItem.fileName, documentItem.aiAnalysis, project.projectNo, project.name].join(" "));
     });
   }
 
@@ -938,7 +951,7 @@
       .sort((a, b) => String(a.date).localeCompare(String(b.date)))[0];
     const risk = programRiskTone(project);
     return `
-      <tr>
+      <tr class="clickable-table-row" data-open-project="${escapeAttr(project.id)}">
         <td><button class="table-link atom-mono" data-open-project="${escapeAttr(project.id)}" type="button">${escapeHtml(project.projectNo)}</button></td>
         <td>
           <strong>${escapeHtml(project.name)}</strong>
@@ -1013,7 +1026,7 @@
     table.innerHTML = tasks.map((task) => {
       const project = projectById(task.projectId);
       return `
-        <tr>
+        <tr class="clickable-table-row" data-open-task="${escapeAttr(task.id)}">
           <td><input data-task-check="${escapeAttr(task.id)}" type="checkbox" ${task.status === "done" ? "checked" : ""}></td>
           <td><button class="table-link" data-open-task="${escapeAttr(task.id)}" type="button">${escapeHtml(task.title)}</button><br><span class="status">${statusLabel(task.status)}</span></td>
           <td><button class="table-link muted" data-open-project="${escapeAttr(project.id)}" type="button"><span class="case-number inline">${escapeHtml(project.projectNo)}</span><br>${escapeHtml(project.name)}</button></td>
@@ -1100,7 +1113,8 @@
             <span class="badge">${escapeHtml(documentItem.type || "资料")}</span>
           </header>
           <p>${escapeHtml(documentItem.note || "")}</p>
-          <p class="doc-path">${escapeHtml(documentItem.path || "未设置路径")}</p>
+          <p class="doc-path">${escapeHtml(documentItem.fileName || documentItem.path || "未设置路径")}</p>
+          <span class="muted-copy">${documentItem.aiStatus === "done" ? "AI 已分析" : documentItem.fileName ? "已上传文件" : "未上传文件"}</span>
         </button>
       `;
     }).join("");
@@ -1141,7 +1155,10 @@
     const chart = document.getElementById("workloadChart");
     const table = document.getElementById("timeEntryTable");
     const rows = state.timeEntries
-      .filter((entry) => matches([entry.description, entry.tags, projectById(entry.projectId).projectNo, projectById(entry.projectId).name].join(" ")))
+      .filter((entry) => {
+        const task = taskById(entry.taskId);
+        return matches([entry.description, entry.tags, task?.title, projectById(entry.projectId).projectNo, projectById(entry.projectId).name].join(" "));
+      })
       .sort((a, b) => String(b.date).localeCompare(String(a.date)));
     const totals = state.projects.map((project) => ({ project, hours: sumHours(state.timeEntries.filter((entry) => entry.projectId === project.id)) })).filter((item) => item.hours > 0);
     const max = Math.max(1, ...totals.map((item) => item.hours));
@@ -1155,17 +1172,20 @@
     `).join("") : `<p class="muted-copy">暂无投入记录。</p>`;
     table.innerHTML = rows.map((entry) => {
       const project = projectById(entry.projectId);
+      const task = taskById(entry.taskId);
       return `
-        <tr>
+        <tr class="clickable-table-row" data-open-time="${escapeAttr(entry.id)}">
           <td>${escapeHtml(entry.date)}</td>
           <td><button class="table-link muted" data-open-project="${escapeAttr(project.id)}" type="button">${escapeHtml(project.projectNo)}</button></td>
           <td><button class="table-link" data-open-time="${escapeAttr(entry.id)}" type="button">${escapeHtml(entry.description || "未命名投入")}</button></td>
+          <td>${task ? `<button class="table-link muted" data-open-task="${escapeAttr(task.id)}" type="button">${escapeHtml(task.title)}</button>` : `<span class="muted-copy">未关联</span>`}</td>
           <td>${Number(entry.hours || 0).toFixed(2)}</td>
           <td>${escapeHtml(entry.tags || "—")}</td>
+          <td><button class="ghost-button compact" data-open-time="${escapeAttr(entry.id)}" type="button">编辑</button></td>
         </tr>
       `;
     }).join("");
-    if (!rows.length) table.innerHTML = `<tr><td colspan="5">暂无投入记录。</td></tr>`;
+    if (!rows.length) table.innerHTML = `<tr><td colspan="7">暂无投入记录。</td></tr>`;
   }
 
   function timerWorkbenchCard(rows, totals) {
@@ -1502,6 +1522,7 @@
       ${field("title", "资料名称", "text", "", true)}
       ${field("type", "类型", "text", "note")}
       ${field("path", "Dropbox 路径 / 链接", "text", "", false, "full")}
+      ${uploadField("", defaults)}
       ${textareaField("note", "备注", "")}
     `;
     if (kind === "objective") return `
@@ -1544,6 +1565,29 @@
     return `<div class="form-field"><label for="${name}">${label}</label><select id="${name}" name="${name}">${options.map(([value, labelText]) => `<option value="${escapeAttr(value)}" ${String(value) === String(selected) ? "selected" : ""}>${escapeHtml(labelText)}</option>`).join("")}</select></div>`;
   }
 
+  function uploadField(prefix = "", defaults = {}) {
+    const idPrefix = prefix || "";
+    const fileName = defaults.fileName || "";
+    const fileSize = Number(defaults.fileSize || 0);
+    const fileMeta = fileName ? `${fileName}${fileSize ? ` · ${formatFileSize(fileSize)}` : ""}` : "拖入文件或点击选择";
+    return `
+      <div class="form-field full">
+        <label for="${idPrefix}FileInput">上传文件</label>
+        <div class="upload-dropzone" data-file-dropzone data-file-prefix="${escapeAttr(idPrefix)}" tabindex="0">
+          <input id="${idPrefix}FileInput" data-file-input data-file-prefix="${escapeAttr(idPrefix)}" type="file">
+          <span class="upload-icon">+</span>
+          <strong data-file-name-display="${escapeAttr(idPrefix)}">${escapeHtml(fileMeta)}</strong>
+          <small data-file-text-display="${escapeAttr(idPrefix)}">${fileName ? "已读取文件信息" : "文本类文件会自动提取内容用于 AI 分析"}</small>
+        </div>
+        <input id="${idPrefix}FileName" name="${prefix ? "" : "fileName"}" type="hidden" value="${escapeAttr(defaults.fileName || "")}">
+        <input id="${idPrefix}FileSize" name="${prefix ? "" : "fileSize"}" type="hidden" value="${escapeAttr(defaults.fileSize || 0)}">
+        <input id="${idPrefix}FileType" name="${prefix ? "" : "fileType"}" type="hidden" value="${escapeAttr(defaults.fileType || "")}">
+        <input id="${idPrefix}UploadedAt" name="${prefix ? "" : "uploadedAt"}" type="hidden" value="${escapeAttr(defaults.uploadedAt || "")}">
+        <textarea id="${idPrefix}FileText" name="${prefix ? "" : "fileText"}" hidden>${escapeHtml(defaults.fileText || "")}</textarea>
+      </div>
+    `;
+  }
+
   function handleCreate(kind, form) {
     const data = Object.fromEntries(new FormData(form).entries());
     const id = `${kind}-${Date.now()}`;
@@ -1564,7 +1608,23 @@
       trackActivity({ projectId: data.projectId, entity: "Deadline", entityId: id, action: "create", title: `新增节点：${data.title}` });
     }
     if (kind === "document") {
-      state.documents.unshift({ id, projectId: data.projectId, title: data.title, type: data.type, path: data.path, note: data.note });
+      state.documents.unshift({
+        id,
+        projectId: data.projectId,
+        title: data.title,
+        type: data.type,
+        path: data.path,
+        note: data.note,
+        fileName: data.fileName,
+        fileSize: Number(data.fileSize) || 0,
+        fileType: data.fileType,
+        fileText: data.fileText,
+        uploadedAt: data.uploadedAt,
+        aiStatus: "",
+        aiAnalysis: "",
+        aiModel: "",
+        aiAnalyzedAt: "",
+      });
       returnProjectId = data.projectId;
       trackActivity({ projectId: data.projectId, entity: "Document", entityId: id, action: "create", title: `新增资料：${data.title}` });
     }
@@ -1896,7 +1956,7 @@
             <button class="project-list-row" data-open-time="${escapeAttr(entry.id)}" type="button">
               <span>
                 <strong>${escapeHtml(entry.description || "投入记录")}</strong>
-                <small>${escapeHtml(entry.date)} · ${escapeHtml(entry.tags || "未设标签")}</small>
+                <small>${escapeHtml(entry.date)} · ${entry.taskId && taskById(entry.taskId) ? `任务：${escapeHtml(taskById(entry.taskId).title)}` : "未关联任务"} · ${escapeHtml(entry.tags || "未设标签")}</small>
               </span>
               <span>${Number(entry.hours || 0).toFixed(1)} h</span>
             </button>
@@ -1941,7 +2001,7 @@
         <div class="linked-list">
           ${items.length ? items.slice(0, 6).map((item) => `
             <button class="linked-item" data-open-time="${escapeAttr(item.id)}" type="button">
-              <span><strong>${escapeHtml(item.description || "投入记录")}</strong><span>${escapeHtml(item.date)} · ${escapeHtml(item.tags || "")}</span></span>
+              <span><strong>${escapeHtml(item.description || "投入记录")}</strong><span>${escapeHtml(item.date)} · ${item.taskId && taskById(item.taskId) ? `任务：${escapeHtml(taskById(item.taskId).title)}` : "未关联任务"} · ${escapeHtml(item.tags || "")}</span></span>
               <span>${Number(item.hours || 0).toFixed(1)} h</span>
             </button>
           `).join("") : `<p class="muted-copy">暂无投入记录。</p>`}
@@ -1979,7 +2039,7 @@
           <button class="ghost-button compact" data-open-project="${escapeAttr(project.id)}" type="button">← 返回 ${escapeHtml(project.projectNo)}</button>
           <div class="detail-actions">
             <button class="ghost-button compact" data-view-jump="tasks" type="button">任务清单</button>
-            <button class="ghost-button compact" data-add-related="time" data-project-id="${escapeAttr(project.id)}" type="button">记录投入</button>
+            <button class="ghost-button compact" data-add-related="time" data-project-id="${escapeAttr(project.id)}" data-task-id="${escapeAttr(task.id)}" type="button">记录投入</button>
             <button class="primary-button small" data-edit-task="${escapeAttr(task.id)}" type="button">编辑任务</button>
             <button class="ghost-button compact danger-button" data-delete-task="${escapeAttr(task.id)}" type="button">删除任务</button>
           </div>
@@ -2087,6 +2147,7 @@
         <span class="case-number">${escapeHtml(project.projectNo)}</span>
         <h3>${escapeHtml(documentItem.title)}</h3>
         <p>${escapeHtml(documentItem.note || "暂无备注。")}</p>
+        ${documentFileMeta(documentItem)}
       </section>
       <section class="drawer-section">
         <div class="form-grid">
@@ -2094,14 +2155,54 @@
           ${selectField("drawerDocumentProject", "项目", projectOptions(), documentItem.projectId)}
           ${field("drawerDocumentType", "类型", "text", documentItem.type || "")}
           ${field("drawerDocumentPath", "路径 / 链接", "text", documentItem.path || "", false, "full")}
+          ${uploadField("drawerDocument", documentItem)}
           ${textareaField("drawerDocumentNote", "备注", documentItem.note || "")}
         </div>
         <div class="drawer-actions">
           <button class="ghost-button" data-open-project="${escapeAttr(project.id)}" type="button">打开项目</button>
+          <button class="ghost-button" data-analyze-document="${escapeAttr(documentItem.id)}" type="button">${documentItem.aiStatus === "done" ? "重新 AI 分析" : "AI 分析资料"}</button>
           <button class="primary-button small" data-save-document="${escapeAttr(documentItem.id)}" type="button">保存资料</button>
         </div>
+        <p class="drawer-save-status" id="drawerSaveStatus"></p>
       </section>
+      ${documentAiPanel(documentItem)}
     `);
+  }
+
+  function documentFileMeta(documentItem) {
+    if (!documentItem.fileName) return "";
+    return `<div class="document-file-meta"><span>${escapeHtml(documentItem.fileName)}</span><span>${formatFileSize(documentItem.fileSize)}</span><span>${escapeHtml(documentItem.fileType || "file")}</span></div>`;
+  }
+
+  function documentAiPanel(documentItem) {
+    if (!documentItem.aiAnalysis && documentItem.aiStatus !== "failed") return "";
+    return `
+      <section class="drawer-section ai-panel">
+        <h3>AI 分析</h3>
+        ${documentItem.aiStatus === "failed" ? `<p class="muted-copy">AI 分析失败，请稍后重试或检查百炼配置。</p>` : documentAnalysisHtml(documentItem.aiAnalysis)}
+        ${documentItem.aiModel ? `<p class="muted-copy">${escapeHtml(documentItem.aiModel)} · ${escapeHtml(documentItem.aiAnalyzedAt || "")}</p>` : ""}
+      </section>
+    `;
+  }
+
+  function documentAnalysisHtml(value) {
+    const parsed = safeParseJson(value);
+    if (!parsed) return `<pre class="analysis-text">${escapeHtml(value)}</pre>`;
+    return `
+      <div class="analysis-block">
+        <p>${escapeHtml(parsed.summary || "暂无摘要。")}</p>
+        ${analysisList("要点", parsed.key_points)}
+        ${analysisList("风险 / 缺口", parsed.risks)}
+        ${analysisList("下一步", parsed.next_actions)}
+        ${parsed.project_relevance ? `<p><strong>项目关联：</strong>${escapeHtml(parsed.project_relevance)}</p>` : ""}
+      </div>
+    `;
+  }
+
+  function analysisList(title, items) {
+    const list = Array.isArray(items) ? items.filter(Boolean) : [];
+    if (!list.length) return "";
+    return `<div><strong>${escapeHtml(title)}</strong><ul>${list.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>`;
   }
 
   function openObjective(id) {
@@ -2150,12 +2251,13 @@
     const entry = state.timeEntries.find((item) => item.id === id);
     if (!entry) return;
     const project = projectById(entry.projectId);
+    const task = taskById(entry.taskId);
     activeDrawer = { kind: "time", id };
     setDrawer("投入 / 工时", entry.description || "投入记录", `
       <section class="detail-hero">
         <span class="case-number">${escapeHtml(project.projectNo)}</span>
         <h3>${escapeHtml(entry.description || "投入记录")}</h3>
-        <p>${escapeHtml(entry.date)} · ${Number(entry.hours || 0).toFixed(2)} h</p>
+        <p>${escapeHtml(entry.date)} · ${Number(entry.hours || 0).toFixed(2)} h · ${task ? `任务：${escapeHtml(task.title)}` : "未关联任务"}</p>
       </section>
       <section class="drawer-section">
         <div class="form-grid">
@@ -2168,6 +2270,7 @@
         </div>
         <div class="drawer-actions">
           <button class="ghost-button" data-open-project="${escapeAttr(project.id)}" type="button">打开项目</button>
+          ${task ? `<button class="ghost-button" data-open-task="${escapeAttr(task.id)}" type="button">打开任务</button>` : ""}
           <button class="primary-button small" data-save-time="${escapeAttr(entry.id)}" type="button">保存投入</button>
         </div>
       </section>
@@ -2332,8 +2435,14 @@
     documentItem.type = valueOf("drawerDocumentType");
     documentItem.path = valueOf("drawerDocumentPath");
     documentItem.note = valueOf("drawerDocumentNote");
+    documentItem.fileName = valueOf("drawerDocumentFileName");
+    documentItem.fileSize = Number(valueOf("drawerDocumentFileSize")) || 0;
+    documentItem.fileType = valueOf("drawerDocumentFileType");
+    documentItem.fileText = document.getElementById("drawerDocumentFileText")?.value || "";
+    documentItem.uploadedAt = valueOf("drawerDocumentUploadedAt");
     trackActivity({ projectId: documentItem.projectId, entity: "Document", entityId: id, action: "update", title: `更新资料：${documentItem.title}` });
     saveAndRender();
+    showDrawerSaveStatus("资料已保存，正在同步云端");
   }
 
   function saveObjective(id) {
@@ -2429,6 +2538,111 @@
     if (!status) return;
     status.textContent = message;
     status.dataset.tone = tone;
+  }
+
+  async function handleFileSelection(file, prefix = "") {
+    if (!file) return;
+    const idPrefix = prefix || "";
+    const text = await readUploadText(file);
+    setFieldValue(`${idPrefix}FileName`, file.name);
+    setFieldValue(`${idPrefix}FileSize`, String(file.size || 0));
+    setFieldValue(`${idPrefix}FileType`, file.type || file.name.split(".").pop() || "file");
+    setFieldValue(`${idPrefix}UploadedAt`, new Date().toISOString());
+    const textField = document.getElementById(`${idPrefix}FileText`);
+    if (textField) textField.value = text.slice(0, 100000);
+    const nameDisplay = document.querySelector(`[data-file-name-display="${cssEscape(idPrefix)}"]`);
+    const textDisplay = document.querySelector(`[data-file-text-display="${cssEscape(idPrefix)}"]`);
+    if (nameDisplay) nameDisplay.textContent = `${file.name} · ${formatFileSize(file.size || 0)}`;
+    if (textDisplay) textDisplay.textContent = text ? `已读取 ${text.length.toLocaleString("zh-CN")} 字符` : "已记录文件信息，未提取正文";
+    const titleField = document.getElementById(prefix ? "drawerDocumentTitle" : "title");
+    const typeField = document.getElementById(prefix ? "drawerDocumentType" : "type");
+    const pathField = document.getElementById(prefix ? "drawerDocumentPath" : "path");
+    if (titleField && !titleField.value.trim()) titleField.value = file.name.replace(/\.[^.]+$/, "");
+    if (typeField && (!typeField.value.trim() || typeField.value === "note")) typeField.value = file.name.split(".").pop() || file.type || "file";
+    if (pathField && !pathField.value.trim()) pathField.value = `uploaded://${file.name}`;
+  }
+
+  function readUploadText(file) {
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    const textLike = file.type.startsWith("text/")
+      || ["txt", "md", "csv", "json", "html", "htm", "xml", "yml", "yaml", "log"].includes(ext);
+    if (!textLike) return Promise.resolve("");
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || "").slice(0, 100000));
+      reader.onerror = () => resolve("");
+      reader.readAsText(file);
+    });
+  }
+
+  async function analyzeDocument(id) {
+    const documentItem = state.documents.find((item) => item.id === id);
+    if (!documentItem) return;
+    const project = projectById(documentItem.projectId);
+    showDrawerSaveStatus("正在调用 AI 分析资料...", "pending");
+    documentItem.aiStatus = "pending";
+    try {
+      const response = await fetch("/workbench/api/analyze-document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          title: documentItem.title,
+          type: documentItem.type,
+          path: documentItem.path,
+          note: documentItem.note,
+          projectNo: project.projectNo,
+          projectName: project.name,
+          fileName: documentItem.fileName,
+          fileType: documentItem.fileType,
+          fileText: documentItem.fileText,
+        }),
+      });
+      if (response.status === 401) {
+        setReauthStatus();
+        return;
+      }
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || `AI analysis failed: ${response.status}`);
+      documentItem.aiStatus = "done";
+      documentItem.aiAnalysis = JSON.stringify(payload.analysis, null, 2);
+      documentItem.aiModel = payload.model || "qwen3.6-plus";
+      documentItem.aiAnalyzedAt = payload.analyzedAt || new Date().toISOString();
+      trackActivity({ projectId: documentItem.projectId, entity: "Document", entityId: id, action: "review", title: `AI 分析资料：${documentItem.title}`, note: documentItem.aiModel });
+      saveAndRender();
+      openDocument(id);
+      showDrawerSaveStatus("AI 分析已完成，正在同步云端");
+    } catch (error) {
+      documentItem.aiStatus = "failed";
+      documentItem.aiAnalysis = "";
+      saveAndRender();
+      openDocument(id);
+      showDrawerSaveStatus("AI 分析失败，请检查百炼配置或稍后重试", "warn");
+    }
+  }
+
+  function setFieldValue(id, value) {
+    const field = document.getElementById(id);
+    if (field) field.value = value;
+  }
+
+  function formatFileSize(bytes) {
+    const value = Number(bytes || 0);
+    if (value >= 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+    if (value >= 1024) return `${(value / 1024).toFixed(1)} KB`;
+    return `${value} B`;
+  }
+
+  function safeParseJson(value) {
+    try {
+      return JSON.parse(value);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function cssEscape(value) {
+    return String(value || "").replace(/["\\]/g, "\\$&");
   }
 
   function saveAndRender() {
@@ -2703,6 +2917,21 @@
     if (event.target === event.currentTarget) closeEntryDialog();
   });
   document.body.addEventListener("change", (event) => {
+    const fileInput = event.target.closest("[data-file-input]");
+    if (fileInput) {
+      handleFileSelection(fileInput.files?.[0], fileInput.dataset.filePrefix || "");
+      return;
+    }
+    if (event.target.id === "projectId" && document.getElementById("entryForm")?.dataset.kind === "time") {
+      const taskSelect = document.getElementById("taskId");
+      if (taskSelect) taskSelect.innerHTML = [["", "不关联任务"], ...taskOptions(event.target.value)].map(([value, labelText]) => `<option value="${escapeAttr(value)}">${escapeHtml(labelText)}</option>`).join("");
+      return;
+    }
+    if (event.target.id === "drawerTimeProject") {
+      const taskSelect = document.getElementById("drawerTimeTask");
+      if (taskSelect) taskSelect.innerHTML = [["", "不关联任务"], ...taskOptions(event.target.value)].map(([value, labelText]) => `<option value="${escapeAttr(value)}">${escapeHtml(labelText)}</option>`).join("");
+      return;
+    }
     const checkbox = event.target.closest("[data-task-check]");
     if (!checkbox) return;
     const task = state.tasks.find((item) => item.id === checkbox.dataset.taskCheck);
@@ -2711,8 +2940,31 @@
     trackActivity({ projectId: task.projectId, entity: "Task", entityId: task.id, action: checkbox.checked ? "complete" : "update", title: `${checkbox.checked ? "完成" : "重开"}任务：${task.title}` });
     saveAndRender();
   });
+  document.body.addEventListener("dragover", (event) => {
+    const dropzone = event.target.closest("[data-file-dropzone]");
+    if (!dropzone) return;
+    event.preventDefault();
+    dropzone.classList.add("is-dragging");
+  });
+  document.body.addEventListener("dragleave", (event) => {
+    const dropzone = event.target.closest("[data-file-dropzone]");
+    if (dropzone) dropzone.classList.remove("is-dragging");
+  });
+  document.body.addEventListener("drop", (event) => {
+    const dropzone = event.target.closest("[data-file-dropzone]");
+    if (!dropzone) return;
+    event.preventDefault();
+    dropzone.classList.remove("is-dragging");
+    handleFileSelection(event.dataTransfer?.files?.[0], dropzone.dataset.filePrefix || "");
+  });
   document.body.addEventListener("click", (event) => {
-    const target = event.target.closest("[data-open-program], [data-open-project], [data-open-task], [data-open-deadline], [data-open-document], [data-open-objective], [data-open-time], [data-open-activity], [data-open-day], [data-add-related], [data-new-program-project], [data-filter-program], [data-edit-program], [data-edit-project], [data-edit-task], [data-delete-project], [data-delete-task], [data-view-jump], [data-save-project], [data-save-task], [data-save-deadline], [data-save-document], [data-save-objective], [data-save-time], [data-filter-jump]");
+    const dropzone = event.target.closest("[data-file-dropzone]");
+    if (dropzone && !event.target.closest("input")) {
+      document.getElementById(`${dropzone.dataset.filePrefix || ""}FileInput`)?.click();
+      return;
+    }
+    if (event.target.closest("input, select, textarea")) return;
+    const target = event.target.closest("[data-open-program], [data-open-project], [data-open-task], [data-open-deadline], [data-open-document], [data-open-objective], [data-open-time], [data-open-activity], [data-open-day], [data-add-related], [data-new-program-project], [data-filter-program], [data-edit-program], [data-edit-project], [data-edit-task], [data-delete-project], [data-delete-task], [data-view-jump], [data-save-project], [data-save-task], [data-save-deadline], [data-save-document], [data-save-objective], [data-save-time], [data-analyze-document], [data-filter-jump]");
     if (!target) return;
     if (target.dataset.viewJump) setView(target.dataset.viewJump);
     if (target.dataset.openProgram) openProgram(target.dataset.openProgram);
@@ -2724,7 +2976,7 @@
     if (target.dataset.openTime) openTime(target.dataset.openTime);
     if (target.dataset.openActivity) openActivity(target.dataset.openActivity);
     if (target.dataset.openDay) openDay(target.dataset.openDay);
-    if (target.dataset.addRelated) openDialog(target.dataset.addRelated, { projectId: target.dataset.projectId || "" });
+    if (target.dataset.addRelated) openDialog(target.dataset.addRelated, { projectId: target.dataset.projectId || "", taskId: target.dataset.taskId || "" });
     if (target.dataset.newProgramProject) openDialog("project", { type: target.dataset.newProgramProject });
     if (target.dataset.filterProgram) {
       currentFilter = target.dataset.filterProgram;
@@ -2743,6 +2995,7 @@
     if (target.dataset.saveDocument) saveDocument(target.dataset.saveDocument);
     if (target.dataset.saveObjective) saveObjective(target.dataset.saveObjective);
     if (target.dataset.saveTime) saveTime(target.dataset.saveTime);
+    if (target.dataset.analyzeDocument) analyzeDocument(target.dataset.analyzeDocument);
     if (target.dataset.filterJump) {
       currentFilter = target.dataset.filterJump;
       document.querySelectorAll("[data-filter]").forEach((item) => item.classList.toggle("is-active", item.dataset.filter === currentFilter));

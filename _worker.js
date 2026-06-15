@@ -92,6 +92,13 @@ export default {
       return handleWorkbenchState(request, env);
     }
 
+    if (path === "/workbench/api/analyze-document" && request.method === "POST") {
+      if (!(await hasValidSession(request, env))) {
+        return jsonResponse({ error: "Unauthorized" }, 401);
+      }
+      return handleDocumentAnalysis(request, env);
+    }
+
     if (path === "/workbench/" || path === "/workbench/index.html") {
       if (!(await hasValidSession(request, env))) {
         return redirect(`${url.origin}/workbench/login`);
@@ -143,6 +150,76 @@ async function handleWorkbenchState(request, env) {
   }
 
   return jsonResponse({ error: "Method not allowed" }, 405, { Allow: "GET, PUT" });
+}
+
+async function handleDocumentAnalysis(request, env) {
+  const config = resolveQwenConfig(env);
+  if (!config.apiKey) {
+    return jsonResponse({ error: "Qwen API key is not configured" }, 503);
+  }
+
+  let payload;
+  try {
+    payload = await request.json();
+  } catch (error) {
+    return jsonResponse({ error: "Invalid JSON body" }, 400);
+  }
+
+  const documentInfo = {
+    title: sanitizeText(payload?.title, 240) || "未命名资料",
+    type: sanitizeText(payload?.type, 80),
+    path: sanitizeText(payload?.path, 800),
+    note: sanitizeText(payload?.note, 1200),
+    projectNo: sanitizeText(payload?.projectNo, 80),
+    projectName: sanitizeText(payload?.projectName, 160),
+    fileName: sanitizeText(payload?.fileName, 240),
+    fileType: sanitizeText(payload?.fileType, 120),
+    fileText: sanitizeText(payload?.fileText, 60000),
+  };
+
+  const prompt = buildDocumentAnalysisPrompt(documentInfo);
+  const response = await fetch(`${config.baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: config.model,
+      messages: [
+        {
+          role: "system",
+          content: "你是 Pontnova 工作台的资料分析助手，擅长咨询、投融资、培训和 workshop 项目的资料研判。请严格输出 JSON。",
+        },
+        { role: "user", content: prompt },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.2,
+      max_tokens: 1200,
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
+
+  const responseText = await response.text();
+  if (!response.ok) {
+    return jsonResponse({ error: `Qwen request failed: ${response.status}` }, 502);
+  }
+
+  let decoded;
+  try {
+    decoded = JSON.parse(responseText);
+  } catch (error) {
+    return jsonResponse({ error: "Qwen response was not valid JSON" }, 502);
+  }
+
+  const rawContent = extractResponseContent(decoded);
+  const analysis = sanitizeDocumentAnalysis(extractJsonPayload(rawContent));
+  return jsonResponse({
+    ok: true,
+    model: config.model,
+    analysis,
+    analyzedAt: new Date().toISOString(),
+  });
 }
 
 async function readWorkbenchState(db) {
@@ -204,6 +281,15 @@ async function readWorkbenchState(db) {
       type: row.type,
       path: row.path,
       note: row.note,
+      fileName: row.file_name || "",
+      fileSize: Number(row.file_size || 0),
+      fileType: row.file_type || "",
+      fileText: row.file_text || "",
+      uploadedAt: row.uploaded_at || "",
+      aiStatus: row.ai_status || "",
+      aiAnalysis: row.ai_analysis || "",
+      aiModel: row.ai_model || "",
+      aiAnalyzedAt: row.ai_analyzed_at || "",
     })),
     objectives: (objectives.results || []).map((row) => ({
       id: row.id,
@@ -253,6 +339,7 @@ async function readWorkbenchState(db) {
 async function writeWorkbenchState(db, state) {
   const supportsPrograms = await tableExists(db, "programs");
   const supportsTaskNotes = await tableColumnExists(db, "tasks", "notes");
+  const supportsDocumentUploads = await tableColumnExists(db, "documents", "file_name");
   const statements = [
     db.prepare("DELETE FROM activities"),
     db.prepare("DELETE FROM time_entries"),
@@ -346,13 +433,35 @@ async function writeWorkbenchState(db, state) {
   });
 
   state.documents.forEach((document, index) => {
+    const query = supportsDocumentUploads
+      ? `INSERT INTO documents (id, project_id, title, type, path, note, file_name, file_size, file_type, file_text, uploaded_at, ai_status, ai_analysis, ai_model, ai_analyzed_at, sort_order, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+      : `INSERT INTO documents (id, project_id, title, type, path, note, sort_order, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
+    const values = supportsDocumentUploads
+      ? [
+          document.id,
+          document.projectId,
+          document.title,
+          document.type,
+          document.path,
+          document.note,
+          document.fileName,
+          document.fileSize,
+          document.fileType,
+          document.fileText,
+          document.uploadedAt,
+          document.aiStatus,
+          document.aiAnalysis,
+          document.aiModel,
+          document.aiAnalyzedAt,
+          index,
+        ]
+      : [document.id, document.projectId, document.title, document.type, document.path, document.note, index];
     statements.push(
       db
-        .prepare(
-          `INSERT INTO documents (id, project_id, title, type, path, note, sort_order, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
-        )
-        .bind(document.id, document.projectId, document.title, document.type, document.path, document.note, index)
+        .prepare(query)
+        .bind(...values)
     );
   });
 
@@ -515,6 +624,117 @@ function cloneDefaults(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function resolveQwenConfig(env) {
+  const apiKey = firstNonEmpty(
+    env.PONTNOVA_QWEN_API_KEY,
+    env.QWEN_API_KEY,
+    env.DASHSCOPE_API_KEY,
+    env.BAILIAN_API_KEY
+  );
+  const baseUrl = firstNonEmpty(
+    env.PONTNOVA_QWEN_BASE_URL,
+    env.QWEN_BASE_URL,
+    env.DASHSCOPE_BASE_URL,
+    env.BAILIAN_BASE_URL
+  ) || "https://dashscope.aliyuncs.com/compatible-mode/v1";
+  const model = firstNonEmpty(
+    env.PONTNOVA_QWEN_MODEL,
+    env.QWEN_MODEL,
+    env.DASHSCOPE_MODEL,
+    env.BAILIAN_MODEL
+  ) || "qwen3.6-plus";
+  return {
+    apiKey,
+    baseUrl: baseUrl.replace(/\/+$/, ""),
+    model,
+  };
+}
+
+function firstNonEmpty(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
+function buildDocumentAnalysisPrompt(documentInfo) {
+  return `请分析以下 Pontnova 项目资料，并只返回 JSON：
+{
+  "summary": "150字以内资料摘要",
+  "key_points": ["3-5条要点"],
+  "risks": ["需要注意的风险或信息缺口"],
+  "next_actions": ["建议的下一步动作"],
+  "project_relevance": "说明该资料和当前项目/任务的关系",
+  "confidence": "high|medium|low"
+}
+
+项目号：${documentInfo.projectNo || "未提供"}
+项目名称：${documentInfo.projectName || "未提供"}
+资料名称：${documentInfo.title}
+资料类型：${documentInfo.type || "未提供"}
+文件名：${documentInfo.fileName || "未上传文件"}
+文件类型：${documentInfo.fileType || "未提供"}
+路径/链接：${documentInfo.path || "未提供"}
+备注：${documentInfo.note || "未提供"}
+
+资料文本：
+${documentInfo.fileText || "没有可读取文本；请基于资料名称、备注、路径和项目上下文分析，并提示需要补充正文。"}
+`;
+}
+
+function extractResponseContent(decoded) {
+  const content = decoded?.choices?.[0]?.message?.content;
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content.map((item) => typeof item === "string" ? item : item?.text || "").filter(Boolean).join("\n");
+  }
+  return JSON.stringify(decoded);
+}
+
+function extractJsonPayload(text) {
+  const source = String(text || "").trim();
+  const fenced = source.match(/```json\s*([\s\S]*?)```/i)?.[1]?.trim();
+  const candidates = [source, fenced, extractBalancedJson(source)].filter(Boolean);
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate);
+    } catch (error) {
+      // Try the next shape.
+    }
+  }
+  return {};
+}
+
+function extractBalancedJson(text) {
+  for (let start = 0; start < text.length; start += 1) {
+    if (text[start] !== "{") continue;
+    let depth = 0;
+    for (let index = start; index < text.length; index += 1) {
+      if (text[index] === "{") depth += 1;
+      if (text[index] === "}") depth -= 1;
+      if (depth === 0) return text.slice(start, index + 1);
+    }
+  }
+  return "";
+}
+
+function sanitizeDocumentAnalysis(value) {
+  const item = value && typeof value === "object" ? value : {};
+  return {
+    summary: sanitizeText(item.summary, 800) || "AI 未能生成摘要。",
+    key_points: sanitizeTextList(item.key_points, 5, 220),
+    risks: sanitizeTextList(item.risks, 5, 220),
+    next_actions: sanitizeTextList(item.next_actions, 5, 220),
+    project_relevance: sanitizeText(item.project_relevance, 600),
+    confidence: sanitizeChoice(item.confidence, ["high", "medium", "low"], "medium"),
+  };
+}
+
+function sanitizeTextList(value, limit, maxLength) {
+  const source = Array.isArray(value) ? value : value ? [value] : [];
+  return source.map((part) => sanitizeText(part, maxLength)).filter(Boolean).slice(0, limit);
+}
+
 function sanitizeWorkbenchState(payload) {
   const programs = sanitizePrograms(payload?.programs);
   const programTypes = programs.map((program) => program.type);
@@ -615,6 +835,15 @@ function sanitizeWorkbenchState(payload) {
       type: sanitizeText(item.type, 80),
       path: sanitizeText(item.path, 800),
       note: sanitizeText(item.note, 800),
+      fileName: sanitizeText(item.fileName, 240),
+      fileSize: sanitizeInteger(item.fileSize, 0, 25_000_000, 0),
+      fileType: sanitizeText(item.fileType, 120),
+      fileText: sanitizeText(item.fileText, 100000),
+      uploadedAt: sanitizeText(item.uploadedAt, 40),
+      aiStatus: sanitizeChoice(item.aiStatus, ["", "idle", "pending", "done", "failed"], ""),
+      aiAnalysis: sanitizeText(item.aiAnalysis, 6000),
+      aiModel: sanitizeText(item.aiModel, 80),
+      aiAnalyzedAt: sanitizeText(item.aiAnalyzedAt, 40),
       };
     }),
     objectives: objectiveSource,
