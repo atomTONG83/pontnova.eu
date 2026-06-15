@@ -1027,12 +1027,17 @@ h3 {
   gap: 12px;
 }
 
+.program-card-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
 .program-icon {
   display: grid;
   width: 54px;
   height: 54px;
-  align-content: center;
-  gap: 4px;
   place-items: center;
   border-radius: 18px;
   background: var(--program-accent, var(--teal));
@@ -1044,20 +1049,9 @@ h3 {
 .program-hero-icon b {
   display: block;
   font-family: var(--serif);
-  font-size: 24px;
+  font-size: 29px;
   font-weight: 700;
   line-height: 1;
-}
-
-.program-icon small,
-.program-hero-icon small {
-  display: block;
-  margin-top: -6px;
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  opacity: 0.84;
 }
 
 .program-card-title strong {
@@ -1125,6 +1119,12 @@ h3 {
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0;
+}
+
+.program-card-identity .program-prefix {
+  border-color: rgba(42, 26, 16, 0.12);
+  background: #fffaf2;
+  color: var(--program-accent, var(--teal));
 }
 
 .case-number.inline {
@@ -2018,8 +2018,6 @@ th {
   flex: 0 0 auto;
   width: 64px;
   height: 64px;
-  align-content: center;
-  gap: 5px;
   place-items: center;
   border-radius: 20px;
   background: var(--program-accent, var(--teal));
@@ -2028,11 +2026,7 @@ th {
 }
 
 .program-hero-icon b {
-  font-size: 28px;
-}
-
-.program-hero-icon small {
-  font-size: 10px;
+  font-size: 32px;
 }
 
 .atom-program-kicker {

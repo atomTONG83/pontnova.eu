@@ -804,7 +804,10 @@
         <article class="program-card atom-program-card" style="--program-accent:${escapeAttr(info.accent)}">
           <button class="program-card-open" data-open-program="${escapeAttr(type)}" type="button">
           <span class="program-card-head">
-            ${programMark(info)}
+            <span class="program-card-identity">
+              ${programMark(info)}
+              <span class="program-prefix">${escapeHtml(info.prefix)}</span>
+            </span>
             <span class="status">Active</span>
           </span>
           <span class="program-card-title">
@@ -836,7 +839,6 @@
     return `
       <span class="${escapeAttr(klass)}" aria-hidden="true">
         <b>${escapeHtml(info.mark || info.label.slice(0, 1))}</b>
-        <small>${escapeHtml(info.prefix)}</small>
       </span>
     `;
   }
@@ -2833,7 +2835,7 @@
   }
 
   function normalizeMark(value) {
-    return Array.from(text(value)).slice(0, 2).join("");
+    return Array.from(text(value)).slice(0, 1).join("");
   }
 
   function escapeHtml(value) {
